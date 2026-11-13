@@ -4,10 +4,12 @@ Cuedeck is a DMX lighting controller for Windows. It's the sLight lighting contr
 ported to the C# and Vulkan framework that the Cuepoint DJ app is built on. The plan, and how far it's got, are in
 [docs/PORT_PLAN.md](docs/PORT_PLAN.md).
 
-**Status:** phase 1. The lighting engine has been ported and tested without a screen: the patch, Art-Net and sACN
-output, cues, chases, effects, palettes, positions, faders, live flashes, the tempo clock and sLight's show files.
-Its output matches sLight's frame for frame. The app opens a window with its title bar, but none of this is on
-screen yet.
+**Status:** phase 2, under way. The lighting engine is ported: the patch, Art-Net and sACN output, cues, chases,
+effects, palettes, positions, faders, live flashes, the tempo clock and sLight's show files, and its output matches
+sLight's frame for frame. On screen so far are the console's top bar (grand master, run mode, tap tempo, Sending,
+Blackout All, universes, and New, Save and Load Show) and the Patch tab. The other tabs come next.
+
+To open a show straight away, pass it on the command line: `dotnet run --project Cuedeck -- "My show.slight"`.
 
 It's written in C# on .NET 10, and draws its own interface with Vulkan through
 [BRUTAL](https://www.nuget.org/packages?q=Ahwoo.BRUTAL) (GLFW, Vulkan, FreeType).

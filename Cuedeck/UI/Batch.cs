@@ -33,11 +33,15 @@ static class Colors
         );
     }
 
-    static float ToLinear(uint channel)
-    {
-        var c = channel / 255f;
-        return c <= 0.04045f ? c / 12.92f : MathF.Pow((c + 0.055f) / 1.055f, 2.4f);
-    }
+    static float ToLinear(uint channel) => ToLinear(channel / 255f);
+
+    static float ToLinear(float c) => c <= 0.04045f ? c / 12.92f : MathF.Pow((c + 0.055f) / 1.055f, 2.4f);
+
+    /// <summary>
+    /// A colour from sRGB components, 0 to 1 each.
+    /// </summary>
+    public static float4 FromSrgb(float r, float g, float b, float alpha = 1) =>
+        new(ToLinear(Math.Clamp(r, 0, 1)), ToLinear(Math.Clamp(g, 0, 1)), ToLinear(Math.Clamp(b, 0, 1)), alpha);
 
     public static readonly float4 White = Hex(0xFFFFFF);
     public static readonly float4 Transparent = new(0, 0, 0, 0);

@@ -15,7 +15,9 @@ sealed class ConfirmDialog : Panel
     readonly Label _title;
     readonly Label _message;
     readonly Button _confirm;
+    readonly Button _alternative;
     Action _confirmed = () => { };
+    Action? _alternativeChosen;
 
     public float2 ScreenSize { get; set; }
 
@@ -37,7 +39,7 @@ sealed class ConfirmDialog : Panel
             }
         );
         _title = _box.Add(new Label(heading) { Color = Theme.Text, MaxWidth = 520 });
-        _message = _box.Add(new Label(body) { Color = Theme.Muted, MaxWidth = 520 });
+        _message = _box.Add(new Label(body) { Color = Theme.Muted, MaxWidth = 520, Wrap = true });
         var buttons = _box.Add(new Panel { Direction = Direction.Horizontal, Spacing = 8 });
         _confirm = buttons.Add(
             new Button(bold, "")
@@ -49,9 +51,16 @@ sealed class ConfirmDialog : Panel
                 FocusColor = Theme.Focus,
             }
         );
+        _alternative = buttons.Add(new Button(bold, "") { MinSize = new float2(90, 0), FocusColor = Theme.Focus, Visible = false });
         var cancel = buttons.Add(new Button(bold, "Cancel") { MinSize = new float2(90, 0), FocusColor = Theme.Focus });
 
         _confirm.Clicked += _ => Confirm();
+        _alternative.Clicked += _ =>
+        {
+            var chosen = _alternativeChosen;
+            Close();
+            chosen?.Invoke();
+        };
         cancel.Clicked += _ => Close();
         Clicked += _ =>
         {
@@ -73,12 +82,27 @@ sealed class ConfirmDialog : Panel
     /// Asks <paramref name="title"/>, explained by <paramref name="message"/>, with <paramref name="confirm"/> on
     /// the button that goes ahead and runs <paramref name="confirmed"/>.
     /// </summary>
-    public void Show(string title, string message, string confirm, Action confirmed)
+    public void Show(string title, string message, string confirm, Action confirmed) => Show(title, message, confirm, confirmed, null, null);
+
+    /// <summary>
+    /// Asks as <see cref="Show(string, string, string, Action)"/> does, with a second way to go ahead between the
+    /// confirming button and Cancel: <paramref name="alternative"/> on its button, running
+    /// <paramref name="alternativeChosen"/>. As Save, Don't Save and Cancel.
+    /// </summary>
+    public void Show(string title, string message, string confirm, Action confirmed, string? alternative, Action? alternativeChosen)
     {
+        // A choice between ways to go ahead (Save, Don't Save) isn't a warning, so its button isn't red.
+        var warning = alternative is null;
+        _confirm.Background = warning ? Colors.Hex(0xB83A3A) : Colors.Hex(0x3D6FB8);
+        _confirm.HoverBackground = warning ? Colors.Hex(0xD04848) : Colors.Hex(0x4A80CC);
+        _confirm.PressedBackground = warning ? Colors.Hex(0x962E2E) : Colors.Hex(0x335E9C);
         _title.Text = title;
         _message.Text = message;
         _confirm.Text = confirm;
         _confirmed = confirmed;
+        _alternative.Visible = alternative is not null;
+        _alternative.Text = alternative ?? "";
+        _alternativeChosen = alternativeChosen;
         Visible = true;
         _root.Focus(this);
     }

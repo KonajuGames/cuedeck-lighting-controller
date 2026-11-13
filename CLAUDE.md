@@ -25,6 +25,12 @@ are in `docs/PORT_PLAN.md`; what was copied from Cuepoint and changed is in `FRA
 - Port GDScript arithmetic exactly: `Gd.Round`/`Gd.RoundToInt` (halves away from zero, unlike C#'s default) for
   `round()`, and a plain cast for `int()`. Read show JSON leniently with the `Json` helpers (`Int`, `Num`, `Str`,
   `Bool`), as Godot reads every number as a float.
+- Screens fill the room they're given by being a `Region` (set `Available` before `Measure`); a tab's page is
+  usually a `ScrollingPage`. Controls that mirror the show (sliders, labels) are synced from it in an `Update()`
+  called each frame, not pushed to by the engine. The console's code is in `UI/Console`; `AppShell` holds the
+  file commands and prompts.
+- UI tests drive the real screen (`Cuedeck.Tests/UI/ConsoleTests`): lay it out, then `Root.MouseMove` and
+  `MouseButton` on the element found by its text or tooltip.
 - `LightingShow` is the engine with no UI; screens read and drive it. Keep logic sLight kept in its panels (cue
   playback, faders, patch homing) in the engine, where tests can reach it.
 

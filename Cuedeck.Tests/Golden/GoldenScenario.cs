@@ -16,7 +16,7 @@ namespace Cuedeck.Tests.Golden;
 /// </summary>
 static class GoldenScenario
 {
-    public const double FrameSeconds = 0.025; // 40 Hz, sLight's refresh rate
+    public const double FrameSeconds = 0.025; // 40 steps a second: any steady step does, as both apps are driven by it
     public const int Frames = 320;
 
     /// <summary>

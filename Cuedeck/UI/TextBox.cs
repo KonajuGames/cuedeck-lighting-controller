@@ -12,7 +12,7 @@ namespace Cuedeck.UI;
 /// double-click to select a word and triple-click to select everything. Text wider than the box glides sideways to
 /// keep the caret in view (see <see cref="SmoothScrolling"/>).
 /// </summary>
-sealed class TextBox(Font font) : Element
+class TextBox(Font font) : Element
 {
     const long CARET_BLINK_MS = 530;
 

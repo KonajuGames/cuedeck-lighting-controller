@@ -185,6 +185,11 @@ abstract class Element
     public virtual void FocusGained(bool byKeyboard) { }
 
     /// <summary>
+    /// This element just lost keyboard focus, to another element or to none.
+    /// </summary>
+    public virtual void FocusLost() { }
+
+    /// <summary>
     /// The visible children, in drawing order, for walking the tree.
     /// </summary>
     internal virtual IEnumerable<Element> VisibleChildren => [];
@@ -223,27 +228,65 @@ abstract class Element
 /// </summary>
 sealed class Label(Font font, string text = "") : Element
 {
+    string _wrapped = "";
+
     public Font Font { get; set; } = font;
     public string Text { get; set; } = text;
     public float4 Color { get; set; } = Colors.White;
 
     /// <summary>
-    /// The widest it takes up; longer text is cut off there.
+    /// The widest it takes up; longer text is cut off there, or with <see cref="Wrap"/>, carried onto more lines.
     /// </summary>
     public float MaxWidth { get; set; } = float.PositiveInfinity;
 
+    /// <summary>
+    /// Whether text wider than <see cref="MaxWidth"/> wraps onto more lines, between words, rather than being cut off.
+    /// </summary>
+    public bool Wrap { get; set; }
+
     public override float2 Measure()
     {
-        var size = Font.Measure(Text);
+        _wrapped = Wrap && float.IsFinite(MaxWidth) ? Wrapped(Text) : Text;
+        var size = Font.Measure(_wrapped);
         return Size = new float2(MathF.Min(size.X, MaxWidth), size.Y);
+    }
+
+    /// <summary>
+    /// <paramref name="text"/> with line breaks put in between words so no line is wider than <see cref="MaxWidth"/>
+    /// (a single word wider than that keeps a line to itself).
+    /// </summary>
+    string Wrapped(string text)
+    {
+        var output = new System.Text.StringBuilder();
+        foreach (var paragraph in text.Split('\n'))
+        {
+            if (output.Length > 0)
+                output.Append('\n');
+            var line = "";
+            foreach (var word in paragraph.Split(' '))
+            {
+                var tried = line.Length == 0 ? word : line + " " + word;
+                if (line.Length > 0 && Font.Measure(tried).X > MaxWidth)
+                {
+                    output.Append(line).Append('\n');
+                    line = word;
+                }
+                else
+                {
+                    line = tried;
+                }
+            }
+            output.Append(line);
+        }
+        return output.ToString();
     }
 
     public override void Draw(Batch batch)
     {
-        var clipped = Font.Measure(Text).X > Size.X;
+        var clipped = Font.Measure(_wrapped).X > Size.X;
         if (clipped)
             batch.PushClip(ScreenPosition, Size);
-        batch.AddText(Font, Text, ScreenPosition, Color);
+        batch.AddText(Font, _wrapped, ScreenPosition, Color);
         if (clipped)
             batch.PopClip();
     }
@@ -442,6 +485,13 @@ sealed class Button : Panel
     public float4 PressedBackground { get; set; }
 
     /// <summary>
+    /// Lit, as a toggle that's on or the tab that's showing: drawn in <see cref="LitBackground"/>.
+    /// </summary>
+    public bool Lit { get; set; }
+
+    public float4 LitBackground { get; set; } = Colors.Hex(0x3D6FB8);
+
+    /// <summary>
     /// The button was right-clicked.
     /// </summary>
     public event Action<Button>? SecondaryClicked;
@@ -511,6 +561,7 @@ sealed class Button : Panel
     protected override float4 CurrentBackground =>
         !Enabled ? Background * new float4(1, 1, 1, 0.4f)
         : IsPressed && IsHovered ? PressedBackground
+        : Lit ? (IsHovered ? Theme.Mix(LitBackground, Colors.White, 0.12f) : LitBackground)
         : IsHovered || IsPressed ? HoverBackground
         : Background;
 

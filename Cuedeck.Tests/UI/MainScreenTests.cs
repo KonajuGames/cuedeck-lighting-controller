@@ -1,5 +1,7 @@
 using Brutal.Numerics;
+using Cuedeck.Fixtures;
 using Cuedeck.Input;
+using Cuedeck.Show;
 using Cuedeck.UI;
 
 namespace Cuedeck.Tests.UI;
@@ -7,9 +9,9 @@ namespace Cuedeck.Tests.UI;
 public class MainScreenTests
 {
     static readonly FontAtlas Atlas = new();
-    static readonly Images Pictures = Images.Load(Atlas);
+    internal static readonly Images Pictures = Images.Load(Atlas);
 
-    static readonly Fonts TestFonts = MakeFonts();
+    internal static readonly Fonts TestFonts = MakeFonts();
 
     static Fonts MakeFonts()
     {
@@ -21,7 +23,9 @@ public class MainScreenTests
     static (Root Ui, MainScreen Screen) LaidOut(float2 size)
     {
         var ui = new Root();
-        var screen = ui.Add(new MainScreen(TestFonts, Pictures));
+        var menu = new ContextMenu(TestFonts.Body);
+        var screen = ui.Add(new MainScreen(TestFonts, Pictures, menu, new LightingShow(), new ProfileStore(Path.Combine(Path.GetTempPath(), "cuedeck-no-profiles"))));
+        ui.Add(menu);
         screen.ScreenSize = size;
         screen.Update();
         ui.Layout(size);

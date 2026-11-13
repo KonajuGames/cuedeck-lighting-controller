@@ -3,7 +3,9 @@ using Brutal.Numerics;
 using Brutal.VulkanApi;
 using Cuedeck;
 using Cuedeck.Input;
+using Cuedeck.Fixtures;
 using Cuedeck.Rendering;
+using Cuedeck.Show;
 using Cuedeck.UI;
 
 WindowsShell.AttachParentConsole();
@@ -30,7 +32,7 @@ try
 
     try
     {
-        Run();
+        Run(args);
     }
     finally
     {
@@ -47,7 +49,7 @@ catch (Exception e)
 
 return 0;
 
-static void Run()
+static void Run(string[] args)
 {
     Glfw.WindowHint(GlfwWindowHint.ClientApi, Glfw.Constants.GLFW_NO_API);
 
@@ -88,11 +90,21 @@ static void Run()
     using var gpu = new GpuContext(window, ENABLE_VALIDATION);
     using var renderer = new Renderer(gpu, window, atlas);
 
-    var ui = new Root { TooltipFont = fonts.Body };
-    var screen = ui.Add(new MainScreen(fonts, images));
-    using var input = new GlfwUiInput(window, ui);
+    // The show, and the show as a document: its file, unsaved changes, autosave.
+    using var show = new LightingShow();
+    var session = new ShowSession(show);
+    var profiles = new ProfileStore(Path.Combine(AppPaths.Folder, "fixture_profiles"));
 
-    // The window's own buttons, and dragging it by the title bar, which Windows does once told where it is.
+    var ui = new Root { TooltipFont = fonts.Body };
+    var menu = new ContextMenu(fonts.Body);
+    var screen = ui.Add(new MainScreen(fonts, images, menu, show, profiles));
+    var confirm = ui.Add(new ConfirmDialog(ui, fonts.Body, fonts.Bold, fonts.Heading));
+    ui.Add(menu);
+    using var input = new GlfwUiInput(window, ui);
+    var shell = new AppShell(session, screen, confirm, () => OperatingSystem.IsWindows() ? WindowChrome.Handle : 0);
+
+    // The window's own buttons, and dragging it by the title bar, which Windows does once told where it is. Closing
+    // asks about unsaved changes first.
     screen.TitleBar.IsMaximized = () => window.IsMaximised;
     screen.TitleBar.MinimizeClicked += window.Iconify;
     screen.TitleBar.MaximizeClicked += () =>
@@ -102,24 +114,91 @@ static void Run()
         else
             window.Maximize();
     };
-    screen.TitleBar.CloseClicked += () => window.ShouldClose = true;
+    screen.TitleBar.CloseClicked += shell.RequestClose;
     if (OperatingSystem.IsWindows())
         WindowChrome.Install(window, point => screen.TitleBar.IsCaption(new float2(point.X, point.Y)));
 
-    var windowShown = false;
-    while (!window.ShouldClose)
+    // The console's keys, when nothing focused (a text box, say) has taken them.
+    input.UnhandledKey += (key, action, mods) =>
     {
-        // Minimised, there's nothing to draw. Whether it's minimised is asked after handling events, as one of them may
-        // be the minimise itself: drawing into a minimised window leaves it black for good once it's restored.
+        if (action != GlfwKeyAction.Press)
+            return;
+        var ctrl = (mods & GlfwModifier.Control) != 0;
+        var shift = (mods & GlfwModifier.Shift) != 0;
+        switch (key)
+        {
+            case GlfwKey.S when ctrl && shift:
+                shell.SaveAs();
+                break;
+            case GlfwKey.S when ctrl:
+                shell.Save();
+                break;
+            case GlfwKey.N when ctrl && shift:
+                shell.AddUniverse();
+                break;
+            case GlfwKey.N when ctrl:
+                shell.New();
+                break;
+            case GlfwKey.R when ctrl && shift:
+                shell.ConfirmRemoveUniverse();
+                break;
+            case GlfwKey.O when ctrl && !shift:
+                shell.Load();
+                break;
+            case GlfwKey.T when !ctrl && !shift:
+                show.Tempo.Tap();
+                break;
+        }
+    };
+
+    // A show file given on the command line (opened with the app) is opened instead of the last one.
+    shell.Start(args.FirstOrDefault(File.Exists));
+
+    // The show runs at sLight's refresh rate, 30 frames a second, however fast the screen draws.
+    const double TICK = 1.0 / 30;
+    var lastTime = Glfw.Time;
+    var tickTime = 0.0;
+    var lastAutosave = Glfw.Time;
+    var windowShown = false;
+    while (!shell.MayClose)
+    {
+        // Minimised, there's nothing to draw, but the show still runs, waking often enough to keep its frames
+        // steady. Whether it's minimised is asked after handling events, as one of them may be the minimise itself:
+        // drawing into a minimised window leaves it black for good once it's restored.
         if (window.IsIconified)
-            Glfw.WaitEventsTimeout(0.05);
+            Glfw.WaitEventsTimeout(TICK / 2);
         else
             Glfw.PollEvents();
+
+        // Alt+F4 and the like: asked about unsaved changes, like the close button.
+        if (window.ShouldClose)
+        {
+            window.ShouldClose = false;
+            shell.RequestClose();
+        }
+
+        var now = Glfw.Time;
+        // A long stall (a file dialog open, a breakpoint) isn't made up for frame by frame.
+        tickTime += Math.Min(now - lastTime, 1.0);
+        lastTime = now;
+        while (tickTime >= TICK)
+        {
+            show.Tick(TICK, screen.TopBar.Sending);
+            tickTime -= TICK;
+        }
+        if (now - lastAutosave >= Autosave.Interval)
+        {
+            session.AutosaveNow();
+            lastAutosave = now;
+        }
+
         var size = window.FramebufferSize;
         if (window.IsIconified || size.X == 0 || size.Y == 0)
             continue;
 
-        screen.ScreenSize = new float2(size.X, size.Y);
+        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = new float2(size.X, size.Y);
+        screen.TitleBar.Subtitle = session.Title.Replace(" — Cuedeck", "");
+        window.Title = session.Title;
         screen.Update();
         ui.Layout(screen.ScreenSize);
         input.UpdateCursor();
@@ -128,6 +207,7 @@ static void Run()
             window.Visible = windowShown = true;
     }
 
+    shell.End();
     if (OperatingSystem.IsWindows())
         WindowChrome.Remove();
 }

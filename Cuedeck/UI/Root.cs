@@ -471,6 +471,8 @@ sealed class Root
         if (previous is not null)
             previous.IsFocused = previous.ShowFocus = false;
         Focused = element;
+        if (previous is not null && previous != element)
+            previous.FocusLost();
         if (Focused is null)
             return;
 

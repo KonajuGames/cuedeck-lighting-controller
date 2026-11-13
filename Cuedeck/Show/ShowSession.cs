@@ -14,7 +14,8 @@ sealed class ShowSession
     public ShowSession(LightingShow show)
     {
         Show = show;
-        _saved = ShowFile.Authored(show);
+        // The show as it starts out isn't worth an autosave until it changes.
+        MarkSaved();
     }
 
     public LightingShow Show { get; }

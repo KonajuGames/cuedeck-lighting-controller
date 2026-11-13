@@ -87,7 +87,7 @@ Build it in steps, each shippable:
 
 Godot ran `_process`, a refresh `Timer` and worker `Thread`s. The new layout:
 
-- **DMX tick thread:** a fixed rate, about 40 Hz as sLight's refresh timer runs. It runs `Tempo`, `Fx`, `Triggers` and `DjPerformer`, composites the layers (playback → effects → DJ timelines → live flash top layer → grand master), then transmits.
+- **DMX tick thread:** a fixed rate, 30 Hz as sLight's refresh timer runs. It runs `Tempo`, `Fx`, `Triggers` and `DjPerformer`, composites the layers (playback → effects → DJ timelines → live flash top layer → grand master), then transmits.
 - **UI/render thread:** the GLFW loop, as Cuepoint's. It reads the latest composited output from a lock-free double buffer.
 - **Workers:** song analysis and fingerprinting, using Cuepoint's `BackgroundWork` pattern.
 
@@ -101,7 +101,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 |---|---|---|
 | 0 | ✅ **Scaffold** (done 2026-11-13). Solution, framework files copied and renamed, an empty window with title bar and theme. Test project added. `README`/`CLAUDE.md` describe the build. | `dotnet build` and `dotnet test` pass; a window opens. |
 | 1 | ✅ **Headless core** (done 2026-11-13; see §7.1). Universes, Art-Net/sACN, compositing, cues and crossfades, chases, wave effects, palettes, positions, groups, virtual dimmers, live flash, tempo clock, and the show file and fixture profiles. Port `dmx_render`, `cue_timing`, `virtual_dimmer`, `faders`, `palettes`, `position`, `live_flash`, `tempo_clock`, `show_file`, `fixture_profile`, `autosave` and `unsaved_changes` tests to xUnit. | Real Art-Net out from a loaded show, driven by a test harness, matches sLight's output frame for frame (compare by capturing UDP from both). |
-| 2 | **Console UI.** Shell (top bar, grand master, run mode, Sending, universes, save/load), Patch/universe tabs with the fixture library dialog, then Cues, Chases, Effects, Groups, Faders/fader bank, Palettes and DMX Output. New widgets from §3 as each tab needs them. | Every console tab works for the sLight User Guide walkthrough. |
+| 2 | 🔶 **Console UI** (in progress; see §7.2). Shell (top bar, grand master, run mode, Sending, universes, save/load), Patch/universe tabs with the fixture library dialog, then Cues, Chases, Effects, Groups, Faders/fader bank, Palettes and DMX Output. New widgets from §3 as each tab needs them. | Every console tab works for the sLight User Guide walkthrough. |
 | 3 | **Sound and triggers.** Live capture, sound reactors and the Sound tab with spectrogram. MIDI/OSC triggers with Learn and feedback (WinMidi out). Options dialog (VirtualDJ or Cuepoint). | Beat-reactive chases run from line-in; a controller's LEDs follow. |
 | 4 | **DJ Edit Mode.** Music browser (drives, VirtualDJ lists, Cuepoint library), song analysis, the structure bar, heatmap and timeline editor, timeline generator, timeline store and the position editor. Port `music_*`, `timeline_*`, `structure_detection`, `virtualdj_*`, `cuepoint_library` and `m4a_playback` tests. | Generate → edit → save a song's timelines, and the files load in sLight too. |
 | 5 | **DJ Perform Mode.** OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
@@ -125,6 +125,20 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 **Where Cuedeck deliberately differs:**
 - Patching a fixture homes that fixture only. sLight rebuilt every fixture's row, which homed them all.
 - `LightingShow.Retarget()` finds effects' and reactors' channels again after a show loads. In sLight the starter reactors had none until their tab was touched.
+
+### 7.2 Phase 2 progress
+
+Phase 2 is done in slices, each leaving the app working.
+
+| Slice | What | State |
+|---|---|---|
+| 2a | The show running in the app (30 Hz tick, Sending, autosave every minute, crash recovery, reopening the last show or one given on the command line, unsaved-changes prompts on New, Load and close); new widgets (`TabView`, `NumberBox`, `Row`, `Flow`, `Region`/`ScrollingPage`, lit buttons, wrapping labels); the top bar (grand master, run mode, Tap and tempo, Sending, Blackout All, Add and Remove Universe, New, Save, Save As and Load with Windows' own dialogs, and their shortcuts); the console's layout; the Patch tab (connection settings, Blackout Universe and Universe Full, adding fixtures from the built-in and custom profiles, fixture rows with category, category group, Leave out, Home, Remove, and controls: virtual dimmer, colour swatches, pan/tilt pad, 16-bit sliders, slot pickers, sliders) | ✅ |
+| 2b | Cues tab (GO, Back, Halt, the progress bar, the list, editing a cue, Record and Update, tracking) and Space for GO | next |
+| 2c | Chases, Effects and Groups tabs | |
+| 2d | Faders and Palettes tabs, DMX Output tab | |
+| 2e | Fixture library dialog, profile import (GDTF/QXF), New/Edit/Delete profile; a colour picker for the swatches; patch Flash; Save/Load Preset | |
+
+What runs on the UI thread for now: the show ticks in the main loop, so its output pauses while one of Windows' file dialogs is open (Art-Net and sACN receivers hold the last frame). Moving the tick to its own thread (§6) comes with the locking that needs.
 
 Phases 1 and 2 are the critical path; 3–5 can then go in any order, and 6 can start alongside them once phase 1's `DmxRender` exists.
 

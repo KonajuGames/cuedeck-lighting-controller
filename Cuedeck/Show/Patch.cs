@@ -122,7 +122,11 @@ sealed class Patch
     public void SyncToUniverses()
     {
         while (_universes.Count < _dmx.UniverseCount)
+        {
+            // A new universe is sent where its patch says straight away: to this computer, by default.
             _universes.Add(new UniversePatch { ArtNetUniverse = _dmx.Universes[_universes.Count].Number });
+            ApplyConnection(_universes.Count - 1);
+        }
         while (_universes.Count > _dmx.UniverseCount)
             _universes.RemoveAt(_universes.Count - 1);
     }

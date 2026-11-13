@@ -25,6 +25,14 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
   for the console's controls, the clock, options and the window's buttons.
 - `Assets/draw_assets.py`: no longer draws a logo. The logo PNGs come from sLight's icon via `Assets/make_logo.py`.
 
+- `UI/Elements.cs`: `Element.FocusLost()`; `Button.Lit` (a toggle that's on, the tab showing); `Label.Wrap`.
+- `UI/Root.cs`: calls `FocusLost()` on the element losing focus.
+- `UI/TextBox.cs`: no longer sealed (`NumberBox` builds on it).
+- `UI/ConfirmDialog.cs`: an optional second way to go ahead (Save / Don't Save / Cancel), shown in blue rather
+  than red.
+- `UI/FontAtlas.cs`: arrows, minus and a diamond added to the characters baked.
+- `UI/Batch.cs`: `Colors.FromSrgb`.
+
 ## Adapted
 
 - `Midi/MidiMessage.cs`: Cuepoint's, with note-off and pitch bend told apart for the playback faders.
@@ -33,6 +41,8 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 
 - `Program.cs`, `UI/MainScreen.cs`, `AppPaths.cs`
 - Everything under `Common/`, `Fixtures/`, `Dmx/` and `Show/` (phase 1), ported from sLight's GDScript
+- `UI/Layout.cs` (`Row`, `Flow`, `Region`, `ScrollingPage`, `Placeholder`, `Divider`), `UI/TabView.cs`,
+  `UI/NumberBox.cs`, `UI/Console/*`, `AppShell.cs` (phase 2)
 
 ## Ported across since
 
