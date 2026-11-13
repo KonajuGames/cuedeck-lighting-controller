@@ -36,6 +36,7 @@ sealed class MainScreen : Panel
         _status = Add(new Label(fonts.Body, "") { Color = Theme.Muted });
         TopBar.Status += Log;
         Console.Patch.Status += Log;
+        Console.Cues.Status += Log;
     }
 
     /// <summary>

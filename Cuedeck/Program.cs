@@ -148,6 +148,10 @@ static void Run(string[] args)
             case GlfwKey.T when !ctrl && !shift:
                 show.Tempo.Tap();
                 break;
+            // Space GOes the next cue, like a real console: in Cue Mode, when nothing else took it.
+            case GlfwKey.Space when !ctrl && !shift && show.RunMode == RunMode.Cues:
+                show.Cues.Go();
+                break;
         }
     };
 

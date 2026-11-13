@@ -17,11 +17,13 @@ sealed class ConsoleView : Region
     readonly TabView _right;
 
     public PatchTab Patch { get; }
+    public CuesTab Cues { get; }
 
     public ConsoleView(Fonts fonts, ContextMenu menu, LightingShow show, ProfileStore profiles)
     {
         _left = Add(new TabView(fonts.Body));
-        _left.AddTab("Cues", new Placeholder(fonts.Body, "The cue list comes next."));
+        Cues = new CuesTab(fonts, show);
+        _left.AddTab("Cues", Cues);
         _left.AddTab("Chases", new Placeholder(fonts.Body, "Chases are coming."));
         _left.AddTab("Effects", new Placeholder(fonts.Body, "Effects are coming."));
         _left.AddTab("Sound", new Placeholder(fonts.Body, "The Sound tab comes with live audio (phase 3)."));
@@ -38,6 +40,8 @@ sealed class ConsoleView : Region
 
     public void Update()
     {
+        if (_left.SelectedPage == Cues)
+            Cues.Update();
         if (_right.SelectedPage == Patch)
             Patch.Update();
     }

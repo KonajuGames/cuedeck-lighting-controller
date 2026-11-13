@@ -260,6 +260,10 @@ public sealed class ShowFileTests : IDisposable
         _show.Dmx.Universes[0].SetChannel(0, 200);
         _show.RunMode = RunMode.SoundReactive;
         Assert.False(_session.HasUnsavedChanges);
+        _show.Cues.Cues.Add(new Cue("One"));
+        _session.Save(path);
+        _show.Cues.Go();
+        Assert.False(_session.HasUnsavedChanges); // a GO moves the cue list on, but changes nothing in the show
 
         // The output type is.
         _show.Patch.Universes[0].Output = OutputMode.Sacn;
@@ -273,7 +277,7 @@ public sealed class ShowFileTests : IDisposable
         using var other = new LightingShow();
         var otherSession = new ShowSession(other) { LastShowStore = _dir.File("last2.json") };
         Assert.Null(otherSession.Load(path));
-        Assert.Single(other.Cues.Cues);
+        Assert.Equal(2, other.Cues.Cues.Count);
         Assert.Equal(OutputMode.Sacn, other.Dmx.Universes[0].Mode);
         Assert.False(otherSession.HasUnsavedChanges);
     }

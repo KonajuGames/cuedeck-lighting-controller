@@ -79,14 +79,20 @@ static class ShowFile
     static JsonNode Carried(LightingShow show, string key) => show.Carried.GetValueOrDefault(key)?.DeepClone() ?? new JsonObject();
 
     /// <summary>
-    /// The show without what changes just by running it (the live levels, the faders' positions, the run mode, the
-    /// visualizer's camera), as compact JSON: what unsaved changes are measured by.
+    /// The show without what changes just by running it (the live levels, where the cue list is, the faders'
+    /// positions, the run mode, the visualizer's camera), as compact JSON: what unsaved changes are measured by.
+    /// (sLight counted where the cue list is, so a GO left it unsaved.)
     /// </summary>
     public static string Authored(LightingShow show)
     {
         var d = ToJson(show);
         d.Remove("live");
         d.Remove("run_mode");
+        if (d["cues"] is JsonObject cues)
+        {
+            cues.Remove("current");
+            cues.Remove("next");
+        }
         foreach (var f in d.Get("faders").Arr("faders"))
             (f as JsonObject)?.Remove("level");
         (d["viz"] as JsonObject)?.Remove("cam");
