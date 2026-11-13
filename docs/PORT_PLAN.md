@@ -180,11 +180,13 @@ outwards, each slice's tests ported before its code.
 | Slice | What | State |
 |---|---|---|
 | 4a | The music libraries: VirtualDJ's databases (`database.xml`: tags, analysis, variable-tempo beat grids, cue, automix and remix points, merged across drives) and lists (`.vdjfolder`, in its `order`), and Cuepoint's library files (`library.json`) and virtual folders (`.m3u8`), all as `Dj/DjSong` and `Dj/DjList` | ✅ |
-| 4b | Lighting timelines as data: tracks, clips and lanes (`timeline_track`'s model), the timeline store beside a show, selection and batch edits | next |
-| 4c | Song analysis: decoding (Cuepoint's `AudioDecoder`), beats, key and the structure detection (`song_analyzer`, `song_detect`, `song_analysis`) | |
-| 4d | The timeline generator | |
+| 4b | Lighting timelines as data (`Timelines/`): a track's rows (the dimmer line, and colour, strobe, position and movement spans) and their edits (`timeline_track`'s model), saved as sLight saved them (`TimelineFormat`); the timeline store beside a show, with sLight's song fingerprints (checked against Godot's); the selection | ✅ |
+| 4c | Song analysis: decoding (Cuepoint's `AudioDecoder`), beats, key and the structure detection (`song_analyzer`, `song_detect`, `song_analysis`) | next |
+| 4d | The timeline generator, and regenerating a list of songs' timelines (`timeline_batch`) | |
 | 4e | DJ Edit Mode's screen: the music browser, the timeline editor with playback, the structure bar and the heatmap | |
 | 4f | The position editor and list | |
+
+**Where slice 4b differs from sLight:** `TimelineTrack` is the data alone; sLight's was a Godot control that drew itself and took the mouse. Its edits take times and levels rather than pixels (the screen in 4e turns one into the other), and most of `timeline_track_test.gd`, which drives the timeline's screen, comes over with it. So does the half of `timeline_store_test.gd` that saves as songs are opened and left.
 
 **Where slice 4a differs from sLight:** sLight's tests also loaded the VirtualDJ and Cuepoint libraries on the machine running them, as a check; those parts aren't ported, as Cuedeck's tests don't depend on what's installed.
 
