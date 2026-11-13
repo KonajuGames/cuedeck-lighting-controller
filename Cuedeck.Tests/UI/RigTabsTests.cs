@@ -12,12 +12,6 @@ public sealed class RigTabsTests : ConsoleHarness
 {
     void OpenTab(string name) => Click(ButtonCalled(name));
 
-    void Choose<T>(Dropdown<T> dropdown, string choice)
-    {
-        Click(dropdown);
-        Click(Find<Button>(b => b.Text == choice));
-    }
-
     [Fact]
     public void A_cue_fader_brings_its_look_up()
     {

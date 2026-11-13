@@ -28,7 +28,9 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 - `UI/Elements.cs`: `Element.FocusLost()`; `Button.Lit` (a toggle that's on, the tab showing); `Label.Wrap`.
 - `UI/Root.cs`: calls `FocusLost()` on the element losing focus; a key the focused element doesn't use goes to the
   elements it's in, nearest first (so a dialog closes on Escape whichever of its controls has focus).
-- `UI/TextBox.cs`: no longer sealed (`NumberBox` builds on it).
+- `UI/TextBox.cs`: no longer sealed (`NumberBox` builds on it); `Secret` shows dots for what's typed and won't copy or
+  cut it (GDTF-Share's password).
+- `UI/Png.cs`: `Encode` (RGBA, unfiltered) and a bilinear `Resize`, for gobo pictures imported from GDTF files.
 - `UI/ConfirmDialog.cs`: an optional second way to go ahead (Save / Don't Save / Cancel), shown in blue rather
   than red.
 - `UI/FontAtlas.cs`: arrows and the minus sign added to the characters baked.
@@ -43,7 +45,8 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 - `Program.cs`, `UI/MainScreen.cs`, `AppPaths.cs`
 - Everything under `Common/`, `Fixtures/`, `Dmx/` and `Show/` (phase 1), ported from sLight's GDScript
 - `UI/Layout.cs` (`Row`, `Flow`, `Region`, `ScrollingPage`, `Placeholder`, `Divider`, `FixedWidth`, `FieldGrid`), `UI/TabView.cs`,
-  `UI/NumberBox.cs`, `UI/ColourPicker.cs`, `UI/Console/*`, `AppShell.cs` (phase 2)
+  `UI/NumberBox.cs`, `UI/ColourPicker.cs`, `UI/Console/*` (among them `ProfileEditor` and `LibraryDialog`),
+  `AppShell.cs` (phase 2)
 
 ## Ported across since
 

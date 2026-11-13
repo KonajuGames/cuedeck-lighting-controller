@@ -34,13 +34,40 @@ sealed record LibraryEntry(
     /// Its narrowest mode's channel count (0 if it has no modes).
     /// </summary>
     public int NarrowestMode => Modes.Count == 0 ? 0 : Modes.Min(m => m.Channels);
+
+    /// <summary>
+    /// From an online source (the OFL on GitHub, or GDTF-Share), downloaded when it's wanted.
+    /// </summary>
+    public bool Online { get; init; }
+
+    /// <summary>
+    /// From GDTF-Share.
+    /// </summary>
+    public bool Gdtf { get; init; }
+
+    /// <summary>
+    /// An online fixture that's in the bundled library too.
+    /// </summary>
+    public bool Bundled { get; init; }
+
+    /// <summary>
+    /// An OFL fixture's file in the OFL's fixtures folder ("cameo/auro-beam-150.json").
+    /// </summary>
+    public string Path { get; init; } = "";
+
+    /// <summary>
+    /// A GDTF-Share fixture's revision id, to download it by, and its version.
+    /// </summary>
+    public string Rid { get; init; } = "";
+
+    public string Version { get; init; } = "";
 }
 
 /// <summary>
 /// The bundled fixture library: some 640 real fixtures converted from the Open Fixture Library (see the library
 /// folder's ATTRIBUTION.md). A small catalogue (<c>index.json</c>) is read at start; each fixture's full profile is in
 /// its manufacturer's file in <c>lib/</c>, read and kept the first time one of its fixtures is wanted, so the 640
-/// profiles never all load. sLight's <c>Library</c> autoload, without its online sources yet.
+/// profiles never all load. sLight's <c>Library</c> autoload; its online sources are <see cref="OnlineLibrary"/>.
 /// </summary>
 sealed class FixtureLibrary
 {

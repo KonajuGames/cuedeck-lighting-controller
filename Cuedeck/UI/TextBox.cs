@@ -31,6 +31,16 @@ class TextBox(Font font) : Element
 
     public float Width { get; set; } = 200;
     public float Padding { get; set; } = 6;
+
+    /// <summary>
+    /// Shows dots in place of what's typed, and won't copy or cut it: for a password.
+    /// </summary>
+    public bool Secret { get; set; }
+
+    /// <summary>
+    /// What's drawn: the text, or a dot for each character of a secret one.
+    /// </summary>
+    string Shown => Secret ? new string('•', _text.Length) : _text;
     public int MaxLength { get; set; } = 256;
 
     public float4 Background { get; set; } = Colors.Hex(0x0E0E13);
@@ -250,7 +260,7 @@ class TextBox(Font font) : Element
     float Inset => Padding + BORDER;
     float InnerWidth => MathF.Max(0, Size.X - 2 * Inset);
 
-    float XOf(int index) => MathF.Round(Font.Advance(_text.AsSpan(0, index)));
+    float XOf(int index) => MathF.Round(Font.Advance(Shown.AsSpan(0, index)));
 
     public override float2 Measure() => Size = new float2(Width, Font.LineHeight + 2 * Inset);
 
@@ -295,7 +305,7 @@ class TextBox(Font font) : Element
         if (_text.Length == 0)
             batch.AddText(Font, Placeholder, inner, PlaceholderColor);
         else
-            batch.AddText(Font, _text, inner - new float2(_scroll, 0), TextColor);
+            batch.AddText(Font, Shown, inner - new float2(_scroll, 0), TextColor);
 
         // Solid while typing, blinking once idle.
         var showCaret = IsFocused && (Environment.TickCount64 - _lastActivity) / CARET_BLINK_MS % 2 == 0;
@@ -375,7 +385,7 @@ class TextBox(Font font) : Element
     {
         float pen = 0;
         var index = 0;
-        foreach (var rune in _text.EnumerateRunes())
+        foreach (var rune in Shown.EnumerateRunes())
         {
             var advance = Font.GetGlyph(rune.Value).Advance;
             if (x < pen + advance / 2)
@@ -446,11 +456,11 @@ class TextBox(Font font) : Element
                 SelectAll();
                 break;
             case Key.C when shortcut:
-                if (HasSelection)
+                if (HasSelection && !Secret)
                     Clipboard.SetText(SelectedText);
                 break;
             case Key.X when shortcut:
-                if (HasSelection)
+                if (HasSelection && !Secret)
                 {
                     Clipboard.SetText(SelectedText);
                     DeleteSelection();

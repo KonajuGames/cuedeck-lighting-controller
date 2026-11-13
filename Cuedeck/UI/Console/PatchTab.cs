@@ -29,16 +29,28 @@ sealed class UniversePage : Panel
     readonly Dropdown<int> _mode;
     readonly TextBox _name;
     readonly NumberBox _start;
-    List<PatchedFixture> _shown = [];
+    readonly ProfileStore _profiles;
+    List<(PatchedFixture Fixture, FixtureProfile Profile)> _shown = [];
 
     /// <summary>
     /// Something to say on the status line.
     /// </summary>
     public event Action<string>? Status;
 
+    /// <summary>
+    /// A profile's been made, changed or deleted: every page's choice wants checking.
+    /// </summary>
+    public event Action? ProfilesChanged;
+
+    /// <summary>
+    /// Asks for a fixture definition file to import (Windows' Open dialog in the app); null if none's chosen.
+    /// </summary>
+    public Func<string?> AskForFixtureFile { get; set; } = () => null;
+
     public UniversePage(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles, int index)
     {
         _show = show;
+        _profiles = profiles;
         _fonts = fonts;
         _menu = menu;
         _dialogs = dialogs;
@@ -108,15 +120,94 @@ sealed class UniversePage : Panel
         _start = add.Add(new NumberBox(fonts.Body, 1, 512, width: 50) { Value = 1 });
         var addButton = add.Add(new Button(fonts.Body, "Add Fixture"));
         addButton.Clicked += _ => AddFixture();
-        var library = add.Add(new Button(fonts.Body, "Library…") { Tooltip = "Choose a fixture from the bundled fixture library" });
+        var library = add.Add(new Button(fonts.Body, "Library…") { Tooltip = "Choose a fixture from the fixture library" });
         library.Clicked += _ =>
             dialogs.Library.Show(p =>
             {
                 SelectProfile(profiles.AddForSession(p));
                 Status?.Invoke($"Added '{p.Model}' from the library — set a start channel and Add Fixture.");
             });
+        var newProfile = add.Add(new Button(fonts.Body, "New…") { Tooltip = "Make a fixture profile" });
+        newProfile.Clicked += _ =>
+            dialogs.Editor.Show(
+                profiles,
+                null,
+                p =>
+                {
+                    ProfilesChanged?.Invoke();
+                    SelectProfile(p);
+                    Status?.Invoke($"Saved profile '{p.Model}' ({p.ModeCount} mode(s)).");
+                }
+            );
+        var import = add.Add(new Button(fonts.Body, "Import…") { Tooltip = "Import a GDTF or Open Fixture Library file as a profile" });
+        import.Clicked += _ => Import();
+        var edit = add.Add(new Button(fonts.Body, "Edit…") { Tooltip = "Edit the chosen profile" });
+        edit.Clicked += _ => dialogs.Editor.Show(profiles, _profile.Selected, Edited);
+        var delete = add.Add(new Button(fonts.Body, "Delete…") { Tooltip = "Delete the chosen profile (or reset an edited built-in)" });
+        delete.Clicked += _ => Delete();
 
         _rows = Add(new Panel { Spacing = 8 });
+    }
+
+    void Import()
+    {
+        if (AskForFixtureFile() is not { } path)
+            return;
+        var (profile, message) = _profiles.Import(path);
+        if (profile is not null)
+        {
+            ProfilesChanged?.Invoke();
+            SelectProfile(profile);
+        }
+        Status?.Invoke(message);
+    }
+
+    /// <summary>
+    /// An edited profile goes to the fixtures patched with it.
+    /// </summary>
+    void Edited(FixtureProfile profile)
+    {
+        ProfilesChanged?.Invoke();
+        var (updated, repatch) = _show.Patch.UpdateProfile(profile);
+        if (updated > 0)
+            _show.Retarget();
+        Status?.Invoke(ProfileText.UpdateMessage(profile.Model, updated, repatch));
+    }
+
+    void Delete()
+    {
+        var p = _profile.Selected;
+        if (_profiles.IsBuiltIn(p.Id) && !_profiles.HasFile(p))
+        {
+            Status?.Invoke(_profiles.Delete(p));
+            return;
+        }
+        var reverts = _profiles.IsBuiltIn(p.Id);
+        _dialogs.Confirm.Show(
+            reverts ? "Reset Profile" : "Delete Profile",
+            reverts
+                ? $"Reset \"{p.Model}\" to its built-in default?\n\nYour edited copy ({p.Id}.json) will be removed."
+                : $"Delete the profile \"{p.Model}\"?\n\n{p.Id}.json will be removed. This can't be undone.",
+            reverts ? "Reset" : "Delete",
+            () =>
+            {
+                var message = _profiles.Delete(p);
+                ProfilesChanged?.Invoke();
+                Status?.Invoke(message);
+            }
+        );
+    }
+
+    /// <summary>
+    /// Keeps the chosen profile one that's offered: the one with its id now, else the first.
+    /// </summary>
+    public void RefreshProfile()
+    {
+        var chosen = _profile.Selected;
+        if (_profiles.Profiles.Contains(chosen))
+            return;
+        _profile.Selected = _profiles.Profiles.FirstOrDefault(p => p.Id == chosen.Id) ?? _profiles.Profiles[0];
+        _mode.Selected = Math.Clamp(_mode.Selected, 0, Math.Max(_profile.Selected.ModeCount - 1, 0));
     }
 
     /// <summary>
@@ -190,7 +281,8 @@ sealed class UniversePage : Panel
         _sacnRow.Visible = _output.Selected == OutputMode.Sacn;
         _where.Text = Where() + (_show.Dmx.Universes[_index].Connected || p.Output == OutputMode.Usb ? "" : "  (not connected)");
 
-        if (!_shown.SequenceEqual(p.Fixtures))
+        // Built again when the patch changes, or a fixture's profile has been edited.
+        if (!_shown.SequenceEqual(p.Fixtures.Select(f => (f, f.Profile))))
         {
             var expanded = _rows.Children.OfType<FixtureRow>().Where(r => r.Expanded).Select(r => r.Fixture).ToHashSet();
             _rows.Children.Clear();
@@ -206,7 +298,7 @@ sealed class UniversePage : Panel
                     Status?.Invoke($"Removed {fixture.Name}.");
                 };
             }
-            _shown = [.. p.Fixtures];
+            _shown = [.. p.Fixtures.Select(f => (f, f.Profile))];
         }
         if (_rows.Children.Count == 0 && p.Fixtures.Count == 0)
             _rows.Children.Add(new Label(_fonts.Body, "Nothing patched in this universe yet.") { Color = Theme.Faint });
@@ -252,6 +344,11 @@ sealed class PatchTab : Region
 
     public event Action<string>? Status;
 
+    /// <summary>
+    /// Asks for a fixture definition file to import (Windows' Open dialog in the app); null if none's chosen.
+    /// </summary>
+    public Func<string?> AskForFixtureFile { get; set; } = () => null;
+
     public PatchTab(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
     {
         _fonts = fonts;
@@ -288,6 +385,8 @@ sealed class PatchTab : Region
             {
                 var page = new UniversePage(_fonts, _menu, _dialogs, _show, _profiles, i);
                 page.Status += s => Status?.Invoke(s);
+                page.ProfilesChanged += () => _pages.ForEach(pg => pg.RefreshProfile());
+                page.AskForFixtureFile = () => AskForFixtureFile();
                 _pages.Add(page);
                 _universes.AddTab($"Universe {(i + 1).ToString(CultureInfo.InvariantCulture)}", new ScrollingPage(page));
             }

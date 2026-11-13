@@ -19,6 +19,12 @@ public abstract class ConsoleHarness : IDisposable
     private protected readonly Root Ui = new();
     private protected readonly MainScreen Screen;
     private protected readonly AppShell Shell;
+    private protected readonly ProfileStore Store;
+
+    /// <summary>
+    /// Stands in for the web: the library's online sources ask it, never the network.
+    /// </summary>
+    private protected readonly FakeWeb Web = new();
 
     private protected ConsoleHarness()
     {
@@ -27,12 +33,16 @@ public abstract class ConsoleHarness : IDisposable
         var confirm = new ConfirmDialog(Ui, fonts.Body, fonts.Bold, fonts.Heading);
         var prompt = new NamePrompt(Ui, fonts.Body, fonts.Bold, fonts.Heading);
         var picker = new ColourPicker(Ui, fonts.Body);
-        var library = new LibraryDialog(Ui, fonts, menu, new FixtureLibrary(FixtureLibrary.DefaultFolder));
-        Screen = Ui.Add(new MainScreen(fonts, MainScreenTests.Pictures, menu, new Dialogs(confirm, prompt, picker, library), Show, new ProfileStore(Dir.File("profiles"))));
+        var bundled = new FixtureLibrary(FixtureLibrary.DefaultFolder);
+        var library = new LibraryDialog(Ui, fonts, menu, bundled, new OnlineLibrary(bundled, Dir.File("online"), Web));
+        var editor = new ProfileEditor(Ui, fonts, menu);
+        Store = new ProfileStore(Dir.File("profiles"));
+        Screen = Ui.Add(new MainScreen(fonts, MainScreenTests.Pictures, menu, new Dialogs(confirm, prompt, picker, library, editor), Show, Store));
+        Ui.Add(editor);
+        Ui.Add(library);
         Ui.Add(confirm);
         Ui.Add(prompt);
         Ui.Add(picker);
-        Ui.Add(library);
         Ui.Add(menu);
         var session = new ShowSession(Show) { LastShowStore = Dir.File("last.json") };
         Shell = new AppShell(session, Screen, confirm, () => 0);
@@ -57,6 +67,8 @@ public abstract class ConsoleHarness : IDisposable
             picker.ScreenSize = ScreenSize;
         foreach (var library in Ui.Elements.OfType<LibraryDialog>())
             library.ScreenSize = ScreenSize;
+        foreach (var editor in Ui.Elements.OfType<ProfileEditor>())
+            editor.ScreenSize = ScreenSize;
         foreach (var menu in Ui.Elements.OfType<ContextMenu>())
             menu.ScreenSize = ScreenSize;
         Screen.Update();
@@ -102,6 +114,30 @@ public abstract class ConsoleHarness : IDisposable
             Ui.MouseButton(MouseButton.Left, down: false);
         }
         Frame();
+    }
+
+    /// <summary>
+    /// Chooses <paramref name="choice"/> from a dropdown, by opening it and clicking it in the menu.
+    /// </summary>
+    private protected void Choose<T>(Dropdown<T> dropdown, string choice)
+    {
+        Click(dropdown);
+        Click(Find<Button>(b => b.Text == choice));
+    }
+
+    /// <summary>
+    /// Runs frames until <paramref name="done"/>, for work in the background (the library's online sources); fails
+    /// after five seconds.
+    /// </summary>
+    private protected void WaitFor(Func<bool> done)
+    {
+        var until = DateTime.UtcNow.AddSeconds(5);
+        while (!done())
+        {
+            Assert.True(DateTime.UtcNow < until, "Timed out waiting");
+            Thread.Sleep(5);
+            Frame();
+        }
     }
 
     /// <summary>

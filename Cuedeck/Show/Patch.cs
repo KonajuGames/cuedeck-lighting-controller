@@ -240,6 +240,36 @@ sealed class Patch
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// Gives an edited profile to every fixture patched with one of its id. Each holds its own copy: a fixture whose
+    /// mode keeps its channel count takes the whole profile (its live levels stay as they are); the others need
+    /// re-patching, so take only its physical side for now. Returns how many of each.
+    /// </summary>
+    public (int Updated, int Repatch) UpdateProfile(FixtureProfile profile)
+    {
+        int updated = 0, repatch = 0;
+        foreach (var fixture in All)
+        {
+            var old = fixture.Profile;
+            if (old.Id != profile.Id)
+                continue;
+            if (fixture.Mode < profile.ModeCount && profile.ChannelCount(fixture.Mode) == old.ChannelCount(fixture.Mode))
+            {
+                fixture.Profile = profile.Clone();
+                RegisterVirtualDimmer(fixture);
+                updated++;
+            }
+            else
+            {
+                old.Physical = profile.Physical.Clone();
+                repatch++;
+            }
+        }
+        if (updated > 0)
+            Changed?.Invoke();
+        return (updated, repatch);
+    }
+
     void RegisterVirtualDimmer(PatchedFixture fixture) =>
         _dmx.Universes[fixture.Universe].SetVirtualDimmer(fixture.Id, [.. fixture.Profile.VirtualDimmerChannels(fixture.Mode).Select(k => fixture.Start + k)]);
 

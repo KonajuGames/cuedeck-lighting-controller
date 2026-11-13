@@ -101,16 +101,25 @@ static void Run(string[] args)
     var confirm = new ConfirmDialog(ui, fonts.Body, fonts.Bold, fonts.Heading);
     var prompt = new NamePrompt(ui, fonts.Body, fonts.Bold, fonts.Heading);
     var picker = new ColourPicker(ui, fonts.Body);
-    var library = new LibraryDialog(ui, fonts, menu, new FixtureLibrary(FixtureLibrary.DefaultFolder));
+    var bundled = new FixtureLibrary(FixtureLibrary.DefaultFolder);
+    var library = new LibraryDialog(ui, fonts, menu, bundled, new OnlineLibrary(bundled, Path.Combine(AppPaths.Folder, "fixture_online")));
+    var editor = new ProfileEditor(ui, fonts, menu);
     // Drawn in this order: the screen, then the dialogs over it, then the menu over everything.
-    var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library), show, profiles));
+    var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor), show, profiles));
+    ui.Add(editor);
+    ui.Add(library);
     ui.Add(confirm);
     ui.Add(prompt);
     ui.Add(picker);
-    ui.Add(library);
     ui.Add(menu);
     using var input = new GlfwUiInput(window, ui);
     var shell = new AppShell(session, screen, confirm, () => OperatingSystem.IsWindows() ? WindowChrome.Handle : 0);
+    screen.Console.Patch.AskForFixtureFile = () =>
+        WindowsShell.AskForFile(
+            OperatingSystem.IsWindows() ? WindowChrome.Handle : 0,
+            "Import Fixture Definition (GDTF / Open Fixture Library)",
+            ("GDTF or Open Fixture Library fixture", "*.gdtf;*.json")
+        );
 
     // The window's own buttons, and dragging it by the title bar, which Windows does once told where it is. Closing
     // asks about unsaved changes first.
@@ -209,7 +218,7 @@ static void Run(string[] args)
         if (window.IsIconified || size.X == 0 || size.Y == 0)
             continue;
 
-        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = picker.ScreenSize = library.ScreenSize = new float2(size.X, size.Y);
+        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = picker.ScreenSize = library.ScreenSize = editor.ScreenSize = new float2(size.X, size.Y);
         screen.TitleBar.Subtitle = session.Title.Replace(" — Cuedeck", "");
         window.Title = session.Title;
         screen.Update();

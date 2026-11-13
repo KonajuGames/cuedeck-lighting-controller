@@ -29,15 +29,6 @@ public sealed class PlaybackTabsTests : ConsoleHarness
         where T : Element =>
         Find<Row>(r => r.Children.Count > 1 && r.Children[0] is FixedWidth { Inner: Label l } && l.Text == name).Children.OfType<T>().First();
 
-    /// <summary>
-    /// Chooses <paramref name="choice"/> from a dropdown, by opening it and clicking it in the menu.
-    /// </summary>
-    void Choose<T>(Dropdown<T> dropdown, string choice)
-    {
-        Click(dropdown);
-        Click(Find<Button>(b => b.Text == choice));
-    }
-
     [Fact]
     public void Chases_record_steps_and_run()
     {
