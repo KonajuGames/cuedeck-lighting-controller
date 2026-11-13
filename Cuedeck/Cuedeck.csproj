@@ -24,6 +24,8 @@
     <PackageReference Include="Ahwoo.BRUTAL.Strings" Version="2026.10.2" />
     <PackageReference Include="Ahwoo.BRUTAL.Vulkan.Abstractions" Version="2026.10.3" />
     <PackageReference Include="Ahwoo.BRUTAL.Vulkan.Vma" Version="2026.10.3" />
+    <!-- WASAPI audio input for Sound Reactive, the version Cuepoint uses. -->
+    <PackageReference Include="NAudio.Wasapi" Version="3.2.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Cuedeck.Audio;
 using Cuedeck.Common;
 using Cuedeck.Dmx;
 
@@ -59,6 +60,11 @@ sealed class LightingShow : IDisposable
     public FaderBank Faders { get; }
     public SoundSettings Sound { get; } = new();
 
+    /// <summary>
+    /// The live audio input, listening in Sound Reactive: what reactors and beat-synced chases follow.
+    /// </summary>
+    public SoundEngine Audio { get; }
+
     RunMode _runMode = RunMode.Cues;
 
     /// <summary>
@@ -72,9 +78,11 @@ sealed class LightingShow : IDisposable
     /// </summary>
     public string? TimelinesFolder { get; set; }
 
-    public LightingShow()
+    /// <param name="capture">The audio input to listen to in Sound Reactive; none if null (as in tests).</param>
+    public LightingShow(IAudioCapture? capture = null)
     {
-        Effects = new EffectsEngine(Tempo);
+        Audio = new SoundEngine(Sound, capture ?? new NoCapture());
+        Effects = new EffectsEngine(Tempo) { Sound = Audio };
         Patch = new Patch(Dmx);
         Cues = new CueList(Dmx, Palettes, Patch);
         Faders = new FaderBank(Dmx, Effects, Patch, () => Groups, Cues.StandingLook) { EffectRunner = SetEffectRunning };
@@ -90,6 +98,7 @@ sealed class LightingShow : IDisposable
         {
             _runMode = Enum.IsDefined(value) ? value : RunMode.Cues;
             Effects.SoundReactive = _runMode == RunMode.SoundReactive;
+            Audio.Active = _runMode == RunMode.SoundReactive;
         }
     }
 
@@ -99,6 +108,9 @@ sealed class LightingShow : IDisposable
     /// </summary>
     public void Tick(double delta, bool transmit)
     {
+        // In sLight's autoload order: the audio, then the tempo clock, then the effects.
+        if (Audio.Update(delta))
+            Effects.OnSoundBeat();
         Tempo.Update(delta);
         Dmx.Advance(delta);
         Cues.Advance(delta);
@@ -244,5 +256,9 @@ sealed class LightingShow : IDisposable
         return null;
     }
 
-    public void Dispose() => Dmx.Dispose();
+    public void Dispose()
+    {
+        Audio.Dispose();
+        Dmx.Dispose();
+    }
 }

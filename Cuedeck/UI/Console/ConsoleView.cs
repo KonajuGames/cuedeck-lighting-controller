@@ -21,6 +21,7 @@ sealed class ConsoleView : Region
     public CuesTab Cues { get; }
     public ChasesTab Chases { get; }
     public EffectsTab Effects { get; }
+    public SoundTab Sound { get; }
     public GroupsTab Groups { get; }
     public DmxOutputTab DmxOutput { get; }
     public FadersTab Faders { get; }
@@ -41,11 +42,12 @@ sealed class ConsoleView : Region
         _left.AddTab("Chases", new ScrollingPage(Chases));
         Effects = new EffectsTab(fonts, menu, show);
         _left.AddTab("Effects", new ScrollingPage(Effects));
-        _left.AddTab("Sound", new Placeholder(fonts.Body, "The Sound tab comes with live audio (phase 3)."));
+        Sound = new SoundTab(fonts, menu, show);
+        _left.AddTab("Sound", new ScrollingPage(Sound));
         Groups = new GroupsTab(fonts, show);
         _left.AddTab("Groups", new ScrollingPage(Groups));
 
-        foreach (var say in new Action<Action<string>>[] { a => Cues.Status += a, a => Chases.Status += a, a => Effects.Status += a, a => Groups.Status += a })
+        foreach (var say in new Action<Action<string>>[] { a => Cues.Status += a, a => Chases.Status += a, a => Effects.Status += a, a => Sound.Status += a, a => Groups.Status += a })
             say(m => Status?.Invoke(m));
 
         _right = Add(new TabView(fonts.Body));
@@ -70,6 +72,8 @@ sealed class ConsoleView : Region
             chases.Update();
         if (_left.SelectedPage is ScrollingPage { Content: EffectsTab effects })
             effects.Update();
+        if (_left.SelectedPage is ScrollingPage { Content: SoundTab sound })
+            sound.Update();
         if (_left.SelectedPage is ScrollingPage { Content: GroupsTab groups })
             groups.Update();
         if (_right.SelectedPage == Patch)

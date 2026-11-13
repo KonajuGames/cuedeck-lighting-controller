@@ -33,6 +33,30 @@ static class Theme
     public static readonly float4 Warning = Colors.Hex(0xFF4D3A);
 
     /// <summary>
+    /// The Sound tab's meter: a bar for each band, on its background (sLight's colours).
+    /// </summary>
+    public static readonly float4 SoundBass = Colors.Hex(0xF2594D);
+    public static readonly float4 SoundMid = Colors.Hex(0x66D973);
+    public static readonly float4 SoundTreble = Colors.Hex(0x66A6F2);
+    public static readonly float4 SoundLevel = Colors.Hex(0xE6D959);
+    public static readonly float4 SoundMeter = Colors.Hex(0x17171C);
+
+    /// <summary>
+    /// The spectrogram's heat scale, from silence (a near-black blue) through purple, red and orange to loud (near
+    /// white), as sLight's.
+    /// </summary>
+    public static readonly float4[] Heat =
+    [
+        Colors.Hex(0x050512),
+        Colors.Hex(0x290D61),
+        Colors.Hex(0x730F85),
+        Colors.Hex(0xD12966),
+        Colors.Hex(0xFA7A26),
+        Colors.Hex(0xFFDB52),
+        Colors.Hex(0xFFFFF5),
+    ];
+
+    /// <summary>
     /// <paramref name="color"/> with its alpha multiplied by <paramref name="alpha"/>.
     /// </summary>
     public static float4 Fade(float4 color, float alpha) => color * new float4(1, 1, 1, alpha);

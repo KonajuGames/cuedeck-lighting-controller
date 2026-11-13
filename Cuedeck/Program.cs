@@ -92,7 +92,7 @@ static void Run(string[] args)
     using var renderer = new Renderer(gpu, window, atlas);
 
     // The show, and the show as a document: its file, unsaved changes, autosave.
-    using var show = new LightingShow();
+    using var show = new LightingShow(new Cuedeck.Audio.WasapiInput());
     var session = new ShowSession(show);
     var profiles = new ProfileStore(Path.Combine(AppPaths.Folder, "fixture_profiles"));
 
