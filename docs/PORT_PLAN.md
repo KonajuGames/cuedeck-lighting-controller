@@ -126,6 +126,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 - Patching a fixture homes that fixture only. sLight rebuilt every fixture's row, which homed them all.
 - `LightingShow.Retarget()` finds effects' and reactors' channels again after a show loads. In sLight the starter reactors had none until their tab was touched.
 - Where the cue list is (its live and next cue) is saved with the show but doesn't count as an unsaved change, so a GO doesn't mark the show unsaved. In sLight it did.
+- Renaming a group renames it in the effects, reactors and group faders that use it. In sLight they kept the old name and stopped finding the group.
 
 ### 7.2 Phase 2 progress
 
@@ -135,8 +136,8 @@ Phase 2 is done in slices, each leaving the app working.
 |---|---|---|
 | 2a | The show running in the app (30 Hz tick, Sending, autosave every minute, crash recovery, reopening the last show or one given on the command line, unsaved-changes prompts on New, Load and close); new widgets (`TabView`, `NumberBox`, `Row`, `Flow`, `Region`/`ScrollingPage`, lit buttons, wrapping labels); the top bar (grand master, run mode, Tap and tempo, Sending, Blackout All, Add and Remove Universe, New, Save, Save As and Load with Windows' own dialogs, and their shortcuts); the console's layout; the Patch tab (connection settings, Blackout Universe and Universe Full, adding fixtures from the built-in and custom profiles, fixture rows with category, category group, Leave out, Home, Remove, and controls: virtual dimmer, colour swatches, pan/tilt pad, 16-bit sliders, slot pickers, sliders) | ✅ |
 | 2b | Cues tab (GO, Back, Halt, the progress bar, the list with the live cue and palettes used, editing the selected cue's label, fades, delay, follow and tracking, Load to Patch, Update, Duplicate, Delete, double-click to fire, Record Cue with its fade and the Tracking switch) and Space for GO | ✅ |
-| 2c | Chases, Effects and Groups tabs | next |
-| 2d | Faders and Palettes tabs, DMX Output tab | |
+| 2c | Chases tab (new and delete, run, tempo, crossfade, direction, beat sync, steps recorded, updated, loaded to the patch and deleted); Effects tab (new and delete, run with its channels found in the patch, role, universe or group, waveform, base, rate capped for motors, tempo beats, size, centre, fan, phase, rebuilding targets); Groups tab (new and delete, renaming that carries the effects, reactors and group faders on it along, a checklist of every patched fixture) | ✅ |
+| 2d | Faders and Palettes tabs, DMX Output tab | next |
 | 2e | Fixture library dialog, profile import (GDTF/QXF), New/Edit/Delete profile; a colour picker for the swatches; patch Flash; Save/Load Preset | |
 
 What runs on the UI thread for now: the show ticks in the main loop, so its output pauses while one of Windows' file dialogs is open (Art-Net and sACN receivers hold the last frame). Moving the tick to its own thread (§6) comes with the locking that needs.

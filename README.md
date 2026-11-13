@@ -7,8 +7,8 @@ ported to the C# and Vulkan framework that the Cuepoint DJ app is built on. The 
 **Status:** phase 2, under way. The lighting engine is ported: the patch, Art-Net and sACN output, cues, chases,
 effects, palettes, positions, faders, live flashes, the tempo clock and sLight's show files, and its output matches
 sLight's frame for frame. On screen so far are the console's top bar (grand master, run mode, tap tempo, Sending,
-Blackout All, universes, and New, Save and Load Show), the Patch tab and the Cues tab (Space is GO). The other
-tabs come next.
+Blackout All, universes, and New, Save and Load Show), and the Patch, Cues (Space is GO), Chases, Effects and
+Groups tabs. Faders, Palettes and DMX Output come next.
 
 To open a show straight away, pass it on the command line: `dotnet run --project Cuedeck -- "My show.slight"`.
 

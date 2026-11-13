@@ -42,6 +42,8 @@ public abstract class ConsoleHarness : IDisposable
         Screen.ScreenSize = ScreenSize;
         foreach (var dialog in Ui.Elements.OfType<ConfirmDialog>())
             dialog.ScreenSize = ScreenSize;
+        foreach (var menu in Ui.Elements.OfType<ContextMenu>())
+            menu.ScreenSize = ScreenSize;
         Screen.Update();
         Ui.Layout(ScreenSize);
     }

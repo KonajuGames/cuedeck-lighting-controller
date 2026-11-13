@@ -189,3 +189,51 @@ sealed class Divider(float length, Direction direction = Direction.Horizontal) :
             batch.AddRect(ScreenPosition + new float2(4, 0), new float2(1, Size.Y), Theme.PanelBorder);
     }
 }
+
+/// <summary>
+/// An element given a set width, so the controls after it line up in a column.
+/// </summary>
+sealed class FixedWidth(Element inner, float width) : Element
+{
+    public Element Inner { get; } = inner;
+
+    public override float2 Measure()
+    {
+        var size = Inner.Measure();
+        return Size = new float2(width, size.Y);
+    }
+
+    public override void Arrange(float2 position)
+    {
+        ArrangeSelf(position);
+        Inner.Arrange(position);
+    }
+
+    public override void Draw(Batch batch) => Inner.Draw(batch);
+
+    public override Element? HitTest(float2 point) => Inner.HitTest(point);
+}
+
+/// <summary>
+/// Settings in two columns: each a name, then its control, the controls lined up.
+/// </summary>
+sealed class FieldGrid(Font font, float nameWidth = 104) : Panel
+{
+    /// <summary>
+    /// Adds a row called <paramref name="name"/> holding <paramref name="control"/>, and returns the row, for more
+    /// controls after it.
+    /// </summary>
+    public Row Field(string name, Element control)
+    {
+        var row = Add(new Row(8));
+        row.Add(new FixedWidth(new Label(font, name) { Color = Theme.Muted, MaxWidth = nameWidth }, nameWidth));
+        row.Add(control);
+        return row;
+    }
+
+    public FieldGrid Init(float spacing = 6)
+    {
+        Spacing = spacing;
+        return this;
+    }
+}

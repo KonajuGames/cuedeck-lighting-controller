@@ -18,16 +18,30 @@ sealed class ConsoleView : Region
 
     public PatchTab Patch { get; }
     public CuesTab Cues { get; }
+    public ChasesTab Chases { get; }
+    public EffectsTab Effects { get; }
+    public GroupsTab Groups { get; }
+
+    /// <summary>
+    /// Something a tab wants said on the status line.
+    /// </summary>
+    public event Action<string>? Status;
 
     public ConsoleView(Fonts fonts, ContextMenu menu, LightingShow show, ProfileStore profiles)
     {
         _left = Add(new TabView(fonts.Body));
         Cues = new CuesTab(fonts, show);
         _left.AddTab("Cues", Cues);
-        _left.AddTab("Chases", new Placeholder(fonts.Body, "Chases are coming."));
-        _left.AddTab("Effects", new Placeholder(fonts.Body, "Effects are coming."));
+        Chases = new ChasesTab(fonts, menu, show);
+        _left.AddTab("Chases", new ScrollingPage(Chases));
+        Effects = new EffectsTab(fonts, menu, show);
+        _left.AddTab("Effects", new ScrollingPage(Effects));
         _left.AddTab("Sound", new Placeholder(fonts.Body, "The Sound tab comes with live audio (phase 3)."));
-        _left.AddTab("Groups", new Placeholder(fonts.Body, "Groups are coming."));
+        Groups = new GroupsTab(fonts, show);
+        _left.AddTab("Groups", new ScrollingPage(Groups));
+
+        foreach (var say in new Action<Action<string>>[] { a => Cues.Status += a, a => Chases.Status += a, a => Effects.Status += a, a => Groups.Status += a })
+            say(m => Status?.Invoke(m));
 
         _right = Add(new TabView(fonts.Body));
         Patch = new PatchTab(fonts, menu, show, profiles);
@@ -42,6 +56,12 @@ sealed class ConsoleView : Region
     {
         if (_left.SelectedPage == Cues)
             Cues.Update();
+        if (_left.SelectedPage is ScrollingPage { Content: ChasesTab chases })
+            chases.Update();
+        if (_left.SelectedPage is ScrollingPage { Content: EffectsTab effects })
+            effects.Update();
+        if (_left.SelectedPage is ScrollingPage { Content: GroupsTab groups })
+            groups.Update();
         if (_right.SelectedPage == Patch)
             Patch.Update();
     }

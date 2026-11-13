@@ -41,7 +41,7 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 
 - `Program.cs`, `UI/MainScreen.cs`, `AppPaths.cs`
 - Everything under `Common/`, `Fixtures/`, `Dmx/` and `Show/` (phase 1), ported from sLight's GDScript
-- `UI/Layout.cs` (`Row`, `Flow`, `Region`, `ScrollingPage`, `Placeholder`, `Divider`), `UI/TabView.cs`,
+- `UI/Layout.cs` (`Row`, `Flow`, `Region`, `ScrollingPage`, `Placeholder`, `Divider`, `FixedWidth`, `FieldGrid`), `UI/TabView.cs`,
   `UI/NumberBox.cs`, `UI/Console/*`, `AppShell.cs` (phase 2)
 
 ## Ported across since

@@ -282,27 +282,3 @@ sealed class CuesTab : Region
         _bottom.Arrange(at);
     }
 }
-
-/// <summary>
-/// An element given a set width, so the controls after it line up in a column.
-/// </summary>
-sealed class FixedWidth(Element inner, float width) : Element
-{
-    public Element Inner { get; } = inner;
-
-    public override float2 Measure()
-    {
-        var size = Inner.Measure();
-        return Size = new float2(width, size.Y);
-    }
-
-    public override void Arrange(float2 position)
-    {
-        ArrangeSelf(position);
-        Inner.Arrange(position);
-    }
-
-    public override void Draw(Batch batch) => Inner.Draw(batch);
-
-    public override Element? HitTest(float2 point) => Inner.HitTest(point);
-}
