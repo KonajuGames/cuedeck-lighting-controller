@@ -181,10 +181,12 @@ outwards, each slice's tests ported before its code.
 |---|---|---|
 | 4a | The music libraries: VirtualDJ's databases (`database.xml`: tags, analysis, variable-tempo beat grids, cue, automix and remix points, merged across drives) and lists (`.vdjfolder`, in its `order`), and Cuepoint's library files (`library.json`) and virtual folders (`.m3u8`), all as `Dj/DjSong` and `Dj/DjList` | ✅ |
 | 4b | Lighting timelines as data (`Timelines/`): a track's rows (the dimmer line, and colour, strobe, position and movement spans) and their edits (`timeline_track`'s model), saved as sLight saved them (`TimelineFormat`); the timeline store beside a show, with sLight's song fingerprints (checked against Godot's); the selection | ✅ |
-| 4c | Song analysis: decoding (Cuepoint's `AudioDecoder`), beats, key and the structure detection (`song_analyzer`, `song_detect`, `song_analysis`) | next |
-| 4d | The timeline generator, and regenerating a list of songs' timelines (`timeline_batch`) | |
+| 4c | Song analysis (`Audio/`): decoding (Cuepoint's `AudioDecoder`: SDL_mixer and Media Foundation; sLight's WAV reader), sLight's native front end (`song_features.cpp`) and its detection (`song_detect`: tempo, DP beats, downbeat, key, structure), `SongAnalysis` saved as sLight saved it | ✅ |
+| 4d | The timeline generator, and regenerating a list of songs' timelines (`timeline_batch`) | next |
 | 4e | DJ Edit Mode's screen: the music browser, the timeline editor with playback, the structure bar and the heatmap | |
 | 4f | The position editor and list | |
+
+**Where slice 4c differs from sLight:** only sLight's fast (native) analysis is ported; its slow path, which played the song muted to capture it, isn't needed. Decoding playback (`m4a_playback_test`) comes with the player in 4e. The tests use WAV only; MP3, OGG and M4A decoding through SDL_mixer and Media Foundation hasn't been tried on a real file yet, and sLight's real-file structure checks aren't ported.
 
 **Where slice 4b differs from sLight:** `TimelineTrack` is the data alone; sLight's was a Godot control that drew itself and took the mouse. Its edits take times and levels rather than pixels (the screen in 4e turns one into the other), and most of `timeline_track_test.gd`, which drives the timeline's screen, comes over with it. So does the half of `timeline_store_test.gd` that saves as songs are opened and left.
 
