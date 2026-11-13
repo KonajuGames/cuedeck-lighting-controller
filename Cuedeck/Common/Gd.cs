@@ -68,6 +68,81 @@ static class Gd
     }
 
     /// <summary>
+    /// Godot's <c>is_valid_int()</c>: an optional sign, then digits only.
+    /// </summary>
+    public static bool IsValidInt(string s) => System.Text.RegularExpressions.Regex.IsMatch(s, @"^[+-]?\d+$");
+
+    /// <summary>
+    /// Godot's <c>is_valid_float()</c>: a decimal number, with an optional sign, point and exponent.
+    /// </summary>
+    public static bool IsValidFloat(string s) => System.Text.RegularExpressions.Regex.IsMatch(s, @"^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$");
+
+    /// <summary>
+    /// Godot's <c>posmod()</c>: the remainder, never negative for a positive divisor.
+    /// </summary>
+    public static int PosMod(int x, int y)
+    {
+        var m = x % y;
+        return m < 0 ? m + y : m;
+    }
+
+    /// <summary>
+    /// Godot's <c>fposmod()</c>.
+    /// </summary>
+    public static double FPosMod(double x, double y)
+    {
+        var m = x % y;
+        return m < 0 ? m + y : m;
+    }
+
+    /// <summary>
+    /// Godot's <c>String.simplify_path()</c>: "." and empty parts dropped and ".." folded into the part before it,
+    /// keeping a leading "/" or drive.
+    /// </summary>
+    public static string SimplifyPath(string path)
+    {
+        var p = path.Replace('\\', '/');
+        var prefix = "";
+        if (p.Length >= 2 && p[1] == ':')
+        {
+            prefix = p[..2] + (p.Length > 2 && p[2] == '/' ? "/" : "");
+            p = p[prefix.Length..];
+        }
+        else if (p.StartsWith('/'))
+        {
+            prefix = "/";
+            p = p[1..];
+        }
+        var parts = new List<string>();
+        foreach (var part in p.Split('/'))
+        {
+            if (part is "" or ".")
+                continue;
+            if (part == ".." && parts.Count > 0 && parts[^1] != "..")
+                parts.RemoveAt(parts.Count - 1);
+            else if (part != ".." || prefix == "")
+                parts.Add(part);
+        }
+        return prefix + string.Join("/", parts);
+    }
+
+    /// <summary>
+    /// Godot's <c>path_join()</c>: the two with one "/" between.
+    /// </summary>
+    public static string PathJoin(string a, string b) => a == "" ? b : a.EndsWith('/') ? a + b : a + "/" + b;
+
+    /// <summary>
+    /// Godot's <c>get_file().get_basename()</c>: a path's file name without its extension.
+    /// </summary>
+    public static string BaseName(string path)
+    {
+        var file = path.Replace('\\', '/');
+        file = file[(file.LastIndexOf('/') + 1)..];
+        var dot = file.LastIndexOf('.');
+        return dot > 0 ? file[..dot] : file;
+    }
+
+    /// <summary>
     /// Godot's <c>String.capitalize()</c>: camelCase and snake_case split into words, each with a capital first
     /// letter and the rest lower case ("american-dj" → "American-dj", "x4bar" → "X 4 Bar").
     /// </summary>

@@ -4,16 +4,16 @@ Cuedeck is a DMX lighting controller for Windows. It's the sLight lighting contr
 ported to the C# and Vulkan framework that the Cuepoint DJ app is built on. The plan, and how far it's got, are in
 [docs/PORT_PLAN.md](docs/PORT_PLAN.md).
 
-**Status:** phases 1 to 3 done; phase 4 (DJ Edit Mode) next. The lighting engine is ported: the patch, Art-Net and sACN
-output, cues, chases, effects, palettes, positions, faders, live flashes, the tempo clock and sLight's show files, and
-its output matches sLight's frame for frame. On screen so far are the console's top bar (grand master, run mode, tap
-tempo, Sending, Blackout All, universes, and New, Save and Load Show), and all of the console's tabs but the 3D
-Visualizer: Cues (Space is GO), Chases, Effects, Sound (live audio from any Windows input, in Sound Reactive), Groups,
-Patch (with the fixture library), DMX Output, Faders and Palettes. MIDI controllers and OSC can fire cues, chases,
-effects and flashes through triggers, and move the playback faders, and the controllers' pads light to follow the
-console. Profiles can be made and edited, imported from GDTF and Open Fixture Library files, or chosen from the fixture
-library: the bundled one, the current Open Fixture Library online, or GDTF-Share with an account (its login is never
-saved). The bundled library is the Open Fixture Library's (see [its
+**Status:** phases 1 to 3 done; phase 4 (DJ Edit Mode) under way, with VirtualDJ's and Cuepoint's music libraries read.
+The lighting engine is ported: the patch, Art-Net and sACN output, cues, chases, effects, palettes, positions, faders,
+live flashes, the tempo clock and sLight's show files, and its output matches sLight's frame for frame. On screen so far
+are the console's top bar (grand master, run mode, tap tempo, Sending, Blackout All, universes, and New, Save and Load
+Show), and all of the console's tabs but the 3D Visualizer: Cues (Space is GO), Chases, Effects, Sound (live audio from
+any Windows input, in Sound Reactive), Groups, Patch (with the fixture library), DMX Output, Faders and Palettes. MIDI
+controllers and OSC can fire cues, chases, effects and flashes through triggers, and move the playback faders, and the
+controllers' pads light to follow the console. Profiles can be made and edited, imported from GDTF and Open Fixture
+Library files, or chosen from the fixture library: the bundled one, the current Open Fixture Library online, or
+GDTF-Share with an account (its login is never saved). The bundled library is the Open Fixture Library's (see [its
 attribution](Cuedeck/Fixtures/Library/ATTRIBUTION.md)).
 
 To open a show straight away, pass it on the command line: `dotnet run --project Cuedeck -- "My show.slight"`.

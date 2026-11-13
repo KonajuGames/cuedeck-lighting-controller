@@ -103,7 +103,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 | 1 | ✅ **Headless core** (done 2026-11-13; see §7.1). Universes, Art-Net/sACN, compositing, cues and crossfades, chases, wave effects, palettes, positions, groups, virtual dimmers, live flash, tempo clock, and the show file and fixture profiles. Port `dmx_render`, `cue_timing`, `virtual_dimmer`, `faders`, `palettes`, `position`, `live_flash`, `tempo_clock`, `show_file`, `fixture_profile`, `autosave` and `unsaved_changes` tests to xUnit. | Real Art-Net out from a loaded show, driven by a test harness, matches sLight's output frame for frame (compare by capturing UDP from both). |
 | 2 | ✅ **Console UI** (done 2026-11-13; see §7.2). Shell (top bar, grand master, run mode, Sending, universes, save/load), Patch/universe tabs with the fixture library dialog, then Cues, Chases, Effects, Groups, Faders/fader bank, Palettes and DMX Output. New widgets from §3 as each tab needs them. | Every console tab works for the sLight User Guide walkthrough. |
 | 3 | ✅ **Sound and triggers** (built 2026-11-13, see §7.3; not yet tried with a real line-in or controller). Live capture, sound reactors and the Sound tab with spectrogram. MIDI/OSC triggers with Learn and feedback (WinMidi out). Options dialog (VirtualDJ or Cuepoint). | Beat-reactive chases run from line-in; a controller's LEDs follow. |
-| 4 | **DJ Edit Mode.** Music browser (drives, VirtualDJ lists, Cuepoint library), song analysis, the structure bar, heatmap and timeline editor, timeline generator, timeline store and the position editor. Port `music_*`, `timeline_*`, `structure_detection`, `virtualdj_*`, `cuepoint_library` and `m4a_playback` tests. | Generate → edit → save a song's timelines, and the files load in sLight too. |
+| 4 | 🔶 **DJ Edit Mode** (in progress; see §7.4). Music browser (drives, VirtualDJ lists, Cuepoint library), song analysis, the structure bar, heatmap and timeline editor, timeline generator, timeline store and the position editor. Port `music_*`, `timeline_*`, `structure_detection`, `virtualdj_*`, `cuepoint_library` and `m4a_playback` tests. | Generate → edit → save a song's timelines, and the files load in sLight too. |
 | 5 | **DJ Perform Mode.** OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
 | 6 | **Visualizer.** §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
 | 7 | **Native extras and polish.** USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
@@ -171,6 +171,22 @@ What runs on the UI thread for now: the show ticks in the main loop, so its outp
 - A fader strip keeps a Forget MIDI button beside Learn, as well as forgetting on a right-click as sLight's did.
 
 **Where slice 3a differs from sLight:** the analysis runs at the show's 30 Hz tick, and on the latest 2048 samples rather than the frame Godot's analyser picked for its output latency, so levels can differ a little from sLight's for the same sound. Live audio can't be compared frame for frame anyway; the smoothing and beat rules are sLight's.
+
+### 7.4 Phase 4 progress
+
+Phase 4 is about 12,000 lines of sLight's GDScript and 5,000 of its tests, so it's done in slices from the data
+outwards, each slice's tests ported before its code.
+
+| Slice | What | State |
+|---|---|---|
+| 4a | The music libraries: VirtualDJ's databases (`database.xml`: tags, analysis, variable-tempo beat grids, cue, automix and remix points, merged across drives) and lists (`.vdjfolder`, in its `order`), and Cuepoint's library files (`library.json`) and virtual folders (`.m3u8`), all as `Dj/DjSong` and `Dj/DjList` | ✅ |
+| 4b | Lighting timelines as data: tracks, clips and lanes (`timeline_track`'s model), the timeline store beside a show, selection and batch edits | next |
+| 4c | Song analysis: decoding (Cuepoint's `AudioDecoder`), beats, key and the structure detection (`song_analyzer`, `song_detect`, `song_analysis`) | |
+| 4d | The timeline generator | |
+| 4e | DJ Edit Mode's screen: the music browser, the timeline editor with playback, the structure bar and the heatmap | |
+| 4f | The position editor and list | |
+
+**Where slice 4a differs from sLight:** sLight's tests also loaded the VirtualDJ and Cuepoint libraries on the machine running them, as a check; those parts aren't ported, as Cuedeck's tests don't depend on what's installed.
 
 Phases 1 and 2 are the critical path; 3–5 can then go in any order, and 6 can start alongside them once phase 1's `DmxRender` exists.
 
