@@ -184,6 +184,27 @@ sealed class Trigger
     public bool CanFeedback => FeedbackWatch != FeedbackWatch.Action || Action is TriggerAction.CueGoTo or TriggerAction.ChaseToggle or TriggerAction.EffectToggle || IsFlash;
 
     /// <summary>
+    /// What the feedback asks the console about: ("cue", "5"), ("chase", name), ("flash", "2"), ("run_mode", "1"),
+    /// ("beat", "") for a pulse, or ("", "") for nothing.
+    /// </summary>
+    public (string Kind, string Target) FeedbackQuery =>
+        FeedbackWatch switch
+        {
+            FeedbackWatch.Beat => ("beat", ""),
+            FeedbackWatch.Sending => ("sending", ""),
+            FeedbackWatch.AnyRunning => ("fx_any", ""),
+            FeedbackWatch.CueMode => ("run_mode", "0"),
+            FeedbackWatch.SoundMode => ("run_mode", "1"),
+            _ => Action switch
+            {
+                TriggerAction.CueGoTo => ("cue", Target),
+                TriggerAction.ChaseToggle => ("chase", Target),
+                TriggerAction.EffectToggle => ("effect", Target),
+                _ => Flash is { } kind ? ("flash", ((int)kind).ToString(System.Globalization.CultureInfo.InvariantCulture)) : ("", ""),
+            },
+        };
+
+    /// <summary>
     /// The match uses <see cref="MidiNumber"/> (a pitch bend is the channel's own).
     /// </summary>
     public bool UsesNumber => MidiKind != TriggerMidiKind.PitchBend;

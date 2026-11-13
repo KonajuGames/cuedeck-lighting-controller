@@ -260,8 +260,8 @@ public class TriggerTests
     {
         using var show = new LightingShow();
         show.Triggers.Triggers.Add(new Trigger { Name = "Go pad", MidiKind = TriggerMidiKind.ControlChange, MidiNumber = 20, Action = TriggerAction.CueGo });
-        show.Triggers.FeedbackEnabled = true;
-        show.Triggers.OscOutHost = "10.0.0.5";
+        show.Triggers.SendUdp = (_, _, _) => { };
+        show.Triggers.SetFeedback(true, 9010, "10.0.0.5", 9001);
         var saved = ShowFile.ToJson(show);
         Assert.Equal("Go pad", saved.Get("triggers").Arr("triggers")[0].Str("name"));
 

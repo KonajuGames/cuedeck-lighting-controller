@@ -7,6 +7,7 @@ namespace Cuedeck.Audio;
 /// Listens to a Windows audio input (a microphone or line-in) through WASAPI, in shared mode, keeping the latest
 /// samples for <see cref="SoundEngine"/>. Nothing's played back: the input is only heard, never monitored.
 /// </summary>
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 sealed class WasapiInput : IAudioCapture
 {
     readonly CaptureBuffer _buffer = new();

@@ -36,6 +36,8 @@ sealed class MainScreen : Panel
         _status = Add(new Label(fonts.Body, "") { Color = Theme.Muted });
         TopBar.Status += Log;
         TopBar.OpenTriggers += dialogs.Triggers.Show;
+        TitleBar.OptionsClicked += dialogs.Options.Show;
+        dialogs.Options.DjSoftwareChanged += d => Log($"Music library: {AppSettings.NameOf(d)}.");
         Console.Patch.Status += Log;
         Console.Status += Log;
     }

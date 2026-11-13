@@ -92,7 +92,7 @@ static void Run(string[] args)
     using var renderer = new Renderer(gpu, window, atlas);
 
     // The show, and the show as a document: its file, unsaved changes, autosave.
-    using var show = new LightingShow(new Cuedeck.Audio.WasapiInput());
+    using var show = new LightingShow(OperatingSystem.IsWindows() ? new Cuedeck.Audio.WasapiInput() : new Cuedeck.Audio.NoCapture());
     var session = new ShowSession(show);
     var profiles = new ProfileStore(Path.Combine(AppPaths.Folder, "fixture_profiles"));
 
@@ -105,10 +105,12 @@ static void Run(string[] args)
     var library = new LibraryDialog(ui, fonts, menu, bundled, new OnlineLibrary(bundled, Path.Combine(AppPaths.Folder, "fixture_online")));
     var editor = new ProfileEditor(ui, fonts, menu);
     var triggers = new TriggersDialog(ui, fonts, menu, show);
+    var options = new OptionsDialog(ui, fonts, menu, new AppSettings(AppSettings.DefaultPath));
     // Drawn in this order: the screen, then the dialogs over it, then the menu over everything.
-    var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers), show, profiles));
+    var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), show, profiles));
     ui.Add(editor);
     ui.Add(triggers);
+    ui.Add(options);
     ui.Add(library);
     ui.Add(confirm);
     ui.Add(prompt);
@@ -178,8 +180,11 @@ static void Run(string[] args)
     // A show file given on the command line (opened with the app) is opened instead of the last one.
     shell.Start(args.FirstOrDefault(File.Exists));
 
-    // Every MIDI input, opened as it's plugged in; what they send goes to the show each frame.
-    using var midi = new Cuedeck.Midi.MidiDevices(new Cuedeck.Midi.WinMidi());
+    // Every MIDI input, opened as it's plugged in; what they send goes to the show each frame. Their outputs are left
+    // for trigger feedback to open (some drivers let only one program have a port).
+    Cuedeck.Midi.IMidiPorts midiPorts = OperatingSystem.IsWindows() ? new Cuedeck.Midi.WinMidi() : new Cuedeck.Midi.NoMidiPorts();
+    using var midi = new Cuedeck.Midi.MidiDevices(midiPorts, openOutputs: false);
+    show.Triggers.MidiPorts = midiPorts;
     show.Triggers.MidiInputs = () => [.. midi.Devices.Select(d => d.Name)];
     show.Triggers.RescanMidi = midi.Scan;
 
@@ -215,7 +220,7 @@ static void Run(string[] args)
         lastTime = now;
         while (tickTime >= TICK)
         {
-            show.Tick(TICK, screen.TopBar.Sending);
+            show.Tick(TICK, show.Sending);
             tickTime -= TICK;
         }
         if (now - lastAutosave >= Autosave.Interval)
@@ -228,7 +233,7 @@ static void Run(string[] args)
         if (window.IsIconified || size.X == 0 || size.Y == 0)
             continue;
 
-        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = picker.ScreenSize = library.ScreenSize = editor.ScreenSize = triggers.ScreenSize = new float2(size.X, size.Y);
+        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = picker.ScreenSize = library.ScreenSize = editor.ScreenSize = triggers.ScreenSize = options.ScreenSize = new float2(size.X, size.Y);
         screen.TitleBar.Subtitle = session.Title.Replace(" — Cuedeck", "");
         window.Title = session.Title;
         screen.Update();

@@ -72,11 +72,16 @@ sealed class LightingShow : IDisposable
     /// </summary>
     public TriggersEngine Triggers { get; } = new();
 
+    /// <summary>
+    /// Whether frames go out on the wire (the top bar's Sending); controller feedback can follow it.
+    /// </summary>
+    public bool Sending { get; set; } = true;
+
     RunMode _runMode = RunMode.Cues;
 
     /// <summary>
-    /// The parts of a show file not ported yet (triggers, the visualizer's stage), carried through loading and saving
-    /// as they were, so nothing in a show is lost.
+    /// The parts of a show file not ported yet (the visualizer's stage), carried through loading and saving as they
+    /// were, so nothing in a show is lost.
     /// </summary>
     public Dictionary<string, JsonNode?> Carried { get; } = [];
 
@@ -92,6 +97,14 @@ sealed class LightingShow : IDisposable
         Effects = new EffectsEngine(Tempo) { Sound = Audio };
         Triggers.Fired += RunTrigger;
         Triggers.Released += ReleaseTrigger;
+        Triggers.FeedbackState = FeedbackState;
+        // Beat pads flash on the tempo clock's beats, or else (it not running) the live audio's.
+        Tempo.Beat += Triggers.OnBeat;
+        Audio.Beat += () =>
+        {
+            if (!Tempo.Running)
+                Triggers.OnBeat();
+        };
         Patch = new Patch(Dmx);
         Cues = new CueList(Dmx, Palettes, Patch);
         Faders = new FaderBank(Dmx, Effects, Patch, () => Groups, Cues.StandingLook) { EffectRunner = SetEffectRunning };
@@ -126,6 +139,27 @@ sealed class LightingShow : IDisposable
         Cues.Advance(delta);
         Effects.Advance(delta);
         Dmx.Tick(transmit);
+        Triggers.UpdateFeedback(delta);
+    }
+
+    /// <summary>
+    /// Whether what a feedback pad follows is on: its cue live, its chase or effect running, the run mode, Sending,
+    /// anything running, or a flash held. sLight's shell's <c>_feedback_state</c>.
+    /// </summary>
+    public bool FeedbackState(string kind, string target)
+    {
+        var number = Json.IsValidInt(target.Trim()) ? int.Parse(target.Trim(), System.Globalization.CultureInfo.InvariantCulture) : (int?)null;
+        return kind switch
+        {
+            "cue" => number is { } n && Cues.CurrentNumber == n,
+            "chase" => Effects.FindChase(target)?.Running ?? false,
+            "effect" => Effects.FindEffect(target)?.Running ?? false,
+            "run_mode" => number is { } m && (int)RunMode == m,
+            "sending" => Sending,
+            "fx_any" => Effects.AnyRunning,
+            "flash" => number is { } f && Enum.IsDefined((FlashKind)f) && Flash.IsOn((FlashKind)f),
+            _ => false,
+        };
     }
 
     /// <summary>

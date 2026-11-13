@@ -9,7 +9,8 @@ namespace Cuedeck.UI.Console;
 /// The MIDI and OSC triggers, over the dimmed screen: whether MIDI and OSC are listened to (and on which UDP port), the
 /// bindings on the left, and the chosen one on the right: what it listens for (a MIDI note, CC, program change or
 /// pitch bend on a channel, or an OSC address), which Learn takes from the next message heard, and the action it fires.
-/// The last message heard shows along the bottom. sLight's Triggers dialog; its feedback settings come with slice 3c.
+/// The last message heard shows along the bottom. Feedback lights a binding's pad from what it follows, through the
+/// chosen MIDI output or as OSC. sLight's Triggers dialog.
 /// </summary>
 sealed class TriggersDialog : Panel
 {
@@ -44,6 +45,16 @@ sealed class TriggersDialog : Panel
     readonly TextBox _target;
     readonly Dropdown<string> _pick;
     readonly Label _activity;
+    readonly Checkbox _feedbackOn;
+    readonly Dropdown<string> _midiOut;
+    readonly TextBox _oscOutHost;
+    readonly NumberBox _oscOutPort;
+    readonly Checkbox _lightPad;
+    readonly Row _followsRow;
+    readonly Dropdown<FeedbackWatch> _follows;
+    readonly NumberBox _onValue;
+    readonly NumberBox _offValue;
+    IReadOnlyList<string> _outputs = [];
     List<Trigger> _listed = [];
     Trigger? _shown;
     bool _pressedInBox;
@@ -77,6 +88,32 @@ sealed class TriggersDialog : Panel
         var apply = oscRow.Add(new Button(fonts.Body, "Apply"));
         apply.Clicked += _ => ApplyOsc();
         _oscState = oscRow.Add(new Label(fonts.Body) { Color = Theme.Muted });
+
+        // Feedback out: a MIDI output (none: sLight's UDP bridge), and where OSC feedback goes.
+        var feedbackRow = _box.Add(new Row(8));
+        _feedbackOn = feedbackRow.Add(new Checkbox(fonts.Body, "Feedback (LEDs)") { Tooltip = "Light the pads of bindings set to, from what they follow" });
+        _feedbackOn.Changed += _ => ApplyFeedback();
+        feedbackRow.Add(new Label(fonts.Body, "MIDI output:") { Color = Theme.Muted });
+        _midiOut = feedbackRow.Add(
+            new Dropdown<string>(fonts.Body)
+            {
+                Menu = menu,
+                Width = 220,
+                Items = () => ["", .. _outputs],
+                Text = n => n == "" ? $"(none — UDP bridge :{engine.MidiOutPort})" : n,
+            }
+        );
+        _midiOut.Chosen += n => engine.SetMidiOutput(n);
+        var rescanOut = feedbackRow.Add(new Button(fonts.Body, "Rescan") { Tooltip = "List the MIDI outputs again" });
+        rescanOut.Clicked += _ => _outputs = engine.MidiOutputs();
+        var oscOutRow = _box.Add(new Row(8));
+        oscOutRow.Add(new FixedWidth(new Label(fonts.Body, ""), 130)); // under the MIDI output
+        oscOutRow.Add(new Label(fonts.Body, "OSC →") { Color = Theme.Muted });
+        _oscOutHost = oscOutRow.Add(new TextBox(fonts.Body) { Width = 130, Placeholder = "127.0.0.1" });
+        oscOutRow.Add(new Label(fonts.Body, ":") { Color = Theme.Muted });
+        _oscOutPort = oscOutRow.Add(new NumberBox(fonts.Body, 1, 65535, width: 80));
+        var applyOut = oscOutRow.Add(new Button(fonts.Body, "Apply"));
+        applyOut.Clicked += _ => ApplyFeedback();
         _box.Add(new Divider(WIDTH - 28));
 
         var body = _box.Add(new Row(12));
@@ -186,6 +223,29 @@ sealed class TriggersDialog : Panel
         _targetRow = actions.Field("Target", targetBox);
         _targetName = _targetRow.Children.OfType<FixedWidth>().Select(f => f.Inner).OfType<Label>().First();
 
+        _lightPad = new Checkbox(fonts.Body, "light this pad");
+        actions.Field("Feedback", _lightPad);
+        _lightPad.Changed += c => Edit(t => t.FeedbackEnabled = c.Checked);
+        var follows = new Row(6);
+        _follows = follows.Add(
+            new Dropdown<FeedbackWatch>(fonts.Body)
+            {
+                Menu = menu,
+                Width = 210,
+                Items = () => Enum.GetValues<FeedbackWatch>(),
+                Text = w => Trigger.FeedbackWatches[(int)w],
+                Tooltip = "\"This binding's action\" follows a Go to cue, a chase or effect toggle, or a flash",
+            }
+        );
+        _follows.Chosen += w => Edit(t => t.FeedbackWatch = w);
+        follows.Add(new Label(fonts.Body, "on") { Color = Theme.Muted });
+        _onValue = follows.Add(new NumberBox(fonts.Body, 0, 127, width: 50) { Tooltip = "The note velocity or CC value it sends while on" });
+        _onValue.Changed += n => Edit(t => t.FeedbackOn = (int)n.Value);
+        follows.Add(new Label(fonts.Body, "off") { Color = Theme.Muted });
+        _offValue = follows.Add(new NumberBox(fonts.Body, 0, 127, width: 50) { Tooltip = "…and while off" });
+        _offValue.Changed += n => Edit(t => t.FeedbackOff = (int)n.Value);
+        _followsRow = actions.Field("  follows", follows);
+
         _box.Add(_activity);
         var footer = _box.Add(new Row(8));
         var close = footer.Add(new Button(fonts.Body, "Close"));
@@ -239,10 +299,21 @@ sealed class TriggersDialog : Panel
 
     public void Show()
     {
-        _show.Triggers.RescanMidi();
-        _oscPort.Value = _show.Triggers.OscPort;
+        var engine = _show.Triggers;
+        engine.RescanMidi();
+        _outputs = engine.MidiOutputs();
+        _oscPort.Value = engine.OscPort;
+        _oscOutHost.Text = engine.OscOutHost;
+        _oscOutPort.Value = engine.OscOutPort;
         Visible = true;
         _root.Focus(this);
+    }
+
+    void ApplyFeedback()
+    {
+        var engine = _show.Triggers;
+        engine.SetFeedback(_feedbackOn.Checked, engine.MidiOutPort, _oscOutHost.Text, (int)_oscOutPort.Value);
+        _oscOutHost.Text = engine.OscOutHost;
     }
 
     public void Close()
@@ -293,6 +364,8 @@ sealed class TriggersDialog : Panel
         _devices.Text = devices.Count > 0 ? "Devices: " + string.Join(", ", devices) : "No MIDI devices found";
         _oscOn.Checked = engine.OscEnabled;
         _oscState.Text = "OSC: " + engine.OscState;
+        _feedbackOn.Checked = engine.FeedbackEnabled;
+        _midiOut.Selected = engine.MidiOutPortName;
 
         var t = _list.SelectedItem;
         _editor.Visible = t is not null;
@@ -327,6 +400,11 @@ sealed class TriggersDialog : Panel
         };
         _pick.Visible = TargetNames().Any();
         _pick.Selected = "";
+        _lightPad.Checked = t.FeedbackEnabled;
+        _followsRow.Visible = t.FeedbackEnabled;
+        _follows.Selected = t.FeedbackWatch;
+        _onValue.Value = t.FeedbackOn;
+        _offValue.Value = t.FeedbackOff;
     }
 
     public override float2 Measure()

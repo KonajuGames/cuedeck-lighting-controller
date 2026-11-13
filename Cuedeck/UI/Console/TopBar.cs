@@ -22,9 +22,14 @@ sealed class TopBar : Panel
     readonly Flow _files;
 
     /// <summary>
-    /// Whether frames go out on the wire; otherwise they're only worked out (for the 3D view).
+    /// Whether frames go out on the wire; otherwise they're only worked out (for the 3D view). The show's, so
+    /// controller feedback can follow it.
     /// </summary>
-    public bool Sending { get; set; } = true;
+    public bool Sending
+    {
+        get => _show.Sending;
+        set => _show.Sending = value;
+    }
 
     public event Action? NewShow;
     public event Action? SaveShow;

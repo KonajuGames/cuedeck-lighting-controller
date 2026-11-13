@@ -25,11 +25,18 @@ sealed class MidiDevices : IDisposable
     const double SCAN_SECONDS = 2;
 
     readonly IMidiPorts _ports;
+    readonly bool _openOutputs;
     readonly List<MidiDevice> _devices = [];
     readonly ConcurrentQueue<(MidiDevice Device, MidiMessage Message)> _received = new();
     double _nextScan = double.NegativeInfinity;
 
-    public MidiDevices(IMidiPorts ports) => _ports = ports;
+    /// <param name="openOutputs">Whether to open each device's output too, for its lights. Off leaves the outputs
+    /// free for something else to open (some drivers let only one at a time).</param>
+    public MidiDevices(IMidiPorts ports, bool openOutputs = true)
+    {
+        _ports = ports;
+        _openOutputs = openOutputs;
+    }
 
     public IReadOnlyList<MidiDevice> Devices => _devices;
 
@@ -68,7 +75,7 @@ sealed class MidiDevices : IDisposable
             var input = _ports.OpenInput(index, message => _received.Enqueue((device!, message)));
             if (input is null)
                 continue;
-            var outputIndex = _ports.OutputNames().ToList().IndexOf(name);
+            var outputIndex = _openOutputs ? _ports.OutputNames().ToList().IndexOf(name) : -1;
             device = new MidiDevice(name, input, outputIndex >= 0 ? _ports.OpenOutput(outputIndex) : null);
             _devices.Add(device);
             Connected?.Invoke(device);

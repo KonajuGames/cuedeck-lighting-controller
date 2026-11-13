@@ -37,10 +37,12 @@ public abstract class ConsoleHarness : IDisposable
         var library = new LibraryDialog(Ui, fonts, menu, bundled, new OnlineLibrary(bundled, Dir.File("online"), Web));
         var editor = new ProfileEditor(Ui, fonts, menu);
         var triggers = new TriggersDialog(Ui, fonts, menu, Show);
+        var options = new OptionsDialog(Ui, fonts, menu, new AppSettings(Dir.File("settings.json")));
         Store = new ProfileStore(Dir.File("profiles"));
-        Screen = Ui.Add(new MainScreen(fonts, MainScreenTests.Pictures, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers), Show, Store));
+        Screen = Ui.Add(new MainScreen(fonts, MainScreenTests.Pictures, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), Show, Store));
         Ui.Add(editor);
         Ui.Add(triggers);
+        Ui.Add(options);
         Ui.Add(library);
         Ui.Add(confirm);
         Ui.Add(prompt);
@@ -73,6 +75,8 @@ public abstract class ConsoleHarness : IDisposable
             editor.ScreenSize = ScreenSize;
         foreach (var triggers in Ui.Elements.OfType<TriggersDialog>())
             triggers.ScreenSize = ScreenSize;
+        foreach (var options in Ui.Elements.OfType<OptionsDialog>())
+            options.ScreenSize = ScreenSize;
         foreach (var menu in Ui.Elements.OfType<ContextMenu>())
             menu.ScreenSize = ScreenSize;
         Screen.Update();
