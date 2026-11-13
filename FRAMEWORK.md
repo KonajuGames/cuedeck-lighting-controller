@@ -39,7 +39,9 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 
 ## Adapted
 
-- `Midi/MidiMessage.cs`: Cuepoint's, with note-off and pitch bend told apart for the playback faders.
+- `Midi/MidiMessage.cs`: Cuepoint's, with note-off and pitch bend told apart for the playback faders, and Program
+  Change, the clock's tick and Start for triggers and the tempo clock.
+- `Midi/WinMidi.cs`, `Midi/MidiDevices.cs`: Cuepoint's, unchanged but for the namespace (phase 3).
 
 ## New
 

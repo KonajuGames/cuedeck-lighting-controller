@@ -1,5 +1,7 @@
 using System.Text.Json.Nodes;
 using Cuedeck.Audio;
+using Cuedeck.Midi;
+using Cuedeck.Triggers;
 using Cuedeck.Common;
 using Cuedeck.Dmx;
 
@@ -65,6 +67,11 @@ sealed class LightingShow : IDisposable
     /// </summary>
     public SoundEngine Audio { get; }
 
+    /// <summary>
+    /// The MIDI and OSC triggers: what they fire runs here.
+    /// </summary>
+    public TriggersEngine Triggers { get; } = new();
+
     RunMode _runMode = RunMode.Cues;
 
     /// <summary>
@@ -83,6 +90,8 @@ sealed class LightingShow : IDisposable
     {
         Audio = new SoundEngine(Sound, capture ?? new NoCapture());
         Effects = new EffectsEngine(Tempo) { Sound = Audio };
+        Triggers.Fired += RunTrigger;
+        Triggers.Released += ReleaseTrigger;
         Patch = new Patch(Dmx);
         Cues = new CueList(Dmx, Palettes, Patch);
         Faders = new FaderBank(Dmx, Effects, Patch, () => Groups, Cues.StandingLook) { EffectRunner = SetEffectRunning };
@@ -112,6 +121,7 @@ sealed class LightingShow : IDisposable
         if (Audio.Update(delta))
             Effects.OnSoundBeat();
         Tempo.Update(delta);
+        Triggers.Update();
         Dmx.Advance(delta);
         Cues.Advance(delta);
         Effects.Advance(delta);
@@ -256,8 +266,109 @@ sealed class LightingShow : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// A MIDI message from any input: the tempo clock takes its clock, the faders and the triggers whatever they're
+    /// mapped to or learning. Call on the show's thread.
+    /// </summary>
+    public void HandleMidi(MidiMessage m)
+    {
+        if (Tempo.MidiClockEnabled && m.Kind == MidiKind.Clock)
+            Tempo.ClockPulse();
+        else if (Tempo.MidiClockEnabled && m.Kind == MidiKind.Start)
+            Tempo.ClockStart();
+        Triggers.HandleMidi(m);
+        Faders.HandleMidi(m);
+    }
+
+    /// <summary>
+    /// Runs the console action a trigger's bound to: sLight's shell's <c>_on_trigger_fired</c>.
+    /// </summary>
+    public void RunTrigger(TriggerAction action, string target)
+    {
+        switch (action)
+        {
+            case TriggerAction.CueGo:
+                Cues.Go();
+                break;
+            case TriggerAction.CueBack:
+                Cues.GoBack();
+                break;
+            case TriggerAction.CueHalt:
+                Cues.Halt();
+                break;
+            case TriggerAction.CueGoTo:
+                Cues.GoTo(Json.IsValidInt(target.Trim()) ? int.Parse(target.Trim(), System.Globalization.CultureInfo.InvariantCulture) : 1);
+                break;
+            case TriggerAction.ChaseToggle:
+                if (FindChase(target) is { } c)
+                    SetChaseRunning(c, !c.Running);
+                break;
+            case TriggerAction.EffectToggle:
+                if (FindEffect(target) is { } e)
+                    SetEffectRunning(e.Name, !e.Running);
+                break;
+            case TriggerAction.Blackout:
+                BlackoutAll();
+                break;
+            case TriggerAction.TapTempo:
+                Tempo.Tap();
+                break;
+            case TriggerAction.FlashBlackout or TriggerAction.FlashStrobe or TriggerAction.FlashWhite or TriggerAction.FlashColour:
+                var kind = (FlashKind)(action - TriggerAction.FlashBlackout);
+                if (target == Trigger.FLASH_TOGGLE)
+                    Flash.Toggle(kind);
+                else
+                    Flash.Press(kind);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// A flash trigger's pad came back up.
+    /// </summary>
+    public void ReleaseTrigger(TriggerAction action, string target)
+    {
+        if (action is >= TriggerAction.FlashBlackout and <= TriggerAction.FlashColour)
+            Flash.Release((FlashKind)(action - TriggerAction.FlashBlackout));
+    }
+
+    /// <summary>
+    /// A chase by name (case-insensitive), or by its 1-based number.
+    /// </summary>
+    public Chase? FindChase(string key)
+    {
+        if (Effects.FindChase(key) is { } c)
+            return c;
+        var low = key.Trim();
+        return Json.IsValidInt(low) && int.Parse(low, System.Globalization.CultureInfo.InvariantCulture) is var n && n >= 1 && n <= Effects.Chases.Count ? Effects.Chases[n - 1] : null;
+    }
+
+    /// <summary>
+    /// An effect by name (case-insensitive), or by its 1-based number.
+    /// </summary>
+    public WaveEffect? FindEffect(string key)
+    {
+        if (Effects.FindEffect(key) is { } e)
+            return e;
+        var low = key.Trim();
+        return Json.IsValidInt(low) && int.Parse(low, System.Globalization.CultureInfo.InvariantCulture) is var n && n >= 1 && n <= Effects.Effects.Count ? Effects.Effects[n - 1] : null;
+    }
+
+    /// <summary>
+    /// Starts a chase from its first step, or stops it.
+    /// </summary>
+    public void SetChaseRunning(Chase chase, bool on)
+    {
+        if (chase.Running == on)
+            return;
+        if (on)
+            chase.Reset();
+        chase.Running = on;
+    }
+
     public void Dispose()
     {
+        Triggers.Dispose();
         Audio.Dispose();
         Dmx.Dispose();
     }

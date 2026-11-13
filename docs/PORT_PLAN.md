@@ -128,7 +128,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 - Where the cue list is (its live and next cue) is saved with the show but doesn't count as an unsaved change, so a GO doesn't mark the show unsaved. In sLight it did.
 - Renaming a group renames it in the effects, reactors and group faders that use it. In sLight they kept the old name and stopped finding the group.
 - A fader lets go of the chase or effect it started when it comes down (or is removed), even if that's been renamed meanwhile; and of one another fader is also running, only when the last of them comes down. sLight looked it up by name again, so a renamed one ran on.
-- MIDI Learn on the Faders tab waits for MIDI input (phase 3): for now a fader shows the mapping a show brought and can forget it.
+- MIDI Learn on the Faders tab waits for MIDI input (phase 3): for now a fader shows the mapping a show brought and can forget it. (Learn came with slice 3b.)
 
 ### 7.2 Phase 2 progress
 
@@ -156,8 +156,14 @@ What runs on the UI thread for now: the show ticks in the main loop, so its outp
 | Slice | What | State |
 |---|---|---|
 | 3a | Live audio: WASAPI input (`Audio/WasapiInput`), the analysis Godot's spectrum analyser did (a 2048-point FFT of the latest samples, the loudest bin in each band, -60 to 0 dB as 0 to 1, times the gain), sLight's smoothing and beat detection (`Audio/SoundEngine`), listening only in Sound Reactive, beats stepping beat-sync chases and pulsing reactors; the Sound tab (input and Rescan, band meters, spectrogram, gain, beat sensitivity and response, the reactors and their settings) | ✅ |
-| 3b | MIDI and OSC triggers (`triggers_engine`, `trigger`, `osc`) and the Triggers dialog with Learn; MIDI input through `WinMidi`, which also gives the Faders tab its MIDI Learn | next |
-| 3c | Feedback to controllers (`feedback_out`, `midi_out_bridge`: MIDI out through `WinMidi`), and the Options dialog (VirtualDJ or Cuepoint, `app_settings`) | |
+| 3b | MIDI input from every connected device (Cuepoint's `WinMidi` and `MidiDevices`, rescanned every two seconds); MIDI and OSC triggers (`Triggers/Trigger`, `TriggersEngine`, `Osc`: notes, CCs, program changes and pitch bends, or OSC addresses, firing cue GO, Back, Halt and Go To, chase and effect toggles, Blackout, Tap tempo and held flashes) saved with the show; the Triggers dialog (MIDI and OSC input, bindings, Learn, the last message heard) from a Triggers… button on the top bar; MIDI clock to the tempo clock; MIDI Learn on the Faders tab | ✅ |
+| 3c | Feedback to controllers (`feedback_out`, `midi_out_bridge`: MIDI out through `WinMidi`, and OSC out) with the dialog's feedback settings, and the Options dialog (VirtualDJ or Cuepoint, `app_settings`) | next |
+
+**Where slice 3b differs from sLight:**
+- The Triggers dialog's feedback settings (per binding and the outputs) wait for slice 3c; they're read from and saved to shows meanwhile.
+- MIDI comes from every input through winmm, read each frame, rather than through Godot's MIDI input; sLight also read it once a frame.
+- Learn is a button that lights while it listens (click again or Escape to stop), rather than a toggle button.
+- A fader strip keeps a Forget MIDI button beside Learn, as well as forgetting on a right-click as sLight's did.
 
 **Where slice 3a differs from sLight:** the analysis runs at the show's 30 Hz tick, and on the latest 2048 samples rather than the frame Godot's analyser picked for its output latency, so levels can differ a little from sLight's for the same sound. Live audio can't be compared frame for frame anyway; the smoothing and beat rules are sLight's.
 

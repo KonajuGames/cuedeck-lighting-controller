@@ -66,6 +66,7 @@ sealed class ConsoleView : Region
     public void Update()
     {
         _dialogs.Library.Update();
+        _dialogs.Triggers.Update();
         if (_left.SelectedPage == Cues)
             Cues.Update();
         if (_left.SelectedPage is ScrollingPage { Content: ChasesTab chases })

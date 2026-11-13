@@ -35,6 +35,7 @@ sealed class MainScreen : Panel
         Console = Add(new ConsoleView(fonts, menu, dialogs, show, profiles));
         _status = Add(new Label(fonts.Body, "") { Color = Theme.Muted });
         TopBar.Status += Log;
+        TopBar.OpenTriggers += dialogs.Triggers.Show;
         Console.Patch.Status += Log;
         Console.Status += Log;
     }

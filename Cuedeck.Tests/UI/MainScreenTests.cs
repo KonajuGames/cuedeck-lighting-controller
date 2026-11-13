@@ -27,7 +27,7 @@ public class MainScreenTests
     {
         var ui = new Root();
         var menu = new ContextMenu(TestFonts.Body);
-        var screen = ui.Add(new MainScreen(TestFonts, Pictures, menu, new Dialogs(new ConfirmDialog(ui, TestFonts.Body, TestFonts.Bold, TestFonts.Heading), new NamePrompt(ui, TestFonts.Body, TestFonts.Bold, TestFonts.Heading), new ColourPicker(ui, TestFonts.Body), new LibraryDialog(ui, TestFonts, menu, Bundled, new OnlineLibrary(Bundled, Path.Combine(Path.GetTempPath(), "cuedeck-no-online"), new FakeWeb())), new ProfileEditor(ui, TestFonts, menu)), new LightingShow(), new ProfileStore(Path.Combine(Path.GetTempPath(), "cuedeck-no-profiles"))));
+        var screen = ui.Add(new MainScreen(TestFonts, Pictures, menu, new Dialogs(new ConfirmDialog(ui, TestFonts.Body, TestFonts.Bold, TestFonts.Heading), new NamePrompt(ui, TestFonts.Body, TestFonts.Bold, TestFonts.Heading), new ColourPicker(ui, TestFonts.Body), new LibraryDialog(ui, TestFonts, menu, Bundled, new OnlineLibrary(Bundled, Path.Combine(Path.GetTempPath(), "cuedeck-no-online"), new FakeWeb())), new ProfileEditor(ui, TestFonts, menu), new TriggersDialog(ui, TestFonts, menu, new LightingShow())), new LightingShow(), new ProfileStore(Path.Combine(Path.GetTempPath(), "cuedeck-no-profiles"))));
         ui.Add(menu);
         screen.ScreenSize = size;
         screen.Update();

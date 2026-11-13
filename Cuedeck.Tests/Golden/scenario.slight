@@ -1117,7 +1117,17 @@
 		"beat_sensitivity": 1.4,
 		"response": 0.5
 	},
-	"triggers": {},
+	"triggers": {
+		"triggers": [],
+		"midi_enabled": true,
+		"osc_enabled": false,
+		"osc_port": 9000,
+		"feedback_enabled": false,
+		"midi_out_port": 9010,
+		"midi_out_port_name": "",
+		"osc_out_host": "127.0.0.1",
+		"osc_out_port": 9001
+	},
 	"groups": {
 		"groups": [
 			{

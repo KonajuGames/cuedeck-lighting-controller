@@ -16,7 +16,7 @@ sealed class FaderStrip : Panel
     readonly Label _level;
     readonly Dropdown<FaderKind> _kind;
     readonly Dropdown<(string Label, string Target)> _target;
-    readonly Label _midi;
+    readonly Button _learn;
     readonly Button _forget;
 
     public Fader Fader { get; }
@@ -67,7 +67,19 @@ sealed class FaderStrip : Panel
         );
         _target.Chosen += t => show.Faders.SetTarget(show.Faders.Faders.IndexOf(fader), fader.Kind, t.Target);
 
-        _midi = Add(new Label(fonts.Small) { Color = Theme.Muted, MaxWidth = WIDTH });
+        _learn = Add(
+            new Button(fonts.Small, "Learn")
+            {
+                Padding = 3,
+                Tooltip = "MIDI Learn: click, then move a fader or knob on your controller (a CC or a pitch bend), or press a pad or key (a note: on is full, off is 0). Right-click to forget the mapping.",
+            }
+        );
+        _learn.Clicked += _ =>
+        {
+            var i = show.Faders.Faders.IndexOf(fader);
+            show.Faders.Learn(show.Faders.IsLearning(i) ? -1 : i);
+        };
+        _learn.SecondaryClicked += _ => fader.ForgetMidi();
         _forget = Add(new Button(fonts.Small, "Forget MIDI") { Padding = 3, Tooltip = "Forget its MIDI mapping" });
         _forget.Clicked += _ => fader.ForgetMidi();
     }
@@ -96,7 +108,9 @@ sealed class FaderStrip : Panel
         _target.Selected = found.Label is not null ? found
             : Fader.Target != "" ? ($"{Fader.Target} (missing)", Fader.Target)
             : (targets.Count > 0 ? "(pick…)" : "(none to pick)", "");
-        _midi.Text = Fader.IsMapped ? "MIDI: " + Fader.MidiText : "MIDI: not mapped";
+        var learning = _show.Faders.IsLearning(_show.Faders.Faders.IndexOf(Fader));
+        _learn.Text = learning ? "Move it…" : Fader.IsMapped ? Fader.MidiText : "Learn";
+        _learn.Lit = learning;
         _forget.Visible = Fader.IsMapped;
     }
 }
@@ -136,7 +150,7 @@ sealed class FadersTab : Panel, IWidthAware
                     + "A Chase fader runs the chase while it's up, at the fader's intensity. "
                     + "A Group fader is a group master: it scales the group's intensity down from full. "
                     + "An Effect fader runs the effect while it's up, faded by the fader (a movement's swing shrinks). "
-                    + "MIDI mappings come from sLight's shows for now; learning new ones arrives with MIDI input."
+                    + "Learn, then move a fader or knob on a MIDI controller (a CC or a pitch bend) or press a pad or key (a note: on full, off 0), to control it from there."
             )
             {
                 Color = Theme.Faint,

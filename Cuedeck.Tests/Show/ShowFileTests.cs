@@ -168,8 +168,10 @@ public sealed class ShowFileTests : IDisposable
         File.WriteAllText(path, Json.Stringify(doc));
         Assert.Null(_session.Load(path));
         var again = ShowFile.ToJson(_show);
-        Assert.True(Json.SameTree(doc["triggers"], again["triggers"]));
         Assert.True(Json.SameTree(doc["viz"], again["viz"]));
+        // Triggers are read now (phase 3), and saved whole.
+        var trigger = again.Get("triggers").Arr("triggers")[0];
+        Assert.Equal((3, 40, "action"), (trigger.Int("action"), trigger.Int("midi_number"), trigger.Str("fb_watch_key")));
         Assert.Equal(7, again.Int("something_new"));
     }
 

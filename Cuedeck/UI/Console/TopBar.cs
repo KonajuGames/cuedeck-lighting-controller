@@ -32,6 +32,7 @@ sealed class TopBar : Panel
     public event Action? LoadShow;
     public event Action? SavePreset;
     public event Action? LoadPreset;
+    public event Action? OpenTriggers;
     public event Action? BlackoutAll;
     public event Action? AddUniverse;
     public event Action? RemoveUniverse;
@@ -97,6 +98,7 @@ sealed class TopBar : Panel
             ("Load Show…", "Ctrl+O", () => LoadShow),
             ("Save Preset", "Keep every universe's live levels, to load again later", () => SavePreset),
             ("Load Preset", "Put the saved live levels back", () => LoadPreset),
+            ("Triggers…", "MIDI and OSC triggers: pads, keys and messages that fire cues, chases, effects and flashes", () => OpenTriggers),
         ];
         foreach (var (text, keys, handler) in files)
         {

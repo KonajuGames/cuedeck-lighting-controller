@@ -104,9 +104,11 @@ static void Run(string[] args)
     var bundled = new FixtureLibrary(FixtureLibrary.DefaultFolder);
     var library = new LibraryDialog(ui, fonts, menu, bundled, new OnlineLibrary(bundled, Path.Combine(AppPaths.Folder, "fixture_online")));
     var editor = new ProfileEditor(ui, fonts, menu);
+    var triggers = new TriggersDialog(ui, fonts, menu, show);
     // Drawn in this order: the screen, then the dialogs over it, then the menu over everything.
-    var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor), show, profiles));
+    var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers), show, profiles));
     ui.Add(editor);
+    ui.Add(triggers);
     ui.Add(library);
     ui.Add(confirm);
     ui.Add(prompt);
@@ -176,6 +178,11 @@ static void Run(string[] args)
     // A show file given on the command line (opened with the app) is opened instead of the last one.
     shell.Start(args.FirstOrDefault(File.Exists));
 
+    // Every MIDI input, opened as it's plugged in; what they send goes to the show each frame.
+    using var midi = new Cuedeck.Midi.MidiDevices(new Cuedeck.Midi.WinMidi());
+    show.Triggers.MidiInputs = () => [.. midi.Devices.Select(d => d.Name)];
+    show.Triggers.RescanMidi = midi.Scan;
+
     // The show runs at sLight's refresh rate, 30 frames a second, however fast the screen draws.
     const double TICK = 1.0 / 30;
     var lastTime = Glfw.Time;
@@ -200,6 +207,9 @@ static void Run(string[] args)
         }
 
         var now = Glfw.Time;
+        midi.Update(now);
+        while (midi.TryRead(out _, out var message))
+            show.HandleMidi(message);
         // A long stall (a file dialog open, a breakpoint) isn't made up for frame by frame.
         tickTime += Math.Min(now - lastTime, 1.0);
         lastTime = now;
@@ -218,7 +228,7 @@ static void Run(string[] args)
         if (window.IsIconified || size.X == 0 || size.Y == 0)
             continue;
 
-        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = picker.ScreenSize = library.ScreenSize = editor.ScreenSize = new float2(size.X, size.Y);
+        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = picker.ScreenSize = library.ScreenSize = editor.ScreenSize = triggers.ScreenSize = new float2(size.X, size.Y);
         screen.TitleBar.Subtitle = session.Title.Replace(" — Cuedeck", "");
         window.Title = session.Title;
         screen.Update();

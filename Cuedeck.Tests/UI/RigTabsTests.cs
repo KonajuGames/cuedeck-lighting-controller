@@ -77,10 +77,30 @@ public sealed class RigTabsTests : ConsoleHarness
     {
         Show.Faders.FromJson(Cuedeck.Common.Json.Parse("""{"faders":[{"name":"Sub","kind":"cue","target":"1","midi_cc":7,"midi_channel":0}]}"""));
         OpenTab("Faders");
-        Assert.NotNull(Find<Label>(l => l.Text == "MIDI: CC 7 · ch 1"));
+        Assert.NotNull(ButtonCalled("CC 7 · ch 1"));
         Click(ButtonCalled("Forget MIDI"));
         Assert.False(Show.Faders.Faders[0].IsMapped);
-        Assert.NotNull(Find<Label>(l => l.Text == "MIDI: not mapped"));
+        Assert.NotNull(ButtonCalled("Learn"));
+    }
+
+    [Fact]
+    public void A_fader_learns_its_midi()
+    {
+        OpenTab("Faders");
+        Click(ButtonCalled("Add Fader"));
+        Click(ButtonCalled("Learn"));
+        Assert.True(ButtonCalled("Move it…").Lit);
+        Show.HandleMidi(Cuedeck.Midi.MidiMessage.Bend(2, 16383));
+        Frame();
+        Assert.Equal(1, Show.Faders.Faders[0].Level);
+        var learned = ButtonCalled("Bend · ch 3");
+
+        // Right-click forgets.
+        Ui.MouseMove(learned.ScreenPosition + learned.Size / 2);
+        Ui.MouseButton(Cuedeck.Input.MouseButton.Right, down: true);
+        Ui.MouseButton(Cuedeck.Input.MouseButton.Right, down: false);
+        Frame();
+        Assert.False(Show.Faders.Faders[0].IsMapped);
     }
 
     [Fact]

@@ -6,8 +6,8 @@ namespace Cuedeck.Show;
 /// <summary>
 /// A show as a file: sLight's JSON show format ("sLight show", version 1), so shows go back and forth between the two
 /// apps. Holds the patch, live levels, cues, chases, effects, sound reactors, groups, positions, palettes, faders and
-/// live flash settings; the parts Cuedeck doesn't handle yet (triggers, the visualizer's stage) are carried through
-/// unchanged.
+/// live flash settings, MIDI and OSC triggers; the parts Cuedeck doesn't handle yet (the visualizer's stage) are
+/// carried through unchanged.
 /// </summary>
 static class ShowFile
 {
@@ -21,7 +21,7 @@ static class ShowFile
     static readonly HashSet<string> Known =
     [
         "format", "version", "universes", "live", "run_mode", "cues", "chases", "effects", "sound", "groups", "positions",
-        "palettes", "live_flash", "faders", "sacn_cid", "timelines",
+        "palettes", "live_flash", "faders", "sacn_cid", "timelines", "triggers",
     ];
 
     /// <summary>
@@ -54,7 +54,7 @@ static class ShowFile
                 ["beat_sensitivity"] = show.Sound.BeatSensitivity,
                 ["response"] = show.Sound.Response,
             },
-            ["triggers"] = Carried(show, "triggers"),
+            ["triggers"] = show.Triggers.ToJson(),
             ["groups"] = new JsonObject
             {
                 ["groups"] = new JsonArray(
@@ -204,6 +204,7 @@ static class ShowFile
 
         show.Faders.FromJson(doc.Obj("faders")); // after the cues, chases and groups
         show.Flash.FromJson(doc.Obj("live_flash"));
+        show.Triggers.FromJson(doc.Get("triggers"));
         show.RunMode = (RunMode)doc.Int("run_mode", 0);
 
         show.TimelinesFolder = doc.Get("timelines") is JsonValue t && t.GetValueKind() == System.Text.Json.JsonValueKind.String && t.GetValue<string>() != "" ? t.GetValue<string>() : null;
