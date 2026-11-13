@@ -22,3 +22,21 @@ are in `docs/PORT_PLAN.md`; what was copied from Cuepoint and changed is in `FRA
 - Show files, profiles and timelines must stay readable by sLight (JSON; Godot writes every number as a float).
 - App data goes under `AppPaths.Folder` (`%LOCALAPPDATA%\Cuedeck`), never next to the executable.
 - Tests must run without a window, GPU, sound card or network.
+- Port GDScript arithmetic exactly: `Gd.Round`/`Gd.RoundToInt` (halves away from zero, unlike C#'s default) for
+  `round()`, and a plain cast for `int()`. Read show JSON leniently with the `Json` helpers (`Int`, `Num`, `Str`,
+  `Bool`), as Godot reads every number as a float.
+- `LightingShow` is the engine with no UI; screens read and drive it. Keep logic sLight kept in its panels (cue
+  playback, faders, patch homing) in the engine, where tests can reach it.
+
+## Golden scenario (sLight parity)
+
+`Cuedeck.Tests/Golden/SlightOutputTests` checks Cuedeck's DMX against sLight's, frame by frame. After changing
+`GoldenScenario.Build()` or its script, regenerate both halves:
+
+1. `CUEDECK_WRITE_GOLDEN=1 dotnet test Cuedeck.slnx --filter The_scenario_show` writes `scenario.slight`.
+2. Record sLight's frames (Godot is at `C:\Godot_v4.7-stable_mono_win64`; keep the script list in
+   `tools/slight_frames.gd` the same as `GoldenScenario.Script`):
+   `Godot_v4.7-stable_mono_win64_console.exe --headless --path F:\Git\slight-dmx-controller --script F:\git\cuedeck-lighting-controller\tools\slight_frames.gd -- <repo>\Cuedeck.Tests\Golden\scenario.slight <repo>\Cuedeck.Tests\Golden\scenario.frames.json`
+
+A fresh sLight checkout needs `--headless --path <sLight> --import` once first. That rewrites sLight's tracked
+`*.import` files: restore them with `git checkout` so its tree stays clean.

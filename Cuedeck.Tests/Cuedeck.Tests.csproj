@@ -19,6 +19,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The golden scenario's show, and sLight's output for it (see Golden/GoldenScenario.cs). -->
+    <None Include="Golden\*.slight;Golden\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="Brutal" />
   </ItemGroup>

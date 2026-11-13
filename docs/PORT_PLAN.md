@@ -100,13 +100,31 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 | # | Phase | Done when |
 |---|---|---|
 | 0 | ✅ **Scaffold** (done 2026-11-13). Solution, framework files copied and renamed, an empty window with title bar and theme. Test project added. `README`/`CLAUDE.md` describe the build. | `dotnet build` and `dotnet test` pass; a window opens. |
-| 1 | **Headless core.** Universes, Art-Net/sACN, compositing, cues and crossfades, chases, wave effects, palettes, positions, groups, virtual dimmers, live flash, tempo clock, and the show file and fixture profiles. Port `dmx_render`, `cue_timing`, `virtual_dimmer`, `faders`, `palettes`, `position`, `live_flash`, `tempo_clock`, `show_file`, `fixture_profile`, `autosave` and `unsaved_changes` tests to xUnit. | Real Art-Net out from a loaded show, driven by a test harness, matches sLight's output frame for frame (compare by capturing UDP from both). |
+| 1 | ✅ **Headless core** (done 2026-11-13; see §7.1). Universes, Art-Net/sACN, compositing, cues and crossfades, chases, wave effects, palettes, positions, groups, virtual dimmers, live flash, tempo clock, and the show file and fixture profiles. Port `dmx_render`, `cue_timing`, `virtual_dimmer`, `faders`, `palettes`, `position`, `live_flash`, `tempo_clock`, `show_file`, `fixture_profile`, `autosave` and `unsaved_changes` tests to xUnit. | Real Art-Net out from a loaded show, driven by a test harness, matches sLight's output frame for frame (compare by capturing UDP from both). |
 | 2 | **Console UI.** Shell (top bar, grand master, run mode, Sending, universes, save/load), Patch/universe tabs with the fixture library dialog, then Cues, Chases, Effects, Groups, Faders/fader bank, Palettes and DMX Output. New widgets from §3 as each tab needs them. | Every console tab works for the sLight User Guide walkthrough. |
 | 3 | **Sound and triggers.** Live capture, sound reactors and the Sound tab with spectrogram. MIDI/OSC triggers with Learn and feedback (WinMidi out). Options dialog (VirtualDJ or Cuepoint). | Beat-reactive chases run from line-in; a controller's LEDs follow. |
 | 4 | **DJ Edit Mode.** Music browser (drives, VirtualDJ lists, Cuepoint library), song analysis, the structure bar, heatmap and timeline editor, timeline generator, timeline store and the position editor. Port `music_*`, `timeline_*`, `structure_detection`, `virtualdj_*`, `cuepoint_library` and `m4a_playback` tests. | Generate → edit → save a song's timelines, and the files load in sLight too. |
 | 5 | **DJ Perform Mode.** OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
 | 6 | **Visualizer.** §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
 | 7 | **Native extras and polish.** USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
+
+### 7.1 Phase 1 as built
+
+**Where it is:** `Cuedeck/Common` (Godot-style rounding, colours with Godot's colour names, lenient JSON), `Cuedeck/Fixtures` (profiles, built-ins, `DmxRender`), `Cuedeck/Dmx` (universes, Art-Net and sACN packets, `DmxOutput` compositing and crossfade), `Cuedeck/Midi/MidiMessage.cs`, and `Cuedeck/Show`. `LightingShow` wires together everything sLight's shell wired together (patch, groups, cue list, chases, effects, reactors, palettes, positions, faders, live flash). `ShowFile` reads and writes sLight's format, and `ShowSession` covers the current file, unsaved changes, the remembered show and autosave recovery.
+
+**How it was checked:** 73 xUnit tests, ported from sLight's `dmx_render`, `virtual_dimmer`, `tempo_clock`, `live_flash`, `palettes`, `cue_timing`, `faders`, `position`, `show_file`, `unsaved_changes`, `autosave` and `fixture_profile` tests, plus packet-layout tests. The phase's "done when" is met with a golden scenario instead of UDP capture. `Cuedeck.Tests/Golden/scenario.slight` is a two-universe show built by Cuedeck, and `tools/slight_frames.gd` plays a 320-frame script on it in sLight 1.0 (`406366d`, Godot 4.7) and records the output. `SlightOutputTests` plays the same script in Cuedeck and requires every frame to match byte for byte. It does, across cues, delays, follows, palettes, chases, effects, faders, virtual dimmers, a live flash, the grand master and a blackout. sLight loading a show written by Cuedeck is part of that check too. Packets are compared by layout rather than captured, since the frame is all that varies.
+
+**Left for later phases, on purpose:**
+- Fixture library, GDTF/QXF import and MVR (`fixture_library`, `fixture_import`, `mvr_io`, and those parts of `fixture_profile_test`) go to phase 2, with the Patch tab that uses them.
+- MIDI/OSC triggers and the visualizer's stage are carried through show files unchanged (`LightingShow.Carried`), so nothing is lost. They're ported in phases 3 and 6.
+- Live audio: reactors run against `ISoundLevels`, which is silent until phase 3.
+- USB DMX: `DmxOutput.SendUsb`/`ReleaseUsb` hooks only (phase 7).
+- Fixture highlighting and aiming for the position editor go to phase 4.
+- Nothing is on screen yet: the window doesn't create a `LightingShow` or tick it until phase 2.
+
+**Where Cuedeck deliberately differs:**
+- Patching a fixture homes that fixture only. sLight rebuilt every fixture's row, which homed them all.
+- `LightingShow.Retarget()` finds effects' and reactors' channels again after a show loads. In sLight the starter reactors had none until their tab was touched.
 
 Phases 1 and 2 are the critical path; 3–5 can then go in any order, and 6 can start alongside them once phase 1's `DmxRender` exists.
 

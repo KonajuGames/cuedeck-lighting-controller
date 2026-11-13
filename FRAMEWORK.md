@@ -25,9 +25,14 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
   for the console's controls, the clock, options and the window's buttons.
 - `Assets/draw_assets.py`: no longer draws a logo. The logo PNGs come from sLight's icon via `Assets/make_logo.py`.
 
+## Adapted
+
+- `Midi/MidiMessage.cs`: Cuepoint's, with note-off and pitch bend told apart for the playback faders.
+
 ## New
 
 - `Program.cs`, `UI/MainScreen.cs`, `AppPaths.cs`
+- Everything under `Common/`, `Fixtures/`, `Dmx/` and `Show/` (phase 1), ported from sLight's GDScript
 
 ## Ported across since
 

@@ -4,8 +4,10 @@ Cuedeck is a DMX lighting controller for Windows. It's the sLight lighting contr
 ported to the C# and Vulkan framework that the Cuepoint DJ app is built on. The plan, and how far it's got, are in
 [docs/PORT_PLAN.md](docs/PORT_PLAN.md).
 
-**Status:** phase 0. The app opens a window with its title bar; none of the lighting features have been ported
-yet.
+**Status:** phase 1. The lighting engine has been ported and tested without a screen: the patch, Art-Net and sACN
+output, cues, chases, effects, palettes, positions, faders, live flashes, the tempo clock and sLight's show files.
+Its output matches sLight's frame for frame. The app opens a window with its title bar, but none of this is on
+screen yet.
 
 It's written in C# on .NET 10, and draws its own interface with Vulkan through
 [BRUTAL](https://www.nuget.org/packages?q=Ahwoo.BRUTAL) (GLFW, Vulkan, FreeType).
@@ -28,8 +30,11 @@ dotnet test
 
 ## Layout
 
-- `Cuedeck/`: the app. `Rendering/`, `Input/` and most of `UI/` come from Cuepoint (see [FRAMEWORK.md](FRAMEWORK.md)).
-- `Cuedeck.Tests/`: xUnit tests, which run without a window or a GPU.
+- `Cuedeck/`: the app. `Rendering/`, `Input/` and most of `UI/` come from Cuepoint (see [FRAMEWORK.md](FRAMEWORK.md));
+  `Fixtures/`, `Dmx/` and `Show/` are the lighting engine, ported from sLight.
+- `Cuedeck.Tests/`: xUnit tests, which run without a window or a GPU. `Golden/` holds a show and sLight's output for
+  it, frame by frame, which Cuedeck's must match.
+- `tools/slight_frames.gd`: records that output from sLight.
 - `docs/`: the port plan.
 
 ## License
