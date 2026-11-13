@@ -12,7 +12,7 @@ namespace Cuedeck.Tests.UI;
 /// </summary>
 public abstract class ConsoleHarness : IDisposable
 {
-    static readonly float2 ScreenSize = new(1600, 1000);
+    private protected static readonly float2 ScreenSize = new(1600, 1000);
 
     private protected readonly LightingShow Show = new();
     private protected readonly TempFolder Dir = new();
@@ -26,9 +26,13 @@ public abstract class ConsoleHarness : IDisposable
         var fonts = MainScreenTests.TestFonts;
         var confirm = new ConfirmDialog(Ui, fonts.Body, fonts.Bold, fonts.Heading);
         var prompt = new NamePrompt(Ui, fonts.Body, fonts.Bold, fonts.Heading);
-        Screen = Ui.Add(new MainScreen(fonts, MainScreenTests.Pictures, menu, new Dialogs(confirm, prompt), Show, new ProfileStore(Dir.File("profiles"))));
+        var picker = new ColourPicker(Ui, fonts.Body);
+        var library = new LibraryDialog(Ui, fonts, menu, new FixtureLibrary(FixtureLibrary.DefaultFolder));
+        Screen = Ui.Add(new MainScreen(fonts, MainScreenTests.Pictures, menu, new Dialogs(confirm, prompt, picker, library), Show, new ProfileStore(Dir.File("profiles"))));
         Ui.Add(confirm);
         Ui.Add(prompt);
+        Ui.Add(picker);
+        Ui.Add(library);
         Ui.Add(menu);
         var session = new ShowSession(Show) { LastShowStore = Dir.File("last.json") };
         Shell = new AppShell(session, Screen, confirm, () => 0);
@@ -49,6 +53,10 @@ public abstract class ConsoleHarness : IDisposable
             dialog.ScreenSize = ScreenSize;
         foreach (var prompt in Ui.Elements.OfType<NamePrompt>())
             prompt.ScreenSize = ScreenSize;
+        foreach (var picker in Ui.Elements.OfType<ColourPicker>())
+            picker.ScreenSize = ScreenSize;
+        foreach (var library in Ui.Elements.OfType<LibraryDialog>())
+            library.ScreenSize = ScreenSize;
         foreach (var menu in Ui.Elements.OfType<ContextMenu>())
             menu.ScreenSize = ScreenSize;
         Screen.Update();

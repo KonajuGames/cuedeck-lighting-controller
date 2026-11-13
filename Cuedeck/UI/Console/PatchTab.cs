@@ -14,6 +14,7 @@ sealed class UniversePage : Panel
     readonly LightingShow _show;
     readonly Fonts _fonts;
     readonly ContextMenu _menu;
+    readonly Dialogs _dialogs;
     readonly int _index;
     readonly Panel _rows;
     readonly TextBox _ip;
@@ -35,11 +36,12 @@ sealed class UniversePage : Panel
     /// </summary>
     public event Action<string>? Status;
 
-    public UniversePage(Fonts fonts, ContextMenu menu, LightingShow show, ProfileStore profiles, int index)
+    public UniversePage(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles, int index)
     {
         _show = show;
         _fonts = fonts;
         _menu = menu;
+        _dialogs = dialogs;
         _index = index;
         Spacing = 8;
         var patch = show.Patch.Universes[index];
@@ -106,8 +108,24 @@ sealed class UniversePage : Panel
         _start = add.Add(new NumberBox(fonts.Body, 1, 512, width: 50) { Value = 1 });
         var addButton = add.Add(new Button(fonts.Body, "Add Fixture"));
         addButton.Clicked += _ => AddFixture();
+        var library = add.Add(new Button(fonts.Body, "Library…") { Tooltip = "Choose a fixture from the bundled fixture library" });
+        library.Clicked += _ =>
+            dialogs.Library.Show(p =>
+            {
+                SelectProfile(profiles.AddForSession(p));
+                Status?.Invoke($"Added '{p.Model}' from the library — set a start channel and Add Fixture.");
+            });
 
         _rows = Add(new Panel { Spacing = 8 });
+    }
+
+    /// <summary>
+    /// Makes <paramref name="profile"/> the one to patch next, in its first mode.
+    /// </summary>
+    public void SelectProfile(FixtureProfile profile)
+    {
+        _profile.Selected = profile;
+        _mode.Selected = 0;
     }
 
     void Apply()
@@ -178,7 +196,7 @@ sealed class UniversePage : Panel
             _rows.Children.Clear();
             foreach (var f in p.Fixtures)
             {
-                var row = _rows.Add(new FixtureRow(_fonts, _menu, _show, f) { Expanded = expanded.Contains(f) });
+                var row = _rows.Add(new FixtureRow(_fonts, _menu, _dialogs, _show, f) { Expanded = expanded.Contains(f) });
                 row.RemoveClicked += fixture =>
                 {
                     _show.Patch.Remove(fixture);
@@ -227,16 +245,18 @@ sealed class PatchTab : Region
     readonly TabView _universes;
     readonly Fonts _fonts;
     readonly ContextMenu _menu;
+    readonly Dialogs _dialogs;
     readonly LightingShow _show;
     readonly ProfileStore _profiles;
     readonly List<UniversePage> _pages = [];
 
     public event Action<string>? Status;
 
-    public PatchTab(Fonts fonts, ContextMenu menu, LightingShow show, ProfileStore profiles)
+    public PatchTab(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
     {
         _fonts = fonts;
         _menu = menu;
+        _dialogs = dialogs;
         _show = show;
         _profiles = profiles;
         _universes = Add(new TabView(fonts.Body));
@@ -266,7 +286,7 @@ sealed class PatchTab : Region
             _universes.Clear();
             for (var i = 0; i < count; i++)
             {
-                var page = new UniversePage(_fonts, _menu, _show, _profiles, i);
+                var page = new UniversePage(_fonts, _menu, _dialogs, _show, _profiles, i);
                 page.Status += s => Status?.Invoke(s);
                 _pages.Add(page);
                 _universes.AddTab($"Universe {(i + 1).ToString(CultureInfo.InvariantCulture)}", new ScrollingPage(page));

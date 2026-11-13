@@ -29,7 +29,7 @@ sealed class FixtureRow : Panel
     /// </summary>
     public event Action? Edited;
 
-    public FixtureRow(Fonts fonts, ContextMenu menu, LightingShow show, PatchedFixture fixture)
+    public FixtureRow(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, PatchedFixture fixture)
     {
         Fixture = fixture;
         Padding = 8;
@@ -79,6 +79,16 @@ sealed class FixtureRow : Panel
             Edited?.Invoke();
         };
         header.Add(new Spacer(6));
+        // Flash: full white while it's held, then the channels it changed put back exactly as they were.
+        var flash = header.Add(new Button(fonts.Small, "Flash") { Padding = 4, Tooltip = "Full white while held", Enabled = Patch.FlashTargets(fixture.Channels).Count > 0 });
+        Dictionary<int, int>? flashed = null;
+        flash.PressStarted += _ => flashed ??= show.Patch.FlashOn(fixture);
+        flash.PressEnded += _ =>
+        {
+            if (flashed is not null)
+                show.Patch.FlashOff(fixture, flashed);
+            flashed = null;
+        };
         var home = header.Add(new Button(fonts.Small, "Home") { Padding = 4, Tooltip = "Back to its default levels" });
         home.Clicked += _ => show.Patch.Home(fixture);
         var remove = header.Add(new Button(fonts.Small, "Remove") { Padding = 4 });
@@ -86,7 +96,7 @@ sealed class FixtureRow : Panel
 
         _controls = Add(new Row(14) { Visible = false });
         _expand.Clicked += _ => Expanded = !Expanded;
-        BuildControls(fonts, menu, show);
+        BuildControls(fonts, menu, dialogs, show);
 
         // Kept current each frame.
         Updating = () =>
@@ -112,7 +122,7 @@ sealed class FixtureRow : Panel
         }
     }
 
-    void BuildControls(Fonts fonts, ContextMenu menu, LightingShow show)
+    void BuildControls(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show)
     {
         var fixture = Fixture;
         var universe = show.Dmx.Universes[fixture.Universe];
@@ -133,7 +143,7 @@ sealed class FixtureRow : Panel
 
         var heads = fixture.Profile.HeadGroups(fixture.Mode);
         for (var h = 0; h < heads.Count; h++)
-            Bind(new ColourSwatch(fonts, heads.Count > 1 ? $"Colour {h + 1}" : "Colour", fixture, heads[h]));
+            Bind(new ColourSwatch(fonts, heads.Count > 1 ? $"Colour {h + 1}" : "Colour", fixture, heads[h], universe, dialogs.Picker));
 
         // Pan and tilt together: one pad instead of two sliders.
         var pan = -1;

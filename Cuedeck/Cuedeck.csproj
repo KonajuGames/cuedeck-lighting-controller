@@ -29,6 +29,8 @@
   <ItemGroup>
     <!-- GLSL is compiled to SPIR-V at startup, so the sources ship next to the executable. -->
     <None Include="Shaders\**" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The bundled fixture library (from the Open Fixture Library, via sLight), read from beside the executable. -->
+    <None Include="Fixtures\Library\**" CopyToOutputDirectory="PreserveNewest" />
     <!-- Images, by file name; Assets\draw_assets.py and Assets\make_logo.py draw them. -->
     <EmbeddedResource Include="Assets\*.png" Exclude="Assets\logo-source.png;Assets\preview-*.png" LogicalName="%(Filename)%(Extension)" />
   </ItemGroup>

@@ -8,7 +8,9 @@ ported to the C# and Vulkan framework that the Cuepoint DJ app is built on. The 
 effects, palettes, positions, faders, live flashes, the tempo clock and sLight's show files, and its output matches
 sLight's frame for frame. On screen so far are the console's top bar (grand master, run mode, tap tempo, Sending,
 Blackout All, universes, and New, Save and Load Show), and all of the console's tabs but Sound and the 3D
-Visualizer: Cues (Space is GO), Chases, Effects, Groups, Patch, DMX Output, Faders and Palettes.
+Visualizer: Cues (Space is GO), Chases, Effects, Groups, Patch (with the bundled fixture library), DMX Output,
+Faders and Palettes. The fixture library is the Open Fixture Library's (see
+[its attribution](Cuedeck/Fixtures/Library/ATTRIBUTION.md)).
 
 To open a show straight away, pass it on the command line: `dotnet run --project Cuedeck -- "My show.slight"`.
 

@@ -13,6 +13,7 @@ sealed class ConsoleView : Region
     const float GAP = 8;
     const float LEFT_WIDTH = 380;
 
+    readonly Dialogs _dialogs;
     readonly TabView _left;
     readonly TabView _right;
 
@@ -32,6 +33,7 @@ sealed class ConsoleView : Region
 
     public ConsoleView(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
     {
+        _dialogs = dialogs;
         _left = Add(new TabView(fonts.Body));
         Cues = new CuesTab(fonts, show);
         _left.AddTab("Cues", Cues);
@@ -47,7 +49,7 @@ sealed class ConsoleView : Region
             say(m => Status?.Invoke(m));
 
         _right = Add(new TabView(fonts.Body));
-        Patch = new PatchTab(fonts, menu, show, profiles);
+        Patch = new PatchTab(fonts, menu, dialogs, show, profiles);
         _right.AddTab("Patch", Patch);
         _right.AddTab("3D Visualizer", new Placeholder(fonts.Body, "The 3D Visualizer comes in phase 6."));
         DmxOutput = new DmxOutputTab(fonts, show);
@@ -61,6 +63,7 @@ sealed class ConsoleView : Region
 
     public void Update()
     {
+        _dialogs.Library.Update();
         if (_left.SelectedPage == Cues)
             Cues.Update();
         if (_left.SelectedPage is ScrollingPage { Content: ChasesTab chases })

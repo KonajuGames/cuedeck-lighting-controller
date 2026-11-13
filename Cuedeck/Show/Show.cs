@@ -198,5 +198,51 @@ sealed class LightingShow : IDisposable
         ShowFile.Apply(this, new JsonObject { ["universes"] = new JsonArray(connection), ["live"] = new JsonArray(new JsonObject()) });
     }
 
+    /// <summary>
+    /// A preset: every universe's live levels (the channels that aren't 0), as a file holds them.
+    /// </summary>
+    public JsonObject PresetToJson()
+    {
+        var universes = new JsonArray();
+        foreach (var u in Dmx.Universes)
+        {
+            var channels = new Dictionary<int, int>();
+            for (var c = 0; c < DmxUniverse.Size; c++)
+                if (u.Data[c] != 0)
+                    channels[c] = u.Data[c];
+            universes.Add(new JsonObject { ["channels"] = Look.ChannelsToJson(channels) });
+        }
+        return new JsonObject { ["universes"] = universes };
+    }
+
+    /// <summary>
+    /// Puts a preset's levels on the universes, stopping any fade and every chase, effect and reactor. Universes are
+    /// added (never taken away) so a preset wider than the show still loads. An older preset, a bare
+    /// {"channel": value} object, is universe 1's. Returns why it couldn't, or null.
+    /// </summary>
+    public string? ApplyPreset(JsonNode? preset)
+    {
+        JsonArray universes;
+        if (preset is JsonObject o && o.Get("universes") is JsonArray list)
+            universes = list;
+        else if (preset is JsonObject flat)
+            universes = [new JsonObject { ["channels"] = flat.DeepClone() }];
+        else
+            return "Preset file corrupt.";
+        Dmx.StopFade();
+        Effects.StopAll();
+        var n = Math.Clamp(universes.Count, 1, DmxOutput.MaxUniverses);
+        Dmx.SetUniverseCount(Math.Max(Dmx.UniverseCount, n));
+        Patch.SyncToUniverses();
+        for (var i = 0; i < Math.Min(universes.Count, Dmx.UniverseCount); i++)
+        {
+            var u = Dmx.Universes[i];
+            u.SetAll(0);
+            foreach (var (c, v) in Look.ChannelsFromJson(universes[i].Get("channels")))
+                u.SetChannel(c, v);
+        }
+        return null;
+    }
+
     public void Dispose() => Dmx.Dispose();
 }

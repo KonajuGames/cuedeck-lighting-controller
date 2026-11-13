@@ -257,6 +257,63 @@ sealed class Patch
     }
 
     /// <summary>
+    /// What a fixture's Flash sets, by channel offset: dimmer, red, green, blue and white to their maximum; amber and
+    /// UV to their minimum where there's a white; a colour wheel to its open or white slot. Empty for a fixture with
+    /// none of those.
+    /// </summary>
+    public static Dictionary<int, int> FlashTargets(IReadOnlyList<FixtureChannel> chans)
+    {
+        var output = new Dictionary<int, int>();
+        var hasWhite = chans.Any(c => c.Role == Roles.White);
+        for (var k = 0; k < chans.Count; k++)
+        {
+            var ch = chans[k];
+            switch (ch.Role)
+            {
+                case Roles.Dimmer or Roles.Red or Roles.Green or Roles.Blue or Roles.White:
+                    output[k] = ch.Max;
+                    break;
+                case Roles.Amber or Roles.Uv:
+                    if (hasWhite)
+                        output[k] = ch.Min;
+                    break;
+                case Roles.ColorWheel:
+                    var slot = ch.Ranges.FirstOrDefault(r => r.Label.ToLowerInvariant() is var l && (l.Contains("white") || l.Contains("open")));
+                    if (slot is not null)
+                        output[k] = (int)Math.Floor((slot.Lo + slot.Hi) / 2.0);
+                    break;
+            }
+        }
+        return output;
+    }
+
+    /// <summary>
+    /// Lights <paramref name="fixture"/> full white (see <see cref="FlashTargets"/>) and returns what to put back:
+    /// each channel it changed and its level before.
+    /// </summary>
+    public Dictionary<int, int> FlashOn(PatchedFixture fixture)
+    {
+        var universe = _dmx.Universes[fixture.Universe];
+        var saved = new Dictionary<int, int>();
+        foreach (var (k, v) in FlashTargets(fixture.Channels))
+        {
+            saved[fixture.Start + k] = universe.GetChannel(fixture.Start + k);
+            universe.SetChannel(fixture.Start + k, v);
+        }
+        return saved;
+    }
+
+    /// <summary>
+    /// Puts back what <see cref="FlashOn"/> changed, exactly.
+    /// </summary>
+    public void FlashOff(PatchedFixture fixture, IReadOnlyDictionary<int, int> saved)
+    {
+        var universe = _dmx.Universes[fixture.Universe];
+        foreach (var (c, v) in saved)
+            universe.SetChannel(c, v);
+    }
+
+    /// <summary>
     /// A fixture's virtual dimmer level, 0 to 1, or null if it has none.
     /// </summary>
     public double? VirtualDimmer(PatchedFixture fixture)

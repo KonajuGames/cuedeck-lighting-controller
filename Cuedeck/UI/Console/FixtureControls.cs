@@ -148,19 +148,35 @@ sealed class ColourSwatch : ControlColumn, IFixtureControl
     readonly FixtureProfile _profile;
     readonly int _mode;
     readonly int _start;
+    byte[] _data = [];
 
-    public ColourSwatch(Fonts fonts, string name, PatchedFixture fixture, HeadGroup head)
+    public ColourSwatch(Fonts fonts, string name, PatchedFixture fixture, HeadGroup head, DmxUniverse universe, ColourPicker picker)
         : base(fonts, name)
     {
         _head = head;
         _profile = fixture.Profile;
         _mode = fixture.Mode;
         _start = fixture.Start;
-        _swatch = Add(new Swatch());
+        _swatch = Add(new Swatch { Tooltip = "Pick its red, green and blue" });
+        // Picking a colour sets the head's red, green and blue (its white, amber and UV are left as they are).
+        _swatch.Clicked += _ =>
+            picker.Show(
+                _swatch.ScreenPosition + new float2(0, _swatch.Size.Y + 4),
+                new Rgb(Level(head.R) / 255f, Level(head.G) / 255f, Level(head.B) / 255f),
+                c =>
+                {
+                    universe.SetChannel(_start + head.R, Gd.RoundToInt(c.R * 255.0));
+                    universe.SetChannel(_start + head.G, Gd.RoundToInt(c.G * 255.0));
+                    universe.SetChannel(_start + head.B, Gd.RoundToInt(c.B * 255.0));
+                }
+            );
     }
+
+    int Level(int offset) => _start + offset < _data.Length ? _data[_start + offset] : 0;
 
     public void Sync(byte[] data)
     {
+        _data = data;
         var state = DmxRender.Evaluate(_profile, _mode, data, _start);
         var index = _profile.HeadGroups(_mode).ToList().IndexOf(_head);
         var h = state.Heads[Math.Max(index, 0)];
@@ -176,12 +192,14 @@ sealed class ColourSwatch : ControlColumn, IFixtureControl
     {
         public float4 Colour { get; set; } = Colors.Hex(0x000000);
 
+        public override bool IsInteractive => true;
+
         public override float2 Measure() => Size = new float2(60, 24);
 
         public override void Draw(Batch batch)
         {
             batch.AddRect(ScreenPosition, Size, Colour);
-            batch.AddBorder(ScreenPosition, Size, 1, Theme.PanelBorder);
+            batch.AddBorder(ScreenPosition, Size, IsHovered ? 2 : 1, IsHovered ? Theme.Focus : Theme.PanelBorder);
         }
     }
 }

@@ -30,6 +30,8 @@ sealed class TopBar : Panel
     public event Action? SaveShow;
     public event Action? SaveShowAs;
     public event Action? LoadShow;
+    public event Action? SavePreset;
+    public event Action? LoadPreset;
     public event Action? BlackoutAll;
     public event Action? AddUniverse;
     public event Action? RemoveUniverse;
@@ -93,6 +95,8 @@ sealed class TopBar : Panel
             ("Save Show", "Ctrl+S", () => SaveShow),
             ("Save Show As…", "Ctrl+Shift+S", () => SaveShowAs),
             ("Load Show…", "Ctrl+O", () => LoadShow),
+            ("Save Preset", "Keep every universe's live levels, to load again later", () => SavePreset),
+            ("Load Preset", "Put the saved live levels back", () => LoadPreset),
         ];
         foreach (var (text, keys, handler) in files)
         {

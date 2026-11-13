@@ -21,6 +21,19 @@ sealed class ProfileStore
     public IReadOnlyList<FixtureProfile> Profiles => _profiles;
 
     /// <summary>
+    /// Offers <paramref name="profile"/> (one from the library) to patch for the rest of the session, without saving
+    /// it: it goes into the show file with the fixtures patched with it. Returns the one offered, which is the one
+    /// already there if a profile with its id is.
+    /// </summary>
+    public FixtureProfile AddForSession(FixtureProfile profile)
+    {
+        if (_profiles.FirstOrDefault(p => p.Id == profile.Id) is { } existing)
+            return existing;
+        _profiles.Add(profile);
+        return profile;
+    }
+
+    /// <summary>
     /// Reads the profiles again: the built-ins, then each readable profile file in the folder, by name. A file whose
     /// id is a built-in's replaces it.
     /// </summary>

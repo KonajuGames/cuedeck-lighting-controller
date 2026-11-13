@@ -28,6 +28,8 @@ sealed class AppShell
         top.SaveShow += () => Save();
         top.SaveShowAs += () => SaveAs();
         top.LoadShow += Load;
+        top.SavePreset += SavePreset;
+        top.LoadPreset += LoadPreset;
         top.BlackoutAll += BlackoutAll;
         top.AddUniverse += AddUniverse;
         top.RemoveUniverse += ConfirmRemoveUniverse;
@@ -137,6 +139,43 @@ sealed class AppShell
         }
         _screen.Console.Patch.Reload();
         _screen.Log($"Loaded {Path.GetFileName(path)}.");
+    }
+
+    /// <summary>
+    /// Where the preset is kept: one, as in sLight.
+    /// </summary>
+    public string PresetPath { get; set; } = Path.Combine(AppPaths.Folder, "dmx_preset.json");
+
+    /// <summary>
+    /// Keeps every universe's live levels, to put back with <see cref="LoadPreset"/>.
+    /// </summary>
+    public void SavePreset()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(PresetPath)!);
+            File.WriteAllText(PresetPath, Json.Stringify(Show.PresetToJson()));
+            _screen.Log($"Preset saved ({Show.Dmx.UniverseCount} universe{(Show.Dmx.UniverseCount == 1 ? "" : "s")}).");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _screen.Log("Preset save failed: " + e.Message);
+        }
+    }
+
+    public void LoadPreset()
+    {
+        if (!File.Exists(PresetPath))
+        {
+            _screen.Log("No preset found.");
+            return;
+        }
+        if (Show.ApplyPreset(Json.Parse(File.ReadAllText(PresetPath))) is { } error)
+        {
+            _screen.Log(error);
+            return;
+        }
+        _screen.Log("Preset loaded.");
     }
 
     public void BlackoutAll()

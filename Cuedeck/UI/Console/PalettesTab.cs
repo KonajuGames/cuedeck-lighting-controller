@@ -7,7 +7,7 @@ namespace Cuedeck.UI.Console;
 /// <summary>
 /// The dialogs the console's tabs ask things in.
 /// </summary>
-sealed record Dialogs(ConfirmDialog Confirm, NamePrompt Prompt);
+sealed record Dialogs(ConfirmDialog Confirm, NamePrompt Prompt, ColourPicker Picker, LibraryDialog Library);
 
 /// <summary>
 /// The Palettes tab: the show's colour, position and beam palettes as a grid of buttons each, like a desk's palette

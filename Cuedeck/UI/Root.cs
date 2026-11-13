@@ -502,6 +502,11 @@ sealed class Root
             return false;
         if (focused.KeyDown(key, modifiers))
             return true;
+        // A key the focused element doesn't use goes to the elements it's in, nearest first: a dialog closes on
+        // Escape whichever of its controls has focus.
+        foreach (var ancestor in AncestorsOf(focused))
+            if (ancestor.KeyDown(key, modifiers))
+                return true;
         if (key == Key.Escape)
         {
             Focus(null);
@@ -510,6 +515,33 @@ sealed class Root
 
         // A text box swallows everything else too, so typing "q" doesn't quit, say.
         return focused.CapturesKeyboard;
+    }
+
+    /// <summary>
+    /// The elements <paramref name="element"/> is in, nearest first, up to the top-level one; none if it isn't on
+    /// screen.
+    /// </summary>
+    List<Element> AncestorsOf(Element element)
+    {
+        var path = new List<Element>();
+        bool Find(Element at)
+        {
+            if (at == element)
+                return true;
+            foreach (var child in at.VisibleChildren)
+            {
+                if (Find(child))
+                {
+                    path.Add(at);
+                    return true;
+                }
+            }
+            return false;
+        }
+        foreach (var top in Elements)
+            if (top.Visible && Find(top))
+                break;
+        return path;
     }
 
     /// <summary>
