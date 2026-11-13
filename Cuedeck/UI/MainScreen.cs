@@ -27,12 +27,12 @@ sealed class MainScreen : Panel
     public TopBar TopBar { get; }
     public ConsoleView Console { get; }
 
-    public MainScreen(Fonts fonts, Images images, ContextMenu menu, LightingShow show, ProfileStore profiles)
+    public MainScreen(Fonts fonts, Images images, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
     {
         Background = Theme.Background;
         TitleBar = Add(new TitleBar(fonts.Body, fonts.Bold, images));
         TopBar = Add(new TopBar(fonts, menu, show));
-        Console = Add(new ConsoleView(fonts, menu, show, profiles));
+        Console = Add(new ConsoleView(fonts, menu, dialogs, show, profiles));
         _status = Add(new Label(fonts.Body, "") { Color = Theme.Muted });
         TopBar.Status += Log;
         Console.Patch.Status += Log;

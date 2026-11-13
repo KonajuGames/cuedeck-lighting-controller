@@ -133,8 +133,10 @@ sealed class FaderBank
     readonly Func<IReadOnlyList<FixtureGroup>> _groups;
     readonly Func<int, Look?> _cueLook;
     int _learning = -1;
-    readonly HashSet<Chase> _chaseHeld = [];
-    readonly HashSet<WaveEffect> _effectHeld = [];
+    // The chase or effect each fader is running, so it's let go of when the fader comes down, even if it's been
+    // renamed meanwhile (sLight looked it up by name again, and so kept running a renamed one).
+    readonly Dictionary<Fader, Chase> _chaseHeld = [];
+    readonly Dictionary<Fader, WaveEffect> _effectHeld = [];
 
     public List<Fader> Faders { get; } = [];
 
@@ -232,55 +234,55 @@ sealed class FaderBank
 
     void DriveChase(Fader f)
     {
+        if (f.Level <= 0)
+        {
+            if (!_chaseHeld.Remove(f, out var held) || _chaseHeld.ContainsValue(held))
+                return; // not running one, or another fader still is
+            held.Running = false;
+            held.Level = 1;
+            ChasesChanged?.Invoke();
+            return;
+        }
         if (_effects.FindChase(f.Target) is not { } c)
             return;
-        if (f.Level > 0)
+        if (!c.Running)
         {
-            if (!c.Running)
-            {
-                c.Reset();
-                c.Running = true;
-                ChasesChanged?.Invoke();
-            }
-            _chaseHeld.Add(c);
-            c.Level = f.Level;
-        }
-        else if (_chaseHeld.Remove(c))
-        {
-            c.Running = false;
-            c.Level = 1;
+            c.Reset();
+            c.Running = true;
             ChasesChanged?.Invoke();
         }
+        _chaseHeld[f] = c;
+        c.Level = f.Level;
     }
 
     void DriveEffect(Fader f)
     {
+        if (f.Level <= 0)
+        {
+            if (!_effectHeld.Remove(f, out var held) || _effectHeld.ContainsValue(held))
+                return; // not running one, or another fader still is
+            if (EffectRunner is not null)
+                EffectRunner(held.Name, false);
+            else
+                held.Running = false;
+            held.Level = 1;
+            EffectsChanged?.Invoke();
+            return;
+        }
         if (_effects.FindEffect(f.Target) is not { } e)
             return;
-        if (f.Level > 0)
-        {
-            if (!e.Running)
-            {
-                if (EffectRunner is not null)
-                    EffectRunner(e.Name, true);
-                else
-                    e.Running = true;
-                if (!e.Running)
-                    return; // nothing patched for it to run on
-                EffectsChanged?.Invoke();
-            }
-            _effectHeld.Add(e);
-            e.Level = f.Level;
-        }
-        else if (_effectHeld.Remove(e))
+        if (!e.Running)
         {
             if (EffectRunner is not null)
-                EffectRunner(e.Name, false);
+                EffectRunner(e.Name, true);
             else
-                e.Running = false;
-            e.Level = 1;
+                e.Running = true;
+            if (!e.Running)
+                return; // nothing patched for it to run on
             EffectsChanged?.Invoke();
         }
+        _effectHeld[f] = e;
+        e.Level = f.Level;
     }
 
     /// <summary>

@@ -7,6 +7,7 @@ using Cuedeck.Fixtures;
 using Cuedeck.Rendering;
 using Cuedeck.Show;
 using Cuedeck.UI;
+using Cuedeck.UI.Console;
 
 WindowsShell.AttachParentConsole();
 
@@ -97,8 +98,12 @@ static void Run(string[] args)
 
     var ui = new Root { TooltipFont = fonts.Body };
     var menu = new ContextMenu(fonts.Body);
-    var screen = ui.Add(new MainScreen(fonts, images, menu, show, profiles));
-    var confirm = ui.Add(new ConfirmDialog(ui, fonts.Body, fonts.Bold, fonts.Heading));
+    var confirm = new ConfirmDialog(ui, fonts.Body, fonts.Bold, fonts.Heading);
+    var prompt = new NamePrompt(ui, fonts.Body, fonts.Bold, fonts.Heading);
+    // Drawn in this order: the screen, then the dialogs over it, then the menu over everything.
+    var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt), show, profiles));
+    ui.Add(confirm);
+    ui.Add(prompt);
     ui.Add(menu);
     using var input = new GlfwUiInput(window, ui);
     var shell = new AppShell(session, screen, confirm, () => OperatingSystem.IsWindows() ? WindowChrome.Handle : 0);
@@ -200,7 +205,7 @@ static void Run(string[] args)
         if (window.IsIconified || size.X == 0 || size.Y == 0)
             continue;
 
-        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = new float2(size.X, size.Y);
+        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = new float2(size.X, size.Y);
         screen.TitleBar.Subtitle = session.Title.Replace(" — Cuedeck", "");
         window.Title = session.Title;
         screen.Update();

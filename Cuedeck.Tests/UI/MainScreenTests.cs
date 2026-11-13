@@ -3,6 +3,7 @@ using Cuedeck.Fixtures;
 using Cuedeck.Input;
 using Cuedeck.Show;
 using Cuedeck.UI;
+using Cuedeck.UI.Console;
 
 namespace Cuedeck.Tests.UI;
 
@@ -24,7 +25,7 @@ public class MainScreenTests
     {
         var ui = new Root();
         var menu = new ContextMenu(TestFonts.Body);
-        var screen = ui.Add(new MainScreen(TestFonts, Pictures, menu, new LightingShow(), new ProfileStore(Path.Combine(Path.GetTempPath(), "cuedeck-no-profiles"))));
+        var screen = ui.Add(new MainScreen(TestFonts, Pictures, menu, new Dialogs(new ConfirmDialog(ui, TestFonts.Body, TestFonts.Bold, TestFonts.Heading), new NamePrompt(ui, TestFonts.Body, TestFonts.Bold, TestFonts.Heading)), new LightingShow(), new ProfileStore(Path.Combine(Path.GetTempPath(), "cuedeck-no-profiles"))));
         ui.Add(menu);
         screen.ScreenSize = size;
         screen.Update();

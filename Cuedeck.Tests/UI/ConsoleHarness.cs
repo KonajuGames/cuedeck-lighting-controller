@@ -3,6 +3,7 @@ using Cuedeck.Fixtures;
 using Cuedeck.Input;
 using Cuedeck.Show;
 using Cuedeck.UI;
+using Cuedeck.UI.Console;
 
 namespace Cuedeck.Tests.UI;
 
@@ -22,8 +23,12 @@ public abstract class ConsoleHarness : IDisposable
     private protected ConsoleHarness()
     {
         var menu = new ContextMenu(MainScreenTests.TestFonts.Body);
-        Screen = Ui.Add(new MainScreen(MainScreenTests.TestFonts, MainScreenTests.Pictures, menu, Show, new ProfileStore(Dir.File("profiles"))));
-        var confirm = Ui.Add(new ConfirmDialog(Ui, MainScreenTests.TestFonts.Body, MainScreenTests.TestFonts.Bold, MainScreenTests.TestFonts.Heading));
+        var fonts = MainScreenTests.TestFonts;
+        var confirm = new ConfirmDialog(Ui, fonts.Body, fonts.Bold, fonts.Heading);
+        var prompt = new NamePrompt(Ui, fonts.Body, fonts.Bold, fonts.Heading);
+        Screen = Ui.Add(new MainScreen(fonts, MainScreenTests.Pictures, menu, new Dialogs(confirm, prompt), Show, new ProfileStore(Dir.File("profiles"))));
+        Ui.Add(confirm);
+        Ui.Add(prompt);
         Ui.Add(menu);
         var session = new ShowSession(Show) { LastShowStore = Dir.File("last.json") };
         Shell = new AppShell(session, Screen, confirm, () => 0);
@@ -42,6 +47,8 @@ public abstract class ConsoleHarness : IDisposable
         Screen.ScreenSize = ScreenSize;
         foreach (var dialog in Ui.Elements.OfType<ConfirmDialog>())
             dialog.ScreenSize = ScreenSize;
+        foreach (var prompt in Ui.Elements.OfType<NamePrompt>())
+            prompt.ScreenSize = ScreenSize;
         foreach (var menu in Ui.Elements.OfType<ContextMenu>())
             menu.ScreenSize = ScreenSize;
         Screen.Update();

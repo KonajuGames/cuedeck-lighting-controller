@@ -21,13 +21,16 @@ sealed class ConsoleView : Region
     public ChasesTab Chases { get; }
     public EffectsTab Effects { get; }
     public GroupsTab Groups { get; }
+    public DmxOutputTab DmxOutput { get; }
+    public FadersTab Faders { get; }
+    public PalettesTab Palettes { get; }
 
     /// <summary>
     /// Something a tab wants said on the status line.
     /// </summary>
     public event Action<string>? Status;
 
-    public ConsoleView(Fonts fonts, ContextMenu menu, LightingShow show, ProfileStore profiles)
+    public ConsoleView(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
     {
         _left = Add(new TabView(fonts.Body));
         Cues = new CuesTab(fonts, show);
@@ -47,9 +50,13 @@ sealed class ConsoleView : Region
         Patch = new PatchTab(fonts, menu, show, profiles);
         _right.AddTab("Patch", Patch);
         _right.AddTab("3D Visualizer", new Placeholder(fonts.Body, "The 3D Visualizer comes in phase 6."));
-        _right.AddTab("DMX Output", new Placeholder(fonts.Body, "DMX Output is coming."));
-        _right.AddTab("Faders", new Placeholder(fonts.Body, "Faders are coming."));
-        _right.AddTab("Palettes", new Placeholder(fonts.Body, "Palettes are coming."));
+        DmxOutput = new DmxOutputTab(fonts, show);
+        _right.AddTab("DMX Output", DmxOutput);
+        Faders = new FadersTab(fonts, menu, show);
+        _right.AddTab("Faders", new ScrollingPage(Faders));
+        Palettes = new PalettesTab(fonts, menu, dialogs, show);
+        _right.AddTab("Palettes", new ScrollingPage(Palettes));
+        Palettes.Status += m => Status?.Invoke(m);
     }
 
     public void Update()
@@ -64,6 +71,12 @@ sealed class ConsoleView : Region
             groups.Update();
         if (_right.SelectedPage == Patch)
             Patch.Update();
+        if (_right.SelectedPage == DmxOutput)
+            DmxOutput.Update();
+        if (_right.SelectedPage is ScrollingPage { Content: FadersTab faders })
+            faders.Update();
+        if (_right.SelectedPage is ScrollingPage { Content: PalettesTab palettes })
+            palettes.Update();
     }
 
     protected override void MeasureContent()

@@ -110,7 +110,6 @@ sealed unsafe class FontAtlas
         0x2026, // ellipsis
         0x2190, 0x2192, // left and right arrows
         0x2212, // minus
-        0x25C6, // diamond, for a palette in a cue
         0x25A0, // black square
         0x25B2, 0x25BA, 0x25BC, 0x25C4, // triangles pointing up, right, down and left
         0x25CF, // black circle

@@ -159,11 +159,11 @@ public sealed class PlaybackTabsTests : ConsoleHarness
         var group = Assert.Single(Show.Groups);
         Assert.Contains(All(Screen.Console.Groups).OfType<Label>(), l => l.Text == "0 of 2 fixtures in 'Group 1':");
 
-        Click(Find<Checkbox>(c => c.Text.Contains("Par B")));
+        Click(Find<Checkbox>(c => c.Text?.Contains("Par B") == true));
         Assert.Equal([b.Uid], group.Members);
-        Click(Find<Checkbox>(c => c.Text.Contains("Par A")));
+        Click(Find<Checkbox>(c => c.Text?.Contains("Par A") == true));
         Assert.Equal([b.Uid, a.Uid], group.Members);
-        Click(Find<Checkbox>(c => c.Text.Contains("Par B")));
+        Click(Find<Checkbox>(c => c.Text?.Contains("Par B") == true));
         Assert.Equal([a.Uid], group.Members);
 
         // Renamed: the effect on it follows.

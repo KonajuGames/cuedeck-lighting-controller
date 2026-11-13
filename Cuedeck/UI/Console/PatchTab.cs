@@ -193,8 +193,13 @@ sealed class UniversePage : Panel
         if (_rows.Children.Count == 0 && p.Fixtures.Count == 0)
             _rows.Children.Add(new Label(_fonts.Body, "Nothing patched in this universe yet.") { Color = Theme.Faint });
         var data = _show.Dmx.Universes[_index].Data;
+        var colours = ModelColours.Of(_show.Patch);
         foreach (var row in _rows.Children.OfType<FixtureRow>())
+        {
+            // Each model's fixtures in its colour, as in the DMX Output grid.
+            row.Background = colours.GetValueOrDefault(row.Fixture.Profile.FullName, Theme.PanelRaised);
             row.Update(data);
+        }
     }
 
     /// <summary>

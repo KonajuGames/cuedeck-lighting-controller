@@ -30,7 +30,7 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 - `UI/TextBox.cs`: no longer sealed (`NumberBox` builds on it).
 - `UI/ConfirmDialog.cs`: an optional second way to go ahead (Save / Don't Save / Cancel), shown in blue rather
   than red.
-- `UI/FontAtlas.cs`: arrows, minus and a diamond added to the characters baked.
+- `UI/FontAtlas.cs`: arrows and the minus sign added to the characters baked.
 - `UI/Batch.cs`: `Colors.FromSrgb`.
 
 ## Adapted

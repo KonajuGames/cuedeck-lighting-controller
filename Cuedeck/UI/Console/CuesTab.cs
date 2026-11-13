@@ -79,9 +79,9 @@ sealed class CuesTab : Region
         _progress = progressRow.Add(new ProgressBar(200));
         _progressText = progressRow.Add(new Label(fonts.Small) { Color = Theme.Muted });
 
-        List = new ListView<Cue>(fonts.Body) { EmptyText = "No cues â€” dial a look, then Record Cue." };
+        List = new ListView<Cue>(fonts.Body) { EmptyText = "No cues — dial a look, then Record Cue." };
         float4? Live(Cue c) => Cues.Current >= 0 && Cues.Current < Cues.Cues.Count && Cues.Cues[Cues.Current] == c ? Theme.Accent : null;
-        List.Columns.Add(new ListColumn<Cue>("", 26, c => Live(c) is null ? "" : "â–º") { Color = Live, Resizable = false });
+        List.Columns.Add(new ListColumn<Cue>("", 26, c => Live(c) is null ? "" : "►") { Color = Live, Resizable = false });
         List.Columns.Add(new ListColumn<Cue>("#", 30, c => (Cues.Cues.IndexOf(c) + 1).ToString(CultureInfo.InvariantCulture)) { AlignRight = true, Color = Live, Resizable = false });
         List.Columns.Add(new ListColumn<Cue>("", 26, c => c.Tracking ? "T" : "B") { Color = c => Live(c) ?? Theme.Muted, Resizable = false });
         List.Columns.Add(new ListColumn<Cue>("Label", 110, c => c.Label) { Color = Live, Resizable = false });
@@ -143,7 +143,7 @@ sealed class CuesTab : Region
             if (Selected is not { } i)
                 return;
             _show.LoadLook(Cues.LookBuffers(i));
-            Status?.Invoke($"Cue {i + 1} loaded into the patch â€” tweak the fixtures, then Update.");
+            Status?.Invoke($"Cue {i + 1} loaded into the patch — tweak the fixtures, then Update.");
         };
         var update = buttons.Add(new Button(fonts.Body, "Update") { Tooltip = "Record this cue again from the live levels" });
         update.Clicked += _ =>
@@ -208,7 +208,7 @@ sealed class CuesTab : Region
     /// <summary>
     /// A cue's times, then the palettes it uses.
     /// </summary>
-    string TimesAndPalettes(Cue c) => Cues.PaletteNames(c) is { Count: > 0 } names ? $"{Times(c)}  â—† {string.Join(", ", names)}" : Times(c);
+    string TimesAndPalettes(Cue c) => Cues.PaletteNames(c) is { Count: > 0 } names ? $"{Times(c)}  • {string.Join(", ", names)}" : Times(c);
 
     static string Times(Cue c)
     {
@@ -216,7 +216,7 @@ sealed class CuesTab : Region
         if (c.Delay > 0)
             text += $"  d{c.Delay:F1}";
         if (c.Follow)
-            text += $"  â†’ {c.FollowWait:F1}s";
+            text += $"  → {c.FollowWait:F1}s";
         return text;
     }
 
@@ -231,7 +231,7 @@ sealed class CuesTab : Region
         _progress.Value = (float)value;
         _progressText.Text = text;
         _next.Text = Cues.Cues.Count == 0
-            ? "No cues â€” dial a look, then Record Cue."
+            ? "No cues — dial a look, then Record Cue."
             : $"Next: cue {Math.Clamp(Cues.Next, 0, Cues.Cues.Count - 1) + 1}   (recording: {(Cues.TrackingEnabled ? "tracking" : "block")})";
         _recordTracking.Checked = Cues.TrackingEnabled;
 
