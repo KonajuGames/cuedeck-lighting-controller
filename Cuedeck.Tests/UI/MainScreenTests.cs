@@ -1,0 +1,79 @@
+using Brutal.Numerics;
+using Cuedeck.Input;
+using Cuedeck.UI;
+
+namespace Cuedeck.Tests.UI;
+
+public class MainScreenTests
+{
+    static readonly FontAtlas Atlas = new();
+    static readonly Images Pictures = Images.Load(Atlas);
+
+    static readonly Fonts TestFonts = MakeFonts();
+
+    static Fonts MakeFonts()
+    {
+        var regular = FontAtlas.FindSystemFont(bold: false) ?? FontAtlas.FindSystemFont()!;
+        var bold = FontAtlas.FindSystemFont(bold: true) ?? regular;
+        return new Fonts(Atlas.Add(regular, 12), Atlas.Add(regular, 14), Atlas.Add(bold, 14), Atlas.Add(bold, 18), Atlas.Add(bold, 26));
+    }
+
+    static (Root Ui, MainScreen Screen) LaidOut(float2 size)
+    {
+        var ui = new Root();
+        var screen = ui.Add(new MainScreen(TestFonts, Pictures));
+        screen.ScreenSize = size;
+        screen.Update();
+        ui.Layout(size);
+        return (ui, screen);
+    }
+
+    [Fact]
+    public void The_screen_fills_the_window_with_the_title_bar_across_the_top()
+    {
+        var (_, screen) = LaidOut(new float2(1366, 820));
+
+        Assert.Equal(new float2(1366, 820), screen.Size);
+        Assert.Equal(new float2(0, 0), screen.TitleBar.ScreenPosition);
+        Assert.Equal(new float2(1366, TitleBar.HEIGHT), screen.TitleBar.Size);
+    }
+
+    [Fact]
+    public void The_window_drags_from_the_title_bars_empty_space_but_not_its_buttons_or_below_it()
+    {
+        var (_, screen) = LaidOut(new float2(1366, 820));
+
+        Assert.True(screen.TitleBar.IsCaption(new float2(400, 10)));
+        // The close button is the last 46 pixels.
+        Assert.False(screen.TitleBar.IsCaption(new float2(1366 - 20, 10)));
+        Assert.False(screen.TitleBar.IsCaption(new float2(400, TitleBar.HEIGHT + 10)));
+    }
+
+    [Fact]
+    public void The_close_button_asks_to_close()
+    {
+        var (ui, screen) = LaidOut(new float2(1366, 820));
+        var closed = false;
+        screen.TitleBar.CloseClicked += () => closed = true;
+
+        ui.MouseMove(new float2(1366 - 20, 10));
+        Assert.Equal("Close Cuedeck", ui.Hovered?.Tooltip);
+        ui.MouseButton(MouseButton.Left, down: true);
+        ui.MouseButton(MouseButton.Left, down: false);
+
+        Assert.True(closed);
+    }
+
+    [Fact]
+    public void The_show_name_follows_the_apps_name_only_when_there_is_one()
+    {
+        var (ui, screen) = LaidOut(new float2(1366, 820));
+        var bare = screen.TitleBar.Children[0].Size.X;
+
+        screen.TitleBar.Subtitle = "Friday club night *";
+        screen.Update();
+        ui.Layout(screen.ScreenSize);
+
+        Assert.True(screen.TitleBar.Children[0].Size.X > bare);
+    }
+}

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Cuedeck/Cuedeck.csproj" />
+  <Project Path="Cuedeck.Tests/Cuedeck.Tests.csproj" />
+</Solution>
