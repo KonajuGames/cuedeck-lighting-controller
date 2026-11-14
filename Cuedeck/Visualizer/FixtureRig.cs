@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Text.Json.Nodes;
 using Cuedeck.Common;
 using Cuedeck.Fixtures;
 
@@ -26,12 +27,29 @@ sealed class RigHead(Vector3 offset, Vector3 rotation)
 }
 
 /// <summary>
+/// A part of a GDTF fixture's geometry tree: its name and kind (geometry, axis, beam), where it sits on its parent at
+/// rest (a rotation and a position, in the 3D view's Y-up axes), its glTF model if it has one, and what hangs from it.
+/// </summary>
+sealed class GeoNode
+{
+    public string Name { get; init; } = "";
+    public string Kind { get; init; } = "geometry";
+    public Matrix4x4 Rest { get; init; } = Matrix4x4.Identity;
+    public Vector3 Origin { get; init; }
+    public GltfModel? Model { get; init; }
+    public GeoNode? Parent { get; init; }
+    public List<GeoNode> Children { get; } = [];
+}
+
+/// <summary>
 /// A patched fixture as the 3D view builds it, without drawing it: what kind of body it gets (by its profile's
 /// category, else guessed from its channels), whether it hangs in a yoke that follows its pan and tilt, its heads (one
 /// light and beam each) and where each points. Each frame <see cref="Update"/> takes its state from the DMX
 /// (<see cref="DmxRender"/>): the pan and tilt eased towards it, the beam's angle, the strobe, each head's colour and
 /// level. Transforms are row-vector matrices (System.Numerics'), local to the fixture's own placement; a light shines
-/// along its frame's -Z. sLight's <c>FixtureView</c>, but for the GDTF models (slice 6e).
+/// along its frame's -Z. A profile imported from GDTF with its models (in <c>fixture_models</c>) is built from its
+/// geometry tree instead: its parts' models, panning and tilting on the geometries its Pan and Tilt channels name,
+/// one head at each beam. sLight's <c>FixtureView</c>.
 /// </summary>
 sealed class FixtureRig
 {
@@ -47,7 +65,13 @@ sealed class FixtureRig
 
     readonly List<RigHead> _heads = [];
 
-    public FixtureRig(FixtureProfile profile, int mode)
+    GeoNode? _panNode;
+    GeoNode? _tiltNode;
+    readonly List<GeoNode> _beams = [];
+
+    /// <param name="modelsFolder">Where imported profiles' models are kept (<c>fixture_models</c>); null to draw every
+    /// fixture schematically.</param>
+    public FixtureRig(FixtureProfile profile, int mode, string? modelsFolder = null)
     {
         Profile = profile;
         Mode = mode;
@@ -70,6 +94,18 @@ sealed class FixtureRig
             _ => (new Vector3(0, 0, -0.13f), Category != "wash", false, Category == "wash" ? 32.0 : 0),
         };
         HalfAngle = angle > 0 ? angle * 0.5 : Math.Clamp(profile.Physical.BeamDeg * 0.5, 2, 60);
+        if (modelsFolder is not null && BuildGeometry(profile, modelsFolder) is { } root)
+        {
+            Geometry = root;
+            Kind = "gdtf";
+            (HasCone, HasFace) = (true, false);
+            // The profile's beam angle, not the geometry's: the import took it from the GDTF, and it may have been
+            // edited since.
+            HalfAngle = Math.Clamp(profile.Physical.BeamDeg * 0.5, 2, 60);
+            foreach (var _ in _beams)
+                _heads.Add(new RigHead(Vector3.Zero, Vector3.Zero));
+            return;
+        }
         var groups = profile.HeadGroups(mode);
         if (groups.Count == 0)
             _heads.Add(new RigHead(Vector3.Zero, Vector3.Zero));
@@ -87,15 +123,20 @@ sealed class FixtureRig
     public string Category { get; }
 
     /// <summary>
-    /// The schematic body: "moving_head" or "scanner" (a base, a yoke and a head), "blinder" (a panel), "bar" (a long
-    /// box) or "can" (a cylinder).
+    /// The body: "moving_head" or "scanner" (a base, a yoke and a head), "blinder" (a panel), "bar" (a long box) or
+    /// "can" (a cylinder), schematically; or "gdtf", its models on its geometry tree.
     /// </summary>
     public string Kind { get; }
 
     /// <summary>
+    /// The geometry tree's root, when it's built from its GDTF models; null when it's schematic.
+    /// </summary>
+    public GeoNode? Geometry { get; }
+
+    /// <summary>
     /// Whether it hangs in a yoke that pans, holding a head that tilts.
     /// </summary>
-    public bool Yoked => YokeKinds.Contains(Kind);
+    public bool Yoked => Geometry is not null ? (_panNode ?? _tiltNode) is not null : YokeKinds.Contains(Kind);
 
     /// <summary>
     /// Where the heads start on their carrier (the face of the head, or the body).
@@ -137,6 +178,85 @@ sealed class FixtureRig
     /// How far the gobo's turned, radians.
     /// </summary>
     public double GoboRoll { get; private set; }
+
+    /// <summary>
+    /// The profile's geometry tree with its models read, or null if it has none (or no beam, or none of its models
+    /// can be read: then it's drawn schematically).
+    /// </summary>
+    GeoNode? BuildGeometry(FixtureProfile profile, string modelsFolder)
+    {
+        var geo = profile.Geometry;
+        if (geo.Obj("tree") is not { } tree || geo.Obj("models") is not { Count: > 0 } models)
+            return null;
+        var dir = Path.Combine(modelsFolder, geo.Str("models_dir"));
+        var anyModel = false;
+        GeoNode Node(JsonNode? n, GeoNode? parent)
+        {
+            var x = FixtureImport.Transform([.. n.Arr("mat").Select(v => Json.AsDouble(v))]);
+            var key = n.Str("model");
+            var model = key != "" && models.Str(key) is { Length: > 0 } file ? ModelCache.Get(Path.Combine(dir, file)) : null;
+            anyModel |= model is not null;
+            var b = x.Basis;
+            var node = new GeoNode
+            {
+                Name = n.Str("name"),
+                Kind = n.Str("kind", "geometry"),
+                Rest = new Matrix4x4(
+                    (float)b.X.X, (float)b.X.Y, (float)b.X.Z, 0,
+                    (float)b.Y.X, (float)b.Y.Y, (float)b.Y.Z, 0,
+                    (float)b.Z.X, (float)b.Z.Y, (float)b.Z.Z, 0,
+                    0, 0, 0, 1
+                ),
+                Origin = new Vector3((float)x.Origin.X, (float)x.Origin.Y, (float)x.Origin.Z),
+                Model = model,
+                Parent = parent,
+            };
+            if (node.Kind == "beam")
+                _beams.Add(node);
+            if (node.Name != "" && node.Name == geo.Str("pan_geo"))
+                _panNode = node;
+            if (node.Name != "" && node.Name == geo.Str("tilt_geo"))
+                _tiltNode = node;
+            foreach (var c in n.Arr("children"))
+                node.Children.Add(Node(c, node));
+            return node;
+        }
+        var root = Node(tree, null);
+        if (_beams.Count == 0 || !anyModel)
+        {
+            _beams.Clear();
+            _panNode = _tiltNode = null;
+            return null;
+        }
+        return root;
+    }
+
+    /// <summary>
+    /// A geometry's frame in the room: where it rests on its parent, turned by the pan or tilt if it's that axis.
+    /// </summary>
+    public Matrix4x4 NodeWorld(GeoNode node, Matrix4x4 fixture)
+    {
+        var turn = node == _panNode ? Matrix4x4.CreateRotationY((float)Pan) : node == _tiltNode ? Matrix4x4.CreateRotationX((float)Tilt) : Matrix4x4.Identity;
+        var local = turn * node.Rest * Matrix4x4.CreateTranslation(node.Origin);
+        return local * (node.Parent is { } p ? NodeWorld(p, fixture) : fixture);
+    }
+
+    /// <summary>
+    /// Every geometry with its frame in the room, parents first.
+    /// </summary>
+    public void EachNode(Matrix4x4 fixture, Action<GeoNode, Matrix4x4> visit)
+    {
+        void Walk(GeoNode n, Matrix4x4 parent)
+        {
+            var turn = n == _panNode ? Matrix4x4.CreateRotationY((float)Pan) : n == _tiltNode ? Matrix4x4.CreateRotationX((float)Tilt) : Matrix4x4.Identity;
+            var world = turn * n.Rest * Matrix4x4.CreateTranslation(n.Origin) * parent;
+            visit(n, world);
+            foreach (var c in n.Children)
+                Walk(c, world);
+        }
+        if (Geometry is { } root)
+            Walk(root, fixture);
+    }
 
     static string ResolveCategory(FixtureProfile profile, int mode)
     {
@@ -227,6 +347,9 @@ sealed class FixtureRig
     /// </summary>
     public Matrix4x4 HeadWorld(int i, Matrix4x4 fixture)
     {
+        // A GDTF beam shines down its geometry's -Z (GDTF's), which is -Y here: turned to the light's -Z.
+        if (Geometry is not null)
+            return FixtureRig.Euler(new Vector3(-MathF.PI / 2, 0, 0)) * NodeWorld(_beams[i], fixture);
         var h = _heads[i];
         return Euler(h.Rotation) * Matrix4x4.CreateTranslation(HeadBase + h.Offset) * CarrierWorld(fixture);
     }
@@ -239,5 +362,6 @@ sealed class FixtureRig
     /// <summary>
     /// The axis the yoke pans about, in the room.
     /// </summary>
-    public Vector3 PanAxis(Matrix4x4 fixture) => Vector3.TransformNormal(Vector3.UnitY, YokeWorld(fixture));
+    public Vector3 PanAxis(Matrix4x4 fixture) =>
+        Vector3.TransformNormal(Vector3.UnitY, Geometry is not null ? NodeWorld(_panNode ?? Geometry, fixture) : YokeWorld(fixture));
 }

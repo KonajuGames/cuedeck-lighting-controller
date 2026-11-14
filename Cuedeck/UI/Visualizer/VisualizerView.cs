@@ -15,7 +15,7 @@ namespace Cuedeck.UI.Visualizer;
 /// and played live from each universe's output. Drag on nothing to orbit, Shift-drag or middle-drag to slide, the
 /// wheel to move in and out; press on a fixture, truss or set piece to select it and drag it on the floor, or type
 /// its position and turn below. Over it, the toolbar (haze, work light, shadows and room; the camera's views, field
-/// of view and Ortho; Undo, Redo, Add Truss and Auto-arrange) and Hide UI. sLight's <c>VisualizerPanel</c>; its
+/// of view and Ortho; Undo, Redo, Add Truss, Load Model… and Auto-arrange) and Hide UI. sLight's <c>VisualizerPanel</c>; its
 /// scene is <see cref="VizScene"/>.
 /// </summary>
 sealed class VisualizerView : Region, IScene3DSource, IPointerHook
@@ -126,6 +126,12 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
         _redo.Clicked += _ => Scene.Redo();
         var addTruss = scene.Add(new Button(fonts.Body, "Add Truss") { Padding = 4 });
         addTruss.Clicked += _ => Scene.AddTruss();
+        var loadModel = scene.Add(new Button(fonts.Body, "Load Model…") { Padding = 4, Tooltip = "Place a glTF model (a set piece, a stage element) where the camera's looking" });
+        loadModel.Clicked += _ =>
+        {
+            if (AskForModel() is { } path)
+                Scene.AddProp(path);
+        };
         var arrange = scene.Add(new Button(fonts.Body, "Auto-arrange") { Padding = 4, Tooltip = "Every fixture back in rows over the stage, pointing down" });
         arrange.Clicked += _ => Scene.AutoArrange();
 
@@ -174,6 +180,17 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
     /// The root it's in, to let go of the keyboard (set by whoever adds it).
     /// </summary>
     public Root? Root { get; set; }
+
+    /// <summary>
+    /// Asks for a glTF model file to place; null when none's chosen.
+    /// </summary>
+    public Func<string?> AskForModel { get; set; } = () => null;
+
+    /// <summary>
+    /// Where imported profiles' models are kept (<c>fixture_models</c>), so fixtures from GDTF are drawn with them;
+    /// null to draw every fixture schematically.
+    /// </summary>
+    public string? ModelsFolder { get; set; }
 
     /// <summary>
     /// Whether the tab's on screen (set by the console, which knows).
@@ -271,7 +288,7 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
         foreach (var f in patched)
         {
             if (!_rigs.TryGetValue(f, out var rig) || rig.Profile != f.Profile || rig.Mode != f.Mode)
-                _rigs[f] = rig = new FixtureRig(f.Profile, f.Mode);
+                _rigs[f] = rig = new FixtureRig(f.Profile, f.Mode, ModelsFolder);
             var output = f.Universe < _show.Dmx.UniverseCount ? _show.Dmx.Universes[f.Universe].Output : [];
             rig.Update(DmxRender.Evaluate(f.Profile, f.Mode, output, f.Start), delta);
         }

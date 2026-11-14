@@ -105,7 +105,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 | 3 | ✅ **Sound and triggers** (built 2026-11-13, see §7.3; not yet tried with a real line-in or controller). Live capture, sound reactors and the Sound tab with spectrogram. MIDI/OSC triggers with Learn and feedback (WinMidi out). Options dialog (VirtualDJ or Cuepoint). | Beat-reactive chases run from line-in; a controller's LEDs follow. |
 | 4 | ✅ **DJ Edit Mode** (done 2026-11-14; see §7.4). Music browser (drives, VirtualDJ lists, Cuepoint library), song analysis, the structure bar, heatmap and timeline editor, timeline generator, timeline store and the position editor. Port `music_*`, `timeline_*`, `structure_detection`, `virtualdj_*`, `cuepoint_library` and `m4a_playback` tests. | Generate → edit → save a song's timelines, and the files load in sLight too. |
 | 5 | 🔶 **DJ Perform Mode** (built 2026-11-14 and tried with Cuepoint; VirtualDJ still to try; see §7.5). OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
-| 6 | 🔶 **Visualizer** (in progress; see §7.6). §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
+| 6 | ✅ **Visualizer** (done 2026-11-14; see §7.6). §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
 | 7 | **Native extras and polish.** USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
 
 ### 7.1 Phase 1 as built
@@ -292,7 +292,18 @@ from the scene's data outwards: first everything that isn't drawing, then §5's 
 | 6b | The 3D pass (`Rendering/Scene3D`): an offscreen colour and depth image shown in the 3D Visualizer tab, one lit opaque pipeline (Lambert, ambient and the work light), the floor, wall, trusses and schematic bodies; the camera, picking and dragging by mouse; the toolbar and the selected item's properties | ✅ |
 | 6c | Lights: each lit head a spotlight (`SceneFrame.Lights`: its colour times sLight's energy and its level, its cone from the beam's angle, aimed by the rig), looped over in the opaque shader with Godot's fall-off with distance and towards the cone's edge, and faded out 24 m to 34 m from the camera as sLight's were | ✅ |
 | 6d | Beams: sLight's open cones from the lit heads that throw one (as wide as the beam's angle, 13 m long, fading from the lens), added over the room by a second pipeline and shown more in thicker haze; blinders' and bars' heads as lit faces glowing in their colour; the strobe blinking them all (from the rig); gobos projected by the first head's light across its cone, turned by the gobo's spin (`Rendering/GoboArray`, the artwork's layers in one texture array) | ✅ |
-| 6e | GDTF models: the glTF parts (SharpGLTF) on the profile's geometry tree, pan and tilt on its axes; models as set pieces | next |
+| 6e | GDTF models: a profile imported from GDTF with its models drawn from its geometry tree (each part's glTF model in its model's colour, panning and tilting on the geometries its Pan and Tilt channels name, a head at each beam), else schematically; glTF models placed as set pieces (Load Model…), drawn in their own colours and picked by the box round them; a glTF reader of Cuedeck's own (`Visualizer/GltfModel`) | ✅ |
+
+**Where slice 6e differs from sLight:** glTF is read by a reader of Cuedeck's own (binary and JSON, embedded or
+side-by-side buffers; meshes, node transforms and base colours, no textures) rather than SharpGLTF as §5 planned, so
+nothing new is downloaded. A GDTF fixture whose models can't be read (another machine without its
+`fixture_models`) is drawn schematically, where sLight drew its geometry without bodies. Models aren't textured: a
+fixture's parts take its model's colour, as sLight tinted them; a set piece its materials' colours. Tried in the app:
+a set piece (a cube made for the purpose) loaded through Load Model…'s file dialog, drawn and selected. No GDTF
+fixture with models was at hand (none is imported on this machine), so those are tried by the tests only.
+
+Phase 6's done-when: the rig drawn with its beams, pools of light and haze looks comparable to sLight's
+`09-visualizer.png`; anti-aliasing, shadows, recording and the pop-out window are phase 7's.
 
 **Where slice 6d differs from sLight:** the beams are sLight's cones without Godot's volumetric fog behind them, so
 the haze slider scales the cones themselves (as sLight drew them at its usual 0.3) as well as the veil. A gobo is

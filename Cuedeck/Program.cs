@@ -166,6 +166,7 @@ static void Run(string[] args)
     // The 3D Visualizer: drawn by the renderer's 3D pass; the middle button slides its camera.
     renderer.Scene = screen.Console.Visualizer;
     screen.Console.Visualizer.Root = ui;
+    screen.Console.Visualizer.ModelsFolder = profiles.ModelsFolder;
     ui.PointerHooks.Add(screen.Console.Visualizer);
     editPlayback.IsShown = () => screen.View == AppView.DjEdit && djEdit.IsTimelineShown;
     ui.Add(editor);
@@ -178,6 +179,8 @@ static void Run(string[] args)
     ui.Add(menu);
     using var input = new GlfwUiInput(window, ui);
     var shell = new AppShell(session, screen, confirm, () => OperatingSystem.IsWindows() ? WindowChrome.Handle : 0);
+    screen.Console.Visualizer.AskForModel = () =>
+        WindowsShell.AskForFile(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Load glTF Model (set piece / stage element)", ("glTF model", "*.glb;*.gltf"));
     screen.Console.Patch.AskForFixtureFile = () =>
         WindowsShell.AskForFile(
             OperatingSystem.IsWindows() ? WindowChrome.Handle : 0,

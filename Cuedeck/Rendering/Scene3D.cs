@@ -76,6 +76,11 @@ sealed unsafe class Scene3D : IDisposable
     readonly GpuBuffer _vertices;
     readonly GpuBuffer _indices;
     readonly Dictionary<MeshKind, (int FirstIndex, int IndexCount, int VertexOffset)> _meshes = [];
+
+    /// <summary>
+    /// Models' meshes (GDTF fixtures' parts, set pieces), each uploaded the first time it's drawn.
+    /// </summary>
+    readonly Dictionary<MeshData, (GpuBuffer Vertices, GpuBuffer Indices, int Count)> _models = new(ReferenceEqualityComparer.Instance);
     readonly FrameInstances[] _frames;
     GpuImage? _color;
     GpuImage? _depth;
@@ -384,10 +389,33 @@ sealed unsafe class Scene3D : IDisposable
         );
         cmd.BindVertexBuffers(0, [_vertices.Buffer], [new ByteSize64(0)]);
         cmd.BindIndexBuffer(_indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
+        var shared = true;
         for (var i = 0; i < count; i++)
         {
-            var (first, n, offset) = _meshes[frame.Items[i].Mesh];
+            var item = frame.Items[i];
+            if (item.Custom is { } custom)
+            {
+                if (ModelMesh(custom) is not { } m)
+                    continue;
+                cmd.BindVertexBuffers(0, [m.Vertices.Buffer], [new ByteSize64(0)]);
+                cmd.BindIndexBuffer(m.Indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
+                cmd.DrawIndexed(m.Count, 1, 0, 0, i);
+                shared = false;
+                continue;
+            }
+            if (!shared)
+            {
+                cmd.BindVertexBuffers(0, [_vertices.Buffer], [new ByteSize64(0)]);
+                cmd.BindIndexBuffer(_indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
+                shared = true;
+            }
+            var (first, n, offset) = _meshes[item.Mesh];
             cmd.DrawIndexed(n, 1, first, offset, i);
+        }
+        if (!shared)
+        {
+            cmd.BindVertexBuffers(0, [_vertices.Buffer], [new ByteSize64(0)]);
+            cmd.BindIndexBuffer(_indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
         }
         if (frame.Beams.Count > 0)
         {
@@ -410,6 +438,23 @@ sealed unsafe class Scene3D : IDisposable
             VkPipelineStageFlags.FragmentShaderBit,
             VkAccessFlags.ShaderReadBit
         );
+    }
+
+    /// <summary>
+    /// A model's mesh on the GPU, uploaded now if it's new; null for one with no triangles.
+    /// </summary>
+    (GpuBuffer Vertices, GpuBuffer Indices, int Count)? ModelMesh(MeshData mesh)
+    {
+        if (_models.TryGetValue(mesh, out var m))
+            return m;
+        if (mesh.Indices.Count == 0)
+            return null;
+        var vertices = new MeshVertex[mesh.Positions.Count];
+        for (var i = 0; i < vertices.Length; i++)
+            vertices[i] = new MeshVertex { Position = mesh.Positions[i], Normal = mesh.Normals[i] };
+        m = (Upload(vertices, VkBufferUsageFlags.VertexBufferBit), Upload<uint>([.. mesh.Indices], VkBufferUsageFlags.IndexBufferBit), mesh.Indices.Count);
+        _models[mesh] = m;
+        return m;
     }
 
     /// <summary>
@@ -465,6 +510,11 @@ sealed unsafe class Scene3D : IDisposable
         _depth?.Dispose();
         _vertices.Dispose();
         _indices.Dispose();
+        foreach (var (v, i, _) in _models.Values)
+        {
+            v.Dispose();
+            i.Dispose();
+        }
         _device.DestroyPipeline(_pipeline, null);
         _device.DestroyPipeline(_beamPipeline, null);
         _gobos.Dispose();

@@ -106,6 +106,17 @@ public sealed class VisualizerTabTests : ConsoleHarness
         Click(Find<Button>(b => b.Text == "Delete" && All(_viz.Properties).Contains(b)));
         Assert.Empty(Scene.Trusses);
 
+        // A model placed as a set piece: selected, its scale and heading to set.
+        var model = Dir.File("set.glb");
+        File.WriteAllBytes(model, Cuedeck.Tests.Visualizer.GltfModelTests.Triangle());
+        _viz.AskForModel = () => model;
+        Click(Find<Button>(b => b.Text == "Load Model…"));
+        var prop = Assert.Single(Scene.Props);
+        Assert.Same(prop, Scene.Selected);
+        Assert.Equal("Model: set.glb", _viz.PropertiesTitle);
+        TypeInto(_viz.SizeBox, "2");
+        Assert.Equal(2, prop.Scale, 6);
+
         Choose(Find<Dropdown<string>>(d => d.Selected == "Black Box"), "Club");
         Assert.Equal("Club", Scene.Room.Name);
         Choose(Find<Dropdown<int>>(_ => true), "Top");

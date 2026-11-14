@@ -105,4 +105,52 @@ public sealed class FixtureRigTests
         // The heads sit side by side along the bar.
         Assert.True(rig.Heads[0].Offset.X < rig.Heads[1].Offset.X);
     }
+
+    /// <summary>
+    /// A GDTF matrix (column-major, Z up) moving <paramref name="up"/> metres up GDTF's Z.
+    /// </summary>
+    static string Mat(double up = 0) => $"[1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,{up},1]";
+
+    [Fact]
+    public void A_GDTF_fixture_is_built_from_its_geometry_and_models()
+    {
+        using var dir = new TempFolder();
+        var models = Path.Combine(dir.Path, "fixture_models");
+        Directory.CreateDirectory(Path.Combine(models, "mh"));
+        File.WriteAllBytes(Path.Combine(models, "mh", "base.glb"), GltfModelTests.Triangle());
+        File.WriteAllBytes(Path.Combine(models, "mh", "head.glb"), GltfModelTests.Triangle());
+        var p = P("mh", Moving, "moving_head");
+        p.Geometry = (System.Text.Json.Nodes.JsonObject)System.Text.Json.Nodes.JsonNode.Parse(
+            $$$"""
+            {"pan_geo": "Yoke", "tilt_geo": "Head", "models_dir": "mh", "models": {"Base": "base.glb", "Head": "head.glb"},
+             "tree": {"name": "Base", "kind": "geometry", "model": "Base", "mat": {{{Mat()}}}, "children": [
+               {"name": "Yoke", "kind": "axis", "model": "", "mat": {{{Mat(-0.2)}}}, "children": [
+                 {"name": "Head", "kind": "axis", "model": "Head", "mat": {{{Mat(-0.1)}}}, "children": [
+                   {"name": "Beam", "kind": "beam", "model": "", "mat": {{{Mat()}}}, "children": []}]}]}]}}
+            """
+        )!;
+        var rig = new FixtureRig(p, 0, models);
+        Assert.Equal("gdtf", rig.Kind);
+        Assert.True(rig.Yoked);
+        Assert.Single(rig.Heads);
+        Assert.NotNull(rig.Geometry!.Model);
+        // GDTF's Z up is Y here: the head hangs 0.3 m under the base, and its beam shines down (GDTF's -Z).
+        Assert.True(Vector3.Distance(Vector3.Transform(Vector3.Zero, rig.HeadWorld(0, Matrix4x4.Identity)), new Vector3(0, -0.3f, 0)) < 1e-5f);
+        Assert.True(Vector3.Dot(Vector3.Normalize(rig.HeadAim(0, Matrix4x4.Identity)), -Vector3.UnitY) > 0.9999f);
+        // Tilted, the beam swings; panned, about the yoke's axis.
+        var output = new byte[512];
+        output[0] = 128;
+        output[1] = 255;
+        Run(rig, p, output, 10);
+        Assert.True(Vector3.Dot(Vector3.Normalize(rig.HeadAim(0, Matrix4x4.Identity)), -Vector3.UnitY) < 0.9f);
+        Assert.True(Vector3.Dot(Vector3.Normalize(rig.PanAxis(Matrix4x4.Identity)), Vector3.UnitY) > 0.9999f);
+        // Its models are what's drawn.
+        var drawn = 0;
+        rig.EachNode(Matrix4x4.Identity, (n, _) => drawn += n.Model is null ? 0 : 1);
+        Assert.Equal(2, drawn);
+
+        // Without its models (another machine, say), or without a folder for them: schematic.
+        Assert.Equal("moving_head", new FixtureRig(p, 0, Path.Combine(dir.Path, "elsewhere")).Kind);
+        Assert.Equal("moving_head", new FixtureRig(p, 0).Kind);
+    }
 }

@@ -9,8 +9,8 @@ namespace Cuedeck.Visualizer;
 /// <summary>
 /// One shape to draw: which, where (a row-vector world matrix), its colour (linear, as the renderer works) and how
 /// much it glows regardless of the light on it (0 to 1).
-/// </summary>
-readonly record struct DrawItem(MeshKind Mesh, Matrix4x4 World, float4 Colour, float Glow = 0);
+/// A model's mesh (<paramref name="Custom"/>) is drawn in place of the shape when it's given.
+readonly record struct DrawItem(MeshKind Mesh, Matrix4x4 World, float4 Colour, float Glow = 0, MeshData? Custom = null);
 
 /// <summary>
 /// One head's light, as Godot's spotlight was set up for it: where it is and which way it shines, its colour times
@@ -139,14 +139,28 @@ sealed class SceneFrame
                 )
             );
         foreach (var p in scene.Props)
-            f.Items.Add(
-                new DrawItem(
-                    MeshKind.Box,
-                    Matrix4x4.CreateScale(p.Bounds.Size) * Matrix4x4.CreateTranslation(p.Bounds.Centre) * VizScene.PropWorld(p),
-                    ReferenceEquals(p, selected) ? Lerp(PropColour, Selected, 0.4f) : PropColour,
-                    ReferenceEquals(p, selected) ? 0.4f : 0
-                )
-            );
+        {
+            var sel = ReferenceEquals(p, selected);
+            if (ModelCache.Get(p.Path) is { Parts.Count: > 0 } model)
+            {
+                // Its model, in its own colours; picked by the box round it.
+                p.Bounds = ((model.Bounds.Min + model.Bounds.Max) / 2, model.Bounds.Max - model.Bounds.Min);
+                foreach (var part in model.Parts)
+                {
+                    var c = Linear(part.Colour);
+                    f.Items.Add(new DrawItem(MeshKind.Box, part.Transform * VizScene.PropWorld(p), sel ? Lerp(c, Selected, 0.4f) : c, sel ? 0.4f : 0, part.Mesh));
+                }
+            }
+            else
+                f.Items.Add(
+                    new DrawItem(
+                        MeshKind.Box,
+                        Matrix4x4.CreateScale(p.Bounds.Size) * Matrix4x4.CreateTranslation(p.Bounds.Centre) * VizScene.PropWorld(p),
+                        sel ? Lerp(PropColour, Selected, 0.4f) : PropColour,
+                        sel ? 0.4f : 0
+                    )
+                );
+        }
         foreach (var fx in patch.All)
         {
             if (!rigs.TryGetValue(fx, out var rig))
@@ -171,6 +185,18 @@ sealed class SceneFrame
             items.Add(new DrawItem(MeshKind.Box, Matrix4x4.CreateScale(size) * Matrix4x4.CreateTranslation(at) * frame, colour));
         switch (rig.Kind)
         {
+            case "gdtf":
+                // Its parts' models, in its model's colour (sLight tinted them).
+                rig.EachNode(
+                    world,
+                    (node, at) =>
+                    {
+                        if (node.Model is { } m)
+                            foreach (var part in m.Parts)
+                                items.Add(new DrawItem(MeshKind.Box, part.Transform * at, colour, 0, part.Mesh));
+                    }
+                );
+                break;
             case "moving_head" or "scanner":
                 items.Add(new DrawItem(MeshKind.Base, world, colour));
                 var yoke = rig.YokeWorld(world);

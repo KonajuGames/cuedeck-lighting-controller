@@ -262,7 +262,7 @@ static class FixtureImport
     /// heads) are right-handed Y-up. A GDTF vector (x, y, z) is (x, z, -y) there, so this is the same rigid transform
     /// in those axes.
     /// </summary>
-    static Xform Transform(IReadOnlyList<double> m)
+    internal static Xform Transform(IReadOnlyList<double> m)
     {
         if (m.Count != 16)
             return Xform.Identity;
