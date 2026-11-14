@@ -303,7 +303,7 @@ sealed class Os2lServer : IDisposable
     /// <summary>
     /// Godot's truthiness of an OS2L on/off: true, a number not 0, or "on", "true", "yes", "1".
     /// </summary>
-    static bool Truthy(JsonNode? v) =>
+    internal static bool Truthy(JsonNode? v) =>
         v is JsonValue j
         && j.GetValueKind() switch
         {

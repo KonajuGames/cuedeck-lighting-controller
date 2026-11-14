@@ -12,6 +12,7 @@ using Cuedeck.UI.DjEdit;
 using Cuedeck.UI.Timeline;
 using Cuedeck.Audio;
 using Cuedeck.Music;
+using Cuedeck.Perform;
 using Cuedeck.Timelines;
 
 WindowsShell.AttachParentConsole();
@@ -133,9 +134,34 @@ static void Run(string[] args)
     };
     show.Patch.Changed += timelines.RefreshFixtures;
     show.Patch.Changed += positionEditor.RefreshFixtures;
+    // DJ Perform Mode's engine (started from its view): VirtualDJ's decks played into the rig, a song without
+    // timelines given temporary ones as DJ Edit Mode would generate them.
+    var performer = new DjPerformer(show.Dmx)
+    {
+        FixturesProvider = () => [.. show.Patch.All.Select(PerformFixture.Of)],
+        StoreProvider = () => timelines.Store,
+        Positions = show.Positions,
+        Timeline = timelines,
+        SongLookup = path => djEdit.Browser.Library.FindSong(path),
+        Tempo = show.Tempo,
+    };
+    timelines.TimelineStoreChanged += () =>
+    {
+        if (performer.IsActive)
+            performer.ReloadAll();
+    };
+    // DJ Edit Mode's open song goes live while it plays, or while it's paused with its timeline showing.
+    using var editPlayback = new EditPlayback(show.Dmx, show.Patch, show.Positions, timelines)
+    {
+        CanPlay = () => timelineView.CanPlay,
+        IsPlaying = () => timelineView.IsPlaying,
+        PlaybackPosition = () => timelineView.PlaybackPosition,
+        Performer = performer,
+    };
     ui.PointerHooks.Add(timelineView);
     // Drawn in this order: the screen, then the dialogs over it, then the menu over everything.
     var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), show, profiles, djEdit));
+    editPlayback.IsShown = () => screen.View == AppView.DjEdit && djEdit.IsTimelineShown;
     ui.Add(editor);
     ui.Add(triggers);
     ui.Add(options);
@@ -254,6 +280,7 @@ static void Run(string[] args)
         // A long stall (a file dialog open, a breakpoint) isn't made up for frame by frame.
         tickTime += Math.Min(now - lastTime, 1.0);
         lastTime = now;
+        performer.Update();
         while (tickTime >= TICK)
         {
             show.Tick(TICK, show.Sending);
@@ -280,6 +307,7 @@ static void Run(string[] args)
             window.Visible = windowShown = true;
     }
 
+    performer.Stop();
     timelines.Flush(); // the open song's timelines
     shell.End();
     if (OperatingSystem.IsWindows())

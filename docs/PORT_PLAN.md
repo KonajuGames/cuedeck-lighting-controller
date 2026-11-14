@@ -253,8 +253,14 @@ the browser in 4g.
 | Slice | What | State |
 |---|---|---|
 | 5a | The OS2L server (`Os2l/Os2lServer`): JSON objects back to back over TCP, split on bytes with braces and quotes in strings handled; beat, button and command events, VirtualDJ's subscribed values (kept, raised only when they change), feedback sent back; and mDNS advertising (`_os2l._tcp`) through Windows' own DNS-SD responder (`Os2l/MdnsAdvertiser`, dnsapi.dll), a loopback-only listener not advertised | ✅ |
-| 5b | The DJ performer (`dj_performer.gd`): following the decks from OS2L, mixing their songs' timelines into the rig by crossfader and level, and DJ Edit Mode's playback through it (`song_output`) | next |
-| 5c | The perform panel and the "DJ Perform Mode" view, and trying it live against Cuepoint and VirtualDJ | |
+| 5b | The DJ performer (`Perform/DjPerformer`): VirtualDJ's decks followed over OS2L (the song, play, the volume fader, the position run on between reports at the rate they advance, the skin's deck count), each song's timelines read on a worker thread and played into a layer of the DMX output (`Perform/SongOutput`: the master, fixture and head rows, mute and solo, positions and movement, strobe speeds, colour wheels, fixtures left out of generation), the decks mixed highest-takes-precedence with movement averaged, and VirtualDJ's beats driving the tempo clock; temporary timelines for a song without any (a stand-in on the beat, then a show generated once it's analysed, saved flagged temporary); and DJ Edit Mode's open song played into the rig (`Perform/EditPlayback`) | ✅ |
+| 5c | The perform panel and the "DJ Perform Mode" view (starting and stopping the performer), and trying it live against Cuepoint and VirtualDJ | next |
+
+**Where slice 5b differs from sLight:** a deck's tracks are `TimelineTrack`s rather than dictionaries of rows; loads
+and generating hand their results back through a queue that `Update()` empties each frame, where sLight deferred
+calls to the main thread. The performer is made in `Program` but nothing starts it until 5c's view; DJ Edit Mode's
+playback is live from now on. The panel's half of `dj_perform_test.gd` comes with the panel, and its check that
+DJ Edit Mode's playback goes live drives the engine with the screen's state rather than the screen.
 
 **Where slice 5a differs from sLight:** the server is polled by whoever owns it, raising C# events where sLight's
 node emitted signals from `_process()`. Advertising goes straight to dnsapi.dll from C#, where sLight needed its native
