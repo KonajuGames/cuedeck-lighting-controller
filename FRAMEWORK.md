@@ -50,6 +50,9 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 - `UI/FontAtlas.cs` (slice 4h): the up and down arrows baked too.
 - `UI/MainScreen.cs` and `UI/Console/TopBar.cs` (slice 4g): the View dropdown and DJ Edit Mode in place of the
   console.
+- `UI/MainScreen.cs` and `UI/Console/TopBar.cs` (slice 5c): DJ Perform Mode in the View dropdown too.
+- `Input/Key.cs` and `Input/GlfwUiInput.cs` (slice 5c): `Key.B`, `Key.S` and `Key.W`, for the live flashes.
+- `UI/Console/OptionsDialog.cs` (slice 5c): `Settings`, the settings it edits.
 
 ## Adapted
 

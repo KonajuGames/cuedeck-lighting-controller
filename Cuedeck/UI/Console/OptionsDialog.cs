@@ -13,6 +13,8 @@ sealed class OptionsDialog : Panel
 
     readonly Root _root;
     readonly AppSettings _settings;
+
+    public AppSettings Settings => _settings;
     readonly Panel _box;
     readonly Dropdown<DjSoftware> _dj;
     readonly Label _hint;

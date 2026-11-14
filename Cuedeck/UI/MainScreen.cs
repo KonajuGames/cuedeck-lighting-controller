@@ -22,6 +22,7 @@ enum AppView
 {
     Console,
     DjEdit,
+    DjPerform,
 }
 
 sealed class MainScreen : Panel
@@ -41,9 +42,14 @@ sealed class MainScreen : Panel
     /// </summary>
     public DjEdit.DjEditView? DjEdit { get; }
 
+    /// <summary>
+    /// DJ Perform Mode, if the app has it.
+    /// </summary>
+    public DjPerform.DjPerformView? DjPerform { get; }
+
     public AppView View { get; private set; } = AppView.Console;
 
-    public MainScreen(Fonts fonts, Images images, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles, DjEdit.DjEditView? djEdit = null)
+    public MainScreen(Fonts fonts, Images images, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles, DjEdit.DjEditView? djEdit = null, DjPerform.DjPerformView? djPerform = null)
     {
         Background = Theme.Background;
         TitleBar = Add(new TitleBar(fonts.Body, fonts.Bold, images));
@@ -55,6 +61,13 @@ sealed class MainScreen : Panel
             djEdit.Visible = false;
             TopBar.HasDjEdit = true;
             dialogs.Options.DjSoftwareChanged += _ => djEdit.ReloadLibrary();
+        }
+        if (djPerform is not null)
+        {
+            DjPerform = Add(djPerform);
+            djPerform.Visible = false;
+            TopBar.HasDjPerform = true;
+            djPerform.DjSoftwareName = () => dialogs.Options.Settings.DjSoftwareName;
         }
         TopBar.ViewChosen += SetView;
         _status = Add(new Label(fonts.Body, "") { Color = Theme.Muted });
@@ -91,6 +104,23 @@ sealed class MainScreen : Panel
             if (DjEdit.Visible)
                 DjEdit.EnsureLoaded();
         }
+        // DJ Perform Mode's listener and timeline playback run only while it shows.
+        if (DjPerform is not null)
+        {
+            DjPerform.Visible = view == AppView.DjPerform;
+            var performer = DjPerform.Performer;
+            if (view == AppView.DjPerform && !performer.IsActive)
+            {
+                _ = DjEdit?.Browser.Library; // read now, not mid-set when a song needs its beat grid
+                var err = performer.Start();
+                Log("DJ Perform Mode: " + (err == "" ? $"listening for {DjPerform.DjSoftwareName()} (OS2L)." : performer.Status));
+            }
+            else if (view != AppView.DjPerform && performer.IsActive)
+            {
+                performer.Stop();
+                Log("DJ Perform Mode stopped.");
+            }
+        }
         TopBar.View = view;
     }
 
@@ -103,6 +133,8 @@ sealed class MainScreen : Panel
         if (Console.Visible)
             Console.Update();
         DjEdit?.Update();
+        if (DjPerform is { Visible: true })
+            DjPerform.Update();
         _status.MaxWidth = ScreenSize.X - 20;
     }
 
@@ -115,6 +147,11 @@ sealed class MainScreen : Panel
         Console.Available = room;
         if (Console.Visible)
             Console.Measure();
+        if (DjPerform is { Visible: true } perform)
+        {
+            perform.Available = room - new float2(16, 8);
+            perform.Measure();
+        }
         if (DjEdit is { Visible: true } dj)
         {
             dj.Available = room - new float2(16, 8);
@@ -131,6 +168,7 @@ sealed class MainScreen : Panel
         if (Console.Visible)
             Console.Arrange(position + new float2(0, TitleBar.HEIGHT + TopBar.Size.Y));
         DjEdit?.Arrange(position + new float2(8, TitleBar.HEIGHT + TopBar.Size.Y + 6));
+        DjPerform?.Arrange(position + new float2(8, TitleBar.HEIGHT + TopBar.Size.Y + 6));
         _status.Arrange(position + new float2(10, ScreenSize.Y - STATUS_HEIGHT + MathF.Round((STATUS_HEIGHT - _status.Size.Y) / 2)));
     }
 

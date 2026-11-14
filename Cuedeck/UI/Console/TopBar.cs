@@ -59,6 +59,11 @@ sealed class TopBar : Panel
     /// </summary>
     public bool HasDjEdit { get; set; }
 
+    /// <summary>
+    /// Whether the View dropdown offers DJ Perform Mode.
+    /// </summary>
+    public bool HasDjPerform { get; set; }
+
     public float Width
     {
         get => _top.Width;
@@ -79,8 +84,14 @@ sealed class TopBar : Panel
             {
                 Menu = menu,
                 Width = 140,
-                Items = () => HasDjEdit ? [AppView.Console, AppView.DjEdit] : [AppView.Console],
-                Text = v => v == AppView.DjEdit ? "DJ Edit Mode" : "Console",
+                Items = () => [AppView.Console, .. HasDjEdit ? [AppView.DjEdit] : Array.Empty<AppView>(), .. HasDjPerform ? [AppView.DjPerform] : Array.Empty<AppView>()],
+                Text = v =>
+                    v switch
+                    {
+                        AppView.DjEdit => "DJ Edit Mode",
+                        AppView.DjPerform => "DJ Perform Mode",
+                        _ => "Console",
+                    },
             }
         );
         _view.Chosen += v => ViewChosen?.Invoke(v);

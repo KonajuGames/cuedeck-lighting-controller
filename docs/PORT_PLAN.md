@@ -104,7 +104,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 | 2 | ✅ **Console UI** (done 2026-11-13; see §7.2). Shell (top bar, grand master, run mode, Sending, universes, save/load), Patch/universe tabs with the fixture library dialog, then Cues, Chases, Effects, Groups, Faders/fader bank, Palettes and DMX Output. New widgets from §3 as each tab needs them. | Every console tab works for the sLight User Guide walkthrough. |
 | 3 | ✅ **Sound and triggers** (built 2026-11-13, see §7.3; not yet tried with a real line-in or controller). Live capture, sound reactors and the Sound tab with spectrogram. MIDI/OSC triggers with Learn and feedback (WinMidi out). Options dialog (VirtualDJ or Cuepoint). | Beat-reactive chases run from line-in; a controller's LEDs follow. |
 | 4 | ✅ **DJ Edit Mode** (done 2026-11-14; see §7.4). Music browser (drives, VirtualDJ lists, Cuepoint library), song analysis, the structure bar, heatmap and timeline editor, timeline generator, timeline store and the position editor. Port `music_*`, `timeline_*`, `structure_detection`, `virtualdj_*`, `cuepoint_library` and `m4a_playback` tests. | Generate → edit → save a song's timelines, and the files load in sLight too. |
-| 5 | 🔶 **DJ Perform Mode** (in progress; see §7.5). OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
+| 5 | 🔶 **DJ Perform Mode** (built 2026-11-14 and tried with Cuepoint; VirtualDJ still to try; see §7.5). OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
 | 6 | **Visualizer.** §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
 | 7 | **Native extras and polish.** USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
 
@@ -254,7 +254,18 @@ the browser in 4g.
 |---|---|---|
 | 5a | The OS2L server (`Os2l/Os2lServer`): JSON objects back to back over TCP, split on bytes with braces and quotes in strings handled; beat, button and command events, VirtualDJ's subscribed values (kept, raised only when they change), feedback sent back; and mDNS advertising (`_os2l._tcp`) through Windows' own DNS-SD responder (`Os2l/MdnsAdvertiser`, dnsapi.dll), a loopback-only listener not advertised | ✅ |
 | 5b | The DJ performer (`Perform/DjPerformer`): VirtualDJ's decks followed over OS2L (the song, play, the volume fader, the position run on between reports at the rate they advance, the skin's deck count), each song's timelines read on a worker thread and played into a layer of the DMX output (`Perform/SongOutput`: the master, fixture and head rows, mute and solo, positions and movement, strobe speeds, colour wheels, fixtures left out of generation), the decks mixed highest-takes-precedence with movement averaged, and VirtualDJ's beats driving the tempo clock; temporary timelines for a song without any (a stand-in on the beat, then a show generated once it's analysed, saved flagged temporary); and DJ Edit Mode's open song played into the rig (`Perform/EditPlayback`) | ✅ |
-| 5c | The perform panel and the "DJ Perform Mode" view (starting and stopping the performer), and trying it live against Cuepoint and VirtualDJ | next |
+| 5c | DJ Perform Mode's view (`UI/DjPerform/DjPerformView`), chosen from the View dropdown, which starts the performer and stops it when another view's chosen: the connection (listening, advertising, the DJ software connected), the live flashes (held buttons and B / S / W / C, Latch, the Colour flash's colour) and each deck's state, song, position and timelines | ✅ |
+
+**Tried live (slice 5c):** Cuedeck in DJ Perform Mode and Cuepoint (`6f1ee3e`) on the same machine. Cuepoint found
+Cuedeck by mDNS and connected by itself; a song loaded on its deck A showed on deck 1 at once, paused, with temporary
+timelines generated for it (not saved, the show being new); played with the deck's fader down it showed "playing
+(muted)" with the position running on. Not yet tried: VirtualDJ, and a rig. Cuepoint doesn't answer the `get_loop`
+subscription (it says so on its status line); nothing uses it yet.
+
+**Where slice 5c differs from sLight:** the view is redrawn each frame rather than refreshed ten times a second. Typing
+in a text box no longer sets off the app's single-letter shortcuts (the flashes' B / S / W / C, and Tap's T, which
+did before): Godot's text fields kept those keys from sLight's shortcuts, Cuedeck's left them unused. Like sLight it
+names the DJ software chosen in the Options ("VirtualDJ connected") whichever program connects.
 
 **Where slice 5b differs from sLight:** a deck's tracks are `TimelineTrack`s rather than dictionaries of rows; loads
 and generating hand their results back through a queue that `Update()` empties each frame, where sLight deferred

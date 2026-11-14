@@ -9,6 +9,7 @@ using Cuedeck.Show;
 using Cuedeck.UI;
 using Cuedeck.UI.Console;
 using Cuedeck.UI.DjEdit;
+using Cuedeck.UI.DjPerform;
 using Cuedeck.UI.Timeline;
 using Cuedeck.Audio;
 using Cuedeck.Music;
@@ -160,7 +161,8 @@ static void Run(string[] args)
     };
     ui.PointerHooks.Add(timelineView);
     // Drawn in this order: the screen, then the dialogs over it, then the menu over everything.
-    var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), show, profiles, djEdit));
+    var djPerform = new DjPerformView(fonts, performer, show.Flash, picker);
+    var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), show, profiles, djEdit, djPerform));
     editPlayback.IsShown = () => screen.View == AppView.DjEdit && djEdit.IsTimelineShown;
     ui.Add(editor);
     ui.Add(triggers);
@@ -197,6 +199,11 @@ static void Run(string[] args)
     // The console's keys, when nothing focused (a text box, say) has taken them.
     input.UnhandledKey += (key, action, mods) =>
     {
+        // A letter typed into a text box isn't a shortcut, though the box leaves it unused.
+        var typing = ui.Focused is TextBox;
+        // DJ Perform Mode's B / S / W / C hold the live flashes (a key coming up lets go in any view).
+        if (action != GlfwKeyAction.Repeat && !(typing && action == GlfwKeyAction.Press) && djPerform.FlashKey(GlfwUiInput.ToUiKey(key), action == GlfwKeyAction.Press, (Modifiers)((int)mods & 0xF)))
+            return;
         if (action != GlfwKeyAction.Press)
             return;
         var ctrl = (mods & GlfwModifier.Control) != 0;
@@ -229,7 +236,7 @@ static void Run(string[] args)
             case GlfwKey.O when ctrl && !shift:
                 shell.Load();
                 break;
-            case GlfwKey.T when !ctrl && !shift:
+            case GlfwKey.T when !ctrl && !shift && !typing:
                 show.Tempo.Tap();
                 break;
             // Space GOes the next cue, like a real console: in Cue Mode, when nothing else took it.
