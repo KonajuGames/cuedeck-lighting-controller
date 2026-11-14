@@ -143,6 +143,30 @@ static class Gd
     }
 
     /// <summary>
+    /// <c>get_file()</c>: the part of a path after its last slash (either way round).
+    /// </summary>
+    public static string GetFile(string path) => path[(Math.Max(path.LastIndexOf('/'), path.LastIndexOf('\\')) + 1)..];
+
+    /// <summary>
+    /// <c>PackedFloat32Array.bsearch()</c> on a sorted list: where <paramref name="value"/> (as a 32-bit float) would
+    /// go, before any equal to it (<paramref name="before"/>) or after them.
+    /// </summary>
+    public static int BSearch(IReadOnlyList<float> list, double value, bool before = true)
+    {
+        var v = (float)value;
+        int lo = 0, hi = list.Count;
+        while (lo < hi)
+        {
+            var mid = (lo + hi) / 2;
+            if (before ? list[mid] < v : list[mid] <= v)
+                lo = mid + 1;
+            else
+                hi = mid;
+        }
+        return lo;
+    }
+
+    /// <summary>
     /// Godot's <c>String.capitalize()</c>: camelCase and snake_case split into words, each with a capital first
     /// letter and the rest lower case ("american-dj" → "American-dj", "x4bar" → "X 4 Bar").
     /// </summary>

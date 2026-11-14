@@ -183,8 +183,22 @@ outwards, each slice's tests ported before its code.
 | 4b | Lighting timelines as data (`Timelines/`): a track's rows (the dimmer line, and colour, strobe, position and movement spans) and their edits (`timeline_track`'s model), saved as sLight saved them (`TimelineFormat`); the timeline store beside a show, with sLight's song fingerprints (checked against Godot's); the selection | ✅ |
 | 4c | Song analysis (`Audio/`): decoding (Cuepoint's `AudioDecoder`: SDL_mixer and Media Foundation; sLight's WAV reader), sLight's native front end (`song_features.cpp`) and its detection (`song_detect`: tempo, DP beats, downbeat, key, structure), `SongAnalysis` saved as sLight saved it | ✅ |
 | 4d | The timeline generator (`Timelines/TimelineGenerator`, on Godot's random numbers in `Common/GodotRandom`), checked node for node against sLight's own shows, and regenerating a list of songs' timelines (`TimelineBatch`) | ✅ |
-| 4e | DJ Edit Mode's screen: the music browser, the timeline editor with playback, the structure bar and the heatmap | next |
-| 4f | The position editor and list | |
+| 4e | DJ Edit Mode's timelines without the screen (`Timelines/SongTimelines`, `MusicTimeline`'s engine half): the fixtures' tracks, selecting by row and time, Delete, Cut, Copy, Paste, dragging a selection and its edges, the rows' menus' edits, mute, solo and collapsing, saving as songs are left, undo and redo per song, the structure cache and its analysis, VirtualDJ's grid on it, Generate (into a selection too), Shift+Generate, and generating into songs not open (for `TimelineBatch` and DJ Perform Mode) | ✅ |
+| 4f | The timeline's screen: the waveform heatmap and overview, the bar ruler, the structure bar, the tracks drawn with their name plates, pointer and keys onto `SongTimelines`, the context menus, and playback (with `m4a_playback_test`) | next |
+| 4g | The music browser (drives, VirtualDJ lists, the Cuepoint library, Regenerate Lighting Timelines) and DJ Edit Mode's tab | |
+| 4h | The position editor and list | |
+
+**Where slice 4e differs from sLight:** sLight's `MusicTimeline` was one Godot control that drew the timelines and
+took their input as well as holding their edits; here `SongTimelines` holds the edits and the screen in 4f will drive
+it. So its selection drags take a row (of `RowList()`) and a time rather than a point on screen, and a press checks
+for a selection's edge within a time the screen works out from its pixels. It takes the song's length from the screen
+once the waveform's read (`SetDuration`), where sLight read it off its waveform view, and takes in finished structure
+analyses and background saves in `Update()`. The patch comes in as `PatchedFixture`s, and the named positions as the
+generator takes them (the position library, which made a "Centre" one when there were none, comes in 4h). The tests
+port the engine half of `timeline_track_test.gd` (fixture tracks, selecting, Delete, copy and paste, undo, the rows'
+menus, dragging, the strobe, position and movement rows, inheritance, mute, solo and collapsing), the autosave half
+of `timeline_store_test.gd`, `music_timeline_test.gd`'s VirtualDJ grid and `music_browser_test.gd`'s regenerating
+checks on the timelines' side; what those tests check of menus, cursors, plates and drawing comes with the screen.
 
 **Where slice 4d differs from sLight:** none in what it makes: `SlightGeneratorTests` checks 16 shows (plain rigs,
 fixture categories and groups, multi-head movers, colour wheels, with and without a song's loudness, another bar
@@ -193,8 +207,9 @@ phase) against what sLight's `TimelineGenerator.generate()` made for the same in
 (`GodotRandom`) and its 32-bit `Color.from_hsv()` and `lerp()` (now `Rgb.FromHsv` and `ColourSpan.Lerp`). The
 generator takes its tracks, positions and envelope as records rather than dictionaries. `TimelineBatch` hands its
 results on in `Update()`, called each frame, where sLight used signals; it reaches DJ Edit Mode (its structure cache
-and `generate_into()`, which come in 4e) through `ISongTimelines`. sLight's check of a position's spread comes with
-the position list in 4e/4f, and its batch checks that drive the music browser's menu and bars come with the browser.
+and `generate_into()`, which `SongTimelines` has from 4e) through `ISongTimelines`. sLight's check of a position's
+spread came with 4e (`SongTimelines.Spread`); its batch checks that drive the music browser's menu and bars come with
+the browser in 4g.
 
 **Where slice 4c differs from sLight:** only sLight's fast (native) analysis is ported; its slow path, which played the song muted to capture it, isn't needed. Decoding playback (`m4a_playback_test`) comes with the player in 4e. The tests use WAV only; MP3, OGG and M4A decoding through SDL_mixer and Media Foundation hasn't been tried on a real file yet, and sLight's real-file structure checks aren't ported.
 

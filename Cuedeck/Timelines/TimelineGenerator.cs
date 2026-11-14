@@ -1332,20 +1332,7 @@ static class TimelineGenerator
     /// <summary>
     /// Godot's <c>PackedFloat32Array.bsearch()</c>: where the (32-bit) value would go, before any equal.
     /// </summary>
-    internal static int BSearch(IReadOnlyList<float> list, double value)
-    {
-        var v = (float)value;
-        int lo = 0, hi = list.Count;
-        while (lo < hi)
-        {
-            var mid = (lo + hi) / 2;
-            if (list[mid] < v)
-                lo = mid + 1;
-            else
-                hi = mid;
-        }
-        return lo;
-    }
+    internal static int BSearch(IReadOnlyList<float> list, double value) => Gd.BSearch(list, value);
 
     internal static double Ride(double level, double whole, double t, Section s, List<float> barStarts, double barLen, Envelope? en)
     {

@@ -95,6 +95,62 @@ sealed class TimelineTrack
     public bool Collapsed { get; set; }
 
     /// <summary>
+    /// Left out of playback by mute or solo (its own or another track's): drawn faded.
+    /// </summary>
+    public bool Silenced { get; set; }
+
+    /// <summary>
+    /// Where a dragged selection's content would land, drawn faintly over the track: its rows' content as copied, the
+    /// time it was copied from and where it would go. Null for none.
+    /// </summary>
+    public TrackGhost? Ghost { get; set; }
+
+    /// <summary>
+    /// What mute and solo leave playing, worked out once from every track's flags (by key: "master", a fixture's uid,
+    /// "&lt;uid&gt;/h&lt;n&gt;"): whether any track's soloed, and the fixtures soloed or with a soloed head. For
+    /// <see cref="Plays"/>.
+    /// </summary>
+    public static MixState MixStateOf(IReadOnlyDictionary<string, (bool Mute, bool Solo)> tracks)
+    {
+        var fixtures = new HashSet<string>();
+        foreach (var (key, f) in tracks)
+            if (key != "master" && f.Solo)
+                fixtures.Add(FixtureOf(key));
+        return new MixState(fixtures.Count > 0, fixtures);
+    }
+
+    /// <summary>
+    /// Whether track <paramref name="key"/> plays, by mute and solo: the master unless it's muted (muted, nothing
+    /// plays); a fixture unless it or the master's muted, and while any track's soloed only if it or one of its heads
+    /// is; a head unless it, its fixture or the master's muted, and while any track's soloed only if it or its fixture
+    /// is.
+    /// </summary>
+    public static bool Plays(IReadOnlyDictionary<string, (bool Mute, bool Solo)> tracks, MixState mix, string key)
+    {
+        bool Muted(string k) => tracks.TryGetValue(k, out var f) && f.Mute;
+        bool Soloed(string k) => tracks.TryGetValue(k, out var f) && f.Solo;
+        if (Muted("master"))
+            return false;
+        if (key == "master")
+            return true;
+        var fixture = FixtureOf(key);
+        if (Muted(fixture) || mix.Solo && !mix.SoloFixtures.Contains(fixture))
+            return false;
+        if (key == fixture)
+            return true;
+        return !Muted(key) && (!mix.Solo || Soloed(fixture) || Soloed(key));
+    }
+
+    /// <summary>
+    /// The fixture a track key belongs to: a head's ("&lt;uid&gt;/h&lt;n&gt;") its uid, otherwise the key itself.
+    /// </summary>
+    public static string FixtureOf(string key)
+    {
+        var i = key.LastIndexOf("/h", StringComparison.Ordinal);
+        return i > 0 && Gd.IsValidInt(key[(i + 2)..]) ? key[..i] : key;
+    }
+
+    /// <summary>
     /// The rows a fixture (or head) with these channel roles gets: Position and Movement for pan or tilt, Strobe for a
     /// strobe or shutter, Colour for any colour channel or wheel, Dimmer for a dimmer, or for colour and white channels
     /// without one, which its virtual dimmer scales.

@@ -43,6 +43,37 @@ sealed class SongAnalysis
     public bool HasWave => WavePeak.Length > 0;
 
     /// <summary>
+    /// The sections as the analyser found them, kept aside the first time a song's saved (edited) structure is put on
+    /// its analysis, for when there's no edit to show. Not saved.
+    /// </summary>
+    public List<SongSection>? AnalysedSections { get; set; }
+
+    /// <summary>
+    /// Sections as sLight saves them: [{start, end, label, energy, cluster}].
+    /// </summary>
+    public static JsonArray SectionsTo(IEnumerable<SongSection> sections) =>
+        new([
+            .. sections.Select(s =>
+                (JsonNode)
+                    new JsonObject
+                    {
+                        ["start"] = s.Start,
+                        ["end"] = s.End,
+                        ["label"] = s.Label,
+                        ["energy"] = s.Energy,
+                        ["cluster"] = s.Cluster,
+                    }
+            ),
+        ]);
+
+    public static List<SongSection> SectionsFrom(JsonNode? arr) =>
+        [
+            .. (arr as JsonArray ?? [])
+                .OfType<JsonObject>()
+                .Select(s => new SongSection(s.Num("start", 0), s.Num("end", 0), s.Str("label", "Section"), Math.Clamp(s.Num("energy", 0.5), 0, 1), s.Int("cluster", 0))),
+        ];
+
+    /// <summary>
     /// The section playing at <paramref name="t"/>: the last after them all, -1 with none.
     /// </summary>
     public int SectionAt(double t)
@@ -71,19 +102,7 @@ sealed class SongAnalysis
             ["key_mode"] = KeyMode,
             ["beat_times"] = new JsonArray([.. BeatTimes.Select(t => (JsonNode)(double)t)]),
             ["downbeats"] = new JsonArray([.. Downbeats.Select(t => (JsonNode)(double)t)]),
-            ["sections"] = new JsonArray([
-                .. Sections.Select(s =>
-                    (JsonNode)
-                        new JsonObject
-                        {
-                            ["start"] = s.Start,
-                            ["end"] = s.End,
-                            ["label"] = s.Label,
-                            ["energy"] = s.Energy,
-                            ["cluster"] = s.Cluster,
-                        }
-                ),
-            ]),
+            ["sections"] = SectionsTo(Sections),
             ["wave_cols"] = WavePeak.Length,
             ["wave"] = HasWave ? Convert.ToBase64String(WaveBytes()) : "",
         };
@@ -118,11 +137,7 @@ sealed class SongAnalysis
             BeatTimes = [.. d.Arr("beat_times").Select(t => (float)Json.AsDouble(t))],
             Downbeats = [.. d.Arr("downbeats").Select(t => (float)Json.AsDouble(t))],
         };
-        foreach (var s in d.Arr("sections"))
-        {
-            if (s is JsonObject)
-                a.Sections.Add(new SongSection(s.Num("start", 0), s.Num("end", 0), s.Str("label", "Section"), Math.Clamp(s.Num("energy", 0.5), 0, 1), s.Int("cluster", 0)));
-        }
+        a.Sections = SectionsFrom(d.Get("sections"));
         byte[] bytes;
         try
         {

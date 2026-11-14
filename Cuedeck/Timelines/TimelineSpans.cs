@@ -1,3 +1,4 @@
+using System.Numerics;
 using Cuedeck.Common;
 
 namespace Cuedeck.Timelines;
@@ -147,3 +148,40 @@ sealed record MovementSpan(double T0, double T1, string Effect = "none", double 
         };
     }
 }
+
+/// <summary>
+/// What mute and solo leave playing (<see cref="TimelineTrack.MixStateOf"/>): whether any track's soloed, and the
+/// fixtures soloed or with a soloed head.
+/// </summary>
+sealed record MixState(bool Solo, IReadOnlySet<string> SoloFixtures);
+
+/// <summary>
+/// A copied stretch of one row: its span (relative to the clip's start) and what was in it, the row's kind of
+/// content (dimmer nodes relative to its start, or spans relative to it).
+/// </summary>
+sealed record ClipPart(
+    double T0,
+    double T1,
+    List<Vector2>? Nodes = null,
+    List<ColourSpan>? Colours = null,
+    List<StrobeSpan>? Strobes = null,
+    List<PositionSpan>? Positions = null,
+    List<MovementSpan>? Movements = null
+);
+
+/// <summary>
+/// One track's copied rows.
+/// </summary>
+sealed record ClipTrack(string Key, Dictionary<TimelineRow, List<ClipPart>> Rows);
+
+/// <summary>
+/// What Copy takes: the selected areas' content, track by track (top to bottom), times relative to the earliest
+/// area's start.
+/// </summary>
+sealed record TimelineClip(double Length, List<ClipTrack> Tracks);
+
+/// <summary>
+/// A dragged selection's content shown on a track before it's dropped: its rows as copied from
+/// <paramref name="From"/>, landing at <paramref name="At"/>.
+/// </summary>
+sealed record TrackGhost(Dictionary<TimelineRow, List<ClipPart>> Rows, double At, double From);
