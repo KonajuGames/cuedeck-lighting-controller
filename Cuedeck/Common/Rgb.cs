@@ -17,19 +17,21 @@ readonly record struct Rgb(float R, float G, float B, float A = 1)
     public static Rgb operator *(Rgb a, Rgb b) => new(a.R * b.R, a.G * b.G, a.B * b.B, a.A * b.A);
 
     /// <summary>
-    /// Godot's <c>Color.from_hsv()</c>.
+    /// Godot's <c>Color.from_hsv()</c>, in 32-bit floats as Godot works it out (the timeline generator's colours must
+    /// come out as sLight's to the last bit).
     /// </summary>
-    public static Rgb FromHsv(double h, double s, double v, double alpha = 1)
+    public static Rgb FromHsv(double hue, double saturation, double value, double alpha = 1)
     {
+        float h = (float)hue, s = (float)saturation, v = (float)value;
         if (s == 0)
-            return new Rgb((float)v, (float)v, (float)v, (float)alpha);
-        h *= 6.0;
-        h %= 6;
-        var i = (int)Math.Floor(h);
+            return new Rgb(v, v, v, (float)alpha);
+        h *= 6f;
+        h %= 6f;
+        var i = (int)MathF.Floor(h);
         var f = h - i;
-        var p = v * (1 - s);
-        var q = v * (1 - s * f);
-        var t = v * (1 - s * (1 - f));
+        var p = v * (1f - s);
+        var q = v * (1f - s * f);
+        var t = v * (1f - s * (1f - f));
         var (r, g, b) = i switch
         {
             0 => (v, t, p),
@@ -39,7 +41,7 @@ readonly record struct Rgb(float R, float G, float B, float A = 1)
             4 => (t, p, v),
             _ => (v, p, q),
         };
-        return new Rgb((float)r, (float)g, (float)b, (float)alpha);
+        return new Rgb(r, g, b, (float)alpha);
     }
 
     /// <summary>
@@ -63,6 +65,20 @@ readonly record struct Rgb(float R, float G, float B, float A = 1)
                 h = 4 + (R - G) / delta;
             h /= 6;
             return h < 0 ? h + 1 : h;
+        }
+    }
+
+    /// <summary>
+    /// The saturation, 0 (grey) to 1 (Godot's <c>Color.s</c>).
+    /// </summary>
+    public float Saturation
+    {
+        get
+        {
+            var max = Math.Max(R, Math.Max(G, B));
+            var min = Math.Min(R, Math.Min(G, B));
+            var delta = max - min;
+            return max != 0 ? delta / max : 0;
         }
     }
 

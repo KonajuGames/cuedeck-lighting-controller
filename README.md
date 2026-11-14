@@ -44,6 +44,7 @@ dotnet test
 - `Cuedeck.Tests/`: xUnit tests, which run without a window or a GPU. `Golden/` holds a show and sLight's output for
   it, frame by frame, which Cuedeck's must match.
 - `tools/slight_frames.gd`: records that output from sLight.
+- `tools/slight_generator.gd`: records sLight's generated light shows, which `SlightGeneratorTests` checks Cuedeck's against.
 - `docs/`: the port plan.
 
 ## License

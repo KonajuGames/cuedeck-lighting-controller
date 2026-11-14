@@ -46,3 +46,7 @@ are in `docs/PORT_PLAN.md`; what was copied from Cuepoint and changed is in `FRA
 
 A fresh sLight checkout needs `--headless --path <sLight> --import` once first. That rewrites sLight's tracked
 `*.import` files: restore them with `git checkout` so its tree stays clean.
+
+`Cuedeck.Tests/Golden/SlightGeneratorTests` checks the timeline generator's shows the same way. After changing its
+cases, keep `tools/slight_generator.gd` in step and rerecord `generator.json` with it:
+`Godot_v4.7-stable_mono_win64_console.exe --headless --path F:\Git\slight-dmx-controller --script F:\git\cuedeck-lighting-controller	ools\slight_generator.gd -- <repo>\Cuedeck.Tests\Golden\generator.json`

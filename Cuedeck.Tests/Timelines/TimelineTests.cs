@@ -250,8 +250,8 @@ public sealed class TimelineTests : IDisposable
         tr.ReplaceColour(4, 6, []);
         Assert.Equal(2, tr.ColourSegments.Count);
         Assert.Null(tr.ColourAt(5));
-        Assert.Equal(new Rgb(0.6f, 0, 0.4f), tr.ColourSegments[0].C1);
-        Assert.Equal(new Rgb(0.4f, 0, 0.6f), tr.ColourSegments[1].C0);
+        Assert.True(ColourSpan.ApproxEqual(new Rgb(0.6f, 0, 0.4f), tr.ColourSegments[0].C1));
+        Assert.True(ColourSpan.ApproxEqual(new Rgb(0.4f, 0, 0.6f), tr.ColourSegments[1].C0)); // 32-bit, as in Godot
     }
 
     sealed class ColourComparer : IEqualityComparer<ColourSpan>

@@ -50,10 +50,13 @@ sealed record ColourSpan(double T0, double T1, Rgb C0, Rgb C1)
     }
 
     /// <summary>
-    /// Godot's <c>Color.lerp()</c>: channel by channel, in sRGB.
+    /// Godot's <c>Color.lerp()</c>: channel by channel, in sRGB, in 32-bit floats as Godot works it out.
     /// </summary>
-    public static Rgb Lerp(Rgb a, Rgb b, double w) =>
-        new((float)Gd.Lerp(a.R, b.R, w), (float)Gd.Lerp(a.G, b.G, w), (float)Gd.Lerp(a.B, b.B, w), (float)Gd.Lerp(a.A, b.A, w));
+    public static Rgb Lerp(Rgb a, Rgb b, double weight)
+    {
+        var w = (float)weight;
+        return new(a.R + (b.R - a.R) * w, a.G + (b.G - a.G) * w, a.B + (b.B - a.B) * w, a.A + (b.A - a.A) * w);
+    }
 
     /// <summary>
     /// Godot's <c>Color.is_equal_approx()</c>.

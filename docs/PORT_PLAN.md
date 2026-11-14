@@ -182,9 +182,19 @@ outwards, each slice's tests ported before its code.
 | 4a | The music libraries: VirtualDJ's databases (`database.xml`: tags, analysis, variable-tempo beat grids, cue, automix and remix points, merged across drives) and lists (`.vdjfolder`, in its `order`), and Cuepoint's library files (`library.json`) and virtual folders (`.m3u8`), all as `Dj/DjSong` and `Dj/DjList` | ✅ |
 | 4b | Lighting timelines as data (`Timelines/`): a track's rows (the dimmer line, and colour, strobe, position and movement spans) and their edits (`timeline_track`'s model), saved as sLight saved them (`TimelineFormat`); the timeline store beside a show, with sLight's song fingerprints (checked against Godot's); the selection | ✅ |
 | 4c | Song analysis (`Audio/`): decoding (Cuepoint's `AudioDecoder`: SDL_mixer and Media Foundation; sLight's WAV reader), sLight's native front end (`song_features.cpp`) and its detection (`song_detect`: tempo, DP beats, downbeat, key, structure), `SongAnalysis` saved as sLight saved it | ✅ |
-| 4d | The timeline generator, and regenerating a list of songs' timelines (`timeline_batch`) | next |
-| 4e | DJ Edit Mode's screen: the music browser, the timeline editor with playback, the structure bar and the heatmap | |
+| 4d | The timeline generator (`Timelines/TimelineGenerator`, on Godot's random numbers in `Common/GodotRandom`), checked node for node against sLight's own shows, and regenerating a list of songs' timelines (`TimelineBatch`) | ✅ |
+| 4e | DJ Edit Mode's screen: the music browser, the timeline editor with playback, the structure bar and the heatmap | next |
 | 4f | The position editor and list | |
+
+**Where slice 4d differs from sLight:** none in what it makes: `SlightGeneratorTests` checks 16 shows (plain rigs,
+fixture categories and groups, multi-head movers, colour wheels, with and without a song's loudness, another bar
+phase) against what sLight's `TimelineGenerator.generate()` made for the same input, recorded by
+`tools/slight_generator.gd`, to the last bit. That took Godot's random number generator and string hash
+(`GodotRandom`) and its 32-bit `Color.from_hsv()` and `lerp()` (now `Rgb.FromHsv` and `ColourSpan.Lerp`). The
+generator takes its tracks, positions and envelope as records rather than dictionaries. `TimelineBatch` hands its
+results on in `Update()`, called each frame, where sLight used signals; it reaches DJ Edit Mode (its structure cache
+and `generate_into()`, which come in 4e) through `ISongTimelines`. sLight's check of a position's spread comes with
+the position list in 4e/4f, and its batch checks that drive the music browser's menu and bars come with the browser.
 
 **Where slice 4c differs from sLight:** only sLight's fast (native) analysis is ported; its slow path, which played the song muted to capture it, isn't needed. Decoding playback (`m4a_playback_test`) comes with the player in 4e. The tests use WAV only; MP3, OGG and M4A decoding through SDL_mixer and Media Foundation hasn't been tried on a real file yet, and sLight's real-file structure checks aren't ported.
 

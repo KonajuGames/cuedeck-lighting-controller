@@ -57,4 +57,6 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 
 ## Ported across since
 
-_(none yet)_
+- `Audio/AudioDecoder.cs`, `Audio/MediaFoundationDecoder.cs`, `Audio/PcmAudio.cs` (slice 4c): Cuepoint's
+  `Brutality/Audio` decoders (SDL_mixer, and Media Foundation for M4A/AAC), unchanged but for the namespace, to decode
+  songs for analysis.
