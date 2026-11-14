@@ -291,8 +291,14 @@ from the scene's data outwards: first everything that isn't drawing, then §5's 
 | 6a | The scene without the GPU (`Visualizer/`): the room, haze, work light and shadows settings; the orbit camera and the saved views; trusses and models; picking by ray and dragging on the floor; selection, typed positions and turns, Auto-arrange and the undo history; saved with the show as sLight's `viz`; and each fixture's rig (category, yoke or fixed, its heads, pan and tilt eased towards its DMX, the beam's angle) | ✅ |
 | 6b | The 3D pass (`Rendering/Scene3D`): an offscreen colour and depth image shown in the 3D Visualizer tab, one lit opaque pipeline (Lambert, ambient and the work light), the floor, wall, trusses and schematic bodies; the camera, picking and dragging by mouse; the toolbar and the selected item's properties | ✅ |
 | 6c | Lights: each lit head a spotlight (`SceneFrame.Lights`: its colour times sLight's energy and its level, its cone from the beam's angle, aimed by the rig), looped over in the opaque shader with Godot's fall-off with distance and towards the cone's edge, and faded out 24 m to 34 m from the camera as sLight's were | ✅ |
-| 6d | Beams: additive cones fading with distance and haze, lit faces of blinders and bars, strobe; gobos | next |
-| 6e | GDTF models: the glTF parts (SharpGLTF) on the profile's geometry tree, pan and tilt on its axes; models as set pieces | |
+| 6d | Beams: sLight's open cones from the lit heads that throw one (as wide as the beam's angle, 13 m long, fading from the lens), added over the room by a second pipeline and shown more in thicker haze; blinders' and bars' heads as lit faces glowing in their colour; the strobe blinking them all (from the rig); gobos projected by the first head's light across its cone, turned by the gobo's spin (`Rendering/GoboArray`, the artwork's layers in one texture array) | ✅ |
+| 6e | GDTF models: the glTF parts (SharpGLTF) on the profile's geometry tree, pan and tilt on its axes; models as set pieces | next |
+
+**Where slice 6d differs from sLight:** the beams are sLight's cones without Godot's volumetric fog behind them, so
+the haze slider scales the cones themselves (as sLight drew them at its usual 0.3) as well as the veil. A gobo is
+projected in the light's shading, sampled across the cone, rather than as Godot's projector texture; up to 16
+different gobos at a time. Tried in the app: two pars' beams down to their pools on the floor and a mover's across
+the room; a gobo on screen wasn't checked (the tests cover where it goes and how it turns).
 
 **Where slice 6c differs from sLight:** every lit head's light is looped over for every pixel, with no culling (a
 few hundred lights is fine at this size); no shadows. Godot's energy units are kept, scaling a spot's energy by pi

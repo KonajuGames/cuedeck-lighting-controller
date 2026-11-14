@@ -59,6 +59,7 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 - `Rendering/Renderer.cs` (slice 6b): the 3D pass (`Scene3D`, `IScene3DSource`) recorded before the UI each frame.
 - `UI/Root.cs` (slice 6b): `Mouse`, where the pointer is.
 - `UI/NumberBox.cs` (slice 6b): `Submitted`, raised on Enter.
+- `Rendering/Barriers.cs` (slice 6d): `TransitionImage` takes a range of array layers too.
 
 ## Adapted
 

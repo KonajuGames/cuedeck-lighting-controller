@@ -128,6 +128,16 @@ sealed class FixtureRig
 
     double _strobePhase;
 
+    /// <summary>
+    /// The gobo in its first head's light: its base64 artwork, or "" for none.
+    /// </summary>
+    public string Gobo { get; private set; } = "";
+
+    /// <summary>
+    /// How far the gobo's turned, radians.
+    /// </summary>
+    public double GoboRoll { get; private set; }
+
     static string ResolveCategory(FixtureProfile profile, int mode)
     {
         if (profile.Physical.Category != "")
@@ -164,6 +174,9 @@ sealed class FixtureRig
         else
             _strobePhase = 0;
         HalfAngle = Math.Clamp(st.Zoom * 0.5, 2, 65);
+        Gobo = st.Gobo;
+        if (Gobo != "" && st.GoboRotation != 0)
+            GoboRoll += st.GoboRotation * Math.PI / 180 * delta;
         for (var i = 0; i < _heads.Count; i++)
         {
             var hs = i < st.Heads.Count ? st.Heads[i] : st.Heads[^1];

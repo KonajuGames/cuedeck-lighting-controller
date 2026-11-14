@@ -31,6 +31,7 @@ layout(location = 0) out vec3 worldPos;
 layout(location = 1) out vec3 normal;
 layout(location = 2) out vec4 colour;
 layout(location = 3) out float glow;
+layout(location = 4) out float along; // the mesh's own Y: for a beam, -0.5 at the lens to 0.5 at its far end
 
 void main()
 {
@@ -40,5 +41,6 @@ void main()
     normal = mat3(it.normal) * inNormal;
     colour = it.colour;
     glow = it.extra.x;
+    along = inPosition.y;
     gl_Position = pc.viewProj * world;
 }

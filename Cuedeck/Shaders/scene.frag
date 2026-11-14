@@ -20,12 +20,15 @@ struct Light
     vec4 direction; // xyz, which way it shines; w: the cosine of its cone's half angle
     vec4 colour;    // rgb: colour times energy; w: its decay with distance
     vec4 extra;     // x: how soft the cone's edge is
+    vec4 right;     // xyz, the light's right (turned with its gobo); w: its gobo's layer, or -1 for none
 };
 
 layout(std430, set = 0, binding = 1) readonly buffer Lights
 {
     Light lights[];
 };
+
+layout(set = 0, binding = 2) uniform sampler2DArray gobos;
 
 layout(location = 0) in vec3 worldPos;
 layout(location = 1) in vec3 normal;
@@ -67,10 +70,21 @@ void main()
         float scos = max(dot(-dir, l.direction.xyz), cutoff);
         float rim = max(0.0001, (1.0 - scos) / (1.0 - cutoff));
         att *= 1.0 - pow(rim, l.extra.x);
+        // Its gobo, projected across the cone (Godot's light projector).
+        vec3 tint = vec3(1.0);
+        if (l.right.w >= 0.0)
+        {
+            vec3 p = worldPos - l.position.xyz;
+            float z = dot(p, l.direction.xyz);
+            float tanHalf = sqrt(max(1.0 - cutoff * cutoff, 0.0)) / max(cutoff, 0.0001);
+            vec3 up = cross(l.right.xyz, l.direction.xyz);
+            vec2 uv = vec2(dot(p, l.right.xyz), dot(p, up)) / max(z * tanHalf, 0.0001) * 0.5 + 0.5;
+            tint = z > 0.0 ? texture(gobos, vec3(uv, l.right.w)).rgb : vec3(0.0);
+        }
         // Faded from 24 m to 34 m away from the camera (sLight's distance fade).
         att *= 1.0 - clamp((distance(pc.cameraPos.xyz, l.position.xyz) - 24.0) / 10.0, 0.0, 1.0);
         // Godot scales a spot's energy by pi, which its Lambert's 1 / pi takes back out.
-        light += l.colour.rgb * att * max(dot(n, dir), 0.0);
+        light += l.colour.rgb * tint * att * max(dot(n, dir), 0.0);
     }
     vec3 lit = colour.rgb * light + colour.rgb * glow;
     // ambient.w: the haze's density per metre.

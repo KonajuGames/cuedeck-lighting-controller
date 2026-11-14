@@ -32,6 +32,12 @@ enum MeshKind
     /// A 1 m square in the XZ plane, facing up, about its centre.
     /// </summary>
     Plane,
+
+    /// <summary>
+    /// A beam, as sLight's: an open cone along Y, 2 m across its far end (y +0.5) and 0.04 m its near
+    /// end (y -0.5), 1 m long, without ends.
+    /// </summary>
+    Cone,
 }
 
 /// <summary>
@@ -64,6 +70,7 @@ sealed class MeshData
             MeshKind.Cylinder => Cylinder(0.5f, 0.5f, 1, 20),
             MeshKind.Base => Cylinder(0.13f, 0.15f, 0.10f, 20),
             MeshKind.Ring => Torus(0.26f, 0.32f, 32, 8),
+            MeshKind.Cone => Cone(1, 0.02f, 22),
             _ => Plane(),
         };
 
@@ -127,6 +134,30 @@ sealed class MeshData
             var f0 = m.Vertex(d0 * bottom + new Vector3(0, -h, 0), -Vector3.UnitY);
             var f1 = m.Vertex(d1 * bottom + new Vector3(0, -h, 0), -Vector3.UnitY);
             m.Indices.AddRange([cb, f1, f0]);
+        }
+        return m;
+    }
+
+    /// <summary>
+    /// An open frustum along Y about its centre, 1 m long: a beam's cone.
+    /// </summary>
+    public static MeshData Cone(float top, float bottom, int segments)
+    {
+        var m = new MeshData();
+        var slope = bottom - top;
+        for (var i = 0; i < segments; i++)
+        {
+            var a0 = MathF.Tau * i / segments;
+            var a1 = MathF.Tau * (i + 1) / segments;
+            Vector3 Dir(float a) => new(MathF.Sin(a), 0, MathF.Cos(a));
+            var (d0, d1) = (Dir(a0), Dir(a1));
+            var n0 = Vector3.Normalize(d0 + new Vector3(0, slope, 0));
+            var n1 = Vector3.Normalize(d1 + new Vector3(0, slope, 0));
+            var b0 = m.Vertex(d0 * bottom + new Vector3(0, -0.5f, 0), n0);
+            var b1 = m.Vertex(d1 * bottom + new Vector3(0, -0.5f, 0), n1);
+            var t1 = m.Vertex(d1 * top + new Vector3(0, 0.5f, 0), n1);
+            var t0 = m.Vertex(d0 * top + new Vector3(0, 0.5f, 0), n0);
+            m.Indices.AddRange([b0, b1, t1, b0, t1, t0]);
         }
         return m;
     }

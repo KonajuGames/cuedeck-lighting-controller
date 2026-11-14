@@ -92,4 +92,75 @@ public sealed class SceneFrameTests : IDisposable
         light = Assert.Single(SceneFrame.Build(_show.Visualizer, _show.Patch, rigs, new Dictionary<string, float4>(), 1.5f).Lights);
         Assert.Equal(SpotLight.ENERGY * 128 / 255.0, light.Colour.X, 1);
     }
+
+    [Fact]
+    public void Beams_and_lit_faces()
+    {
+        var par = _show.Patch.Add(0, Profiles.Simple("rgb", "RGB par", ("Dimmer", "DIMMER"), ("Red", "RED"), ("Green", "GREEN"), ("Blue", "BLUE")), 0, position: new Vector3(0, 4, -2));
+        var blinder = Profiles.Simple("bl", "Blinder", ("Dimmer", "DIMMER"), ("Strobe", "STROBE"));
+        var bl = _show.Patch.Add(0, blinder, 10, position: new Vector3(3, 4, -2));
+        var rigs = new Dictionary<PatchedFixture, FixtureRig> { [par] = new(par.Profile, 0), [bl] = new(bl.Profile, 0) };
+        var output = new byte[512];
+        SceneFrame Frame()
+        {
+            foreach (var (f, r) in rigs)
+                r.Update(DmxRender.Evaluate(f.Profile, 0, output, f.Start), 0.1);
+            return SceneFrame.Build(_show.Visualizer, _show.Patch, rigs, new Dictionary<string, float4>(), 1.5f);
+        }
+        var dark = Frame();
+        Assert.Empty(dark.Beams);
+        // The blinder's face: a thin box (2 cm deep) on its body.
+        var face = Assert.Single(dark.Items, i => i.Mesh == MeshKind.Box && Math.Abs(i.World.M41 - 3) < 0.01f && Vector3.TransformNormal(Vector3.UnitZ, i.World).Length() < 0.03f);
+        Assert.True(face.Colour.X < 0.01f); // a blinder's face, dark
+
+        output[0] = 255; // the par full white
+        output[1] = output[2] = output[3] = 255;
+        output[10] = 255; // the blinder full
+        var lit = Frame();
+        var beam = Assert.Single(lit.Beams);
+        Assert.Equal(MeshKind.Cone, beam.Mesh);
+        Assert.Equal(0.16f, beam.Colour.W, 4); // 0.16 of its level
+        // From the head, 13 m long down the light's direction.
+        var near = Vector3.Transform(new Vector3(0, -0.5f, 0), beam.World);
+        var far = Vector3.Transform(new Vector3(0, 0.5f, 0), beam.World);
+        Assert.True(Vector3.Distance(near, new Vector3(0, 3.87f, -2)) < 1e-3f, $"{near}");
+        Assert.Equal(SceneFrame.BEAM_LENGTH, Vector3.Distance(near, far), 3);
+        Assert.True(far.Y < near.Y);
+        Assert.Contains(lit.Items, i => i.Mesh == MeshKind.Box && i.Glow > 6.9f); // the blinder's face lit
+        Assert.DoesNotContain(lit.Beams, b => Math.Abs(Vector3.Transform(Vector3.Zero, b.World).X - 3) < 1); // and no beam
+    }
+
+    [Fact]
+    public void A_gobo_turns_with_its_light()
+    {
+        var spot = Profiles.Make(
+            "spot",
+            "Spot",
+            """
+            [{"name": "Dimmer", "role": "DIMMER"},
+             {"name": "Gobo", "role": "GOBO", "ranges": [{"lo": 0, "hi": 9, "label": "Open"}, {"lo": 10, "hi": 19, "label": "Dots", "image": "iVBORw0KGgo="}]},
+             {"name": "Gobo spin", "role": "GOBO_ROT"}]
+            """
+        );
+        var f = _show.Patch.Add(0, spot, 0, position: new Vector3(0, 4, -2));
+        var rig = new FixtureRig(spot, 0);
+        var rigs = new Dictionary<PatchedFixture, FixtureRig> { [f] = rig };
+        var output = new byte[512];
+        output[0] = 255;
+        output[1] = 15;
+        output[2] = 128; // its spin stopped
+        rig.Update(DmxRender.Evaluate(spot, 0, output, 0), 0.1);
+        var st = DmxRender.Evaluate(spot, 0, output, 0);
+        Assert.Equal(st.Gobo, rig.Gobo);
+        var light = Assert.Single(SceneFrame.Build(_show.Visualizer, _show.Patch, rigs, new Dictionary<string, float4>(), 1.5f).Lights);
+        Assert.Equal(rig.Gobo, light.Gobo);
+        Assert.Equal(0, Vector3.Dot(light.Right, light.Direction), 4); // across the beam
+        var right0 = light.Right;
+        output[2] = 200; // spinning
+        var spin = DmxRender.Evaluate(spot, 0, output, 0).GoboRotation;
+        rig.Update(DmxRender.Evaluate(spot, 0, output, 0), 0.5);
+        Assert.Equal(spin * Math.PI / 180 * 0.5, rig.GoboRoll, 6);
+        light = Assert.Single(SceneFrame.Build(_show.Visualizer, _show.Patch, rigs, new Dictionary<string, float4>(), 1.5f).Lights);
+        Assert.Equal(Math.Cos(rig.GoboRoll), Vector3.Dot(light.Right, right0), 4); // turned that far
+    }
 }

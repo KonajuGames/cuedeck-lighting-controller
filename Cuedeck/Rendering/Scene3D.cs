@@ -11,7 +11,8 @@ namespace Cuedeck.Rendering;
 /// The 3D Visualizer's pass: draws a <see cref="SceneFrame"/> into an offscreen colour image (with its own depth
 /// buffer), which the UI then shows as texture <see cref="TEXTURE"/> (<see cref="UI.Batch.AddTexture"/>). One lit,
 /// opaque pipeline: every shape a mesh made once, placed by its instance's matrices from a storage buffer, and lit by
-/// the fixtures' spotlights from another, looped over in the fragment shader.
+/// the fixtures' spotlights from another, looped over in the fragment shader, projecting their gobos
+/// (<see cref="GoboArray"/>). Then the beams, added over it without writing depth.
 /// </summary>
 sealed unsafe class Scene3D : IDisposable
 {
@@ -46,6 +47,7 @@ sealed unsafe class Scene3D : IDisposable
         public Vector4 Direction;
         public Vector4 Colour;
         public Vector4 Extra;
+        public Vector4 Right;
     }
 
     struct MeshVertex
@@ -69,6 +71,8 @@ sealed unsafe class Scene3D : IDisposable
     readonly VkDescriptorPool _pool;
     readonly VkPipelineLayout _pipelineLayout;
     readonly VkPipeline _pipeline;
+    readonly VkPipeline _beamPipeline;
+    readonly GoboArray _gobos;
     readonly GpuBuffer _vertices;
     readonly GpuBuffer _indices;
     readonly Dictionary<MeshKind, (int FirstIndex, int IndexCount, int VertexOffset)> _meshes = [];
@@ -98,10 +102,28 @@ sealed unsafe class Scene3D : IDisposable
                 DescriptorCount = 1,
                 StageFlags = VkShaderStageFlags.FragmentBit,
             },
+            new()
+            {
+                Binding = 2,
+                DescriptorType = VkDescriptorType.CombinedImageSampler,
+                DescriptorCount = 1,
+                StageFlags = VkShaderStageFlags.FragmentBit,
+            },
         };
-        _setLayout = _device.CreateDescriptorSetLayout(new VkDescriptorSetLayoutCreateInfo { BindingCount = 2, Bindings = bindings }, null);
-        var poolSize = new VkDescriptorPoolSize { Type = VkDescriptorType.StorageBuffer, DescriptorCount = 2 * framesInFlight };
-        _pool = _device.CreateDescriptorPool(new VkDescriptorPoolCreateInfo { MaxSets = framesInFlight, PoolSizeCount = 1, PoolSizes = &poolSize }, null);
+        _setLayout = _device.CreateDescriptorSetLayout(new VkDescriptorSetLayoutCreateInfo { BindingCount = 3, Bindings = bindings }, null);
+        var poolSizes = stackalloc VkDescriptorPoolSize[]
+        {
+            new() { Type = VkDescriptorType.StorageBuffer, DescriptorCount = 2 * framesInFlight },
+            new() { Type = VkDescriptorType.CombinedImageSampler, DescriptorCount = framesInFlight },
+        };
+        _pool = _device.CreateDescriptorPool(new VkDescriptorPoolCreateInfo { MaxSets = framesInFlight, PoolSizeCount = 2, PoolSizes = poolSizes }, null);
+        _gobos = new GoboArray(gpu);
+        var goboInfo = new VkDescriptorImageInfo
+        {
+            Sampler = _gobos.Sampler,
+            ImageView = _gobos.View,
+            ImageLayout = VkImageLayout.ShaderReadOnlyOptimal,
+        };
         _frames = new FrameInstances[framesInFlight];
         var layout = _setLayout;
         Span<VkDescriptorSet> sets = stackalloc VkDescriptorSet[1];
@@ -117,6 +139,19 @@ sealed unsafe class Scene3D : IDisposable
                 sets
             );
             _frames[i] = new FrameInstances { Set = sets[0] };
+            _device.UpdateDescriptorSets(
+                [
+                    new VkWriteDescriptorSet
+                    {
+                        DstSet = sets[0],
+                        DstBinding = 2,
+                        DescriptorCount = 1,
+                        DescriptorType = VkDescriptorType.CombinedImageSampler,
+                        ImageInfo = &goboInfo,
+                    },
+                ],
+                []
+            );
         }
 
         _pipelineLayout = _device.CreatePipelineLayout(
@@ -124,7 +159,8 @@ sealed unsafe class Scene3D : IDisposable
             [new VkPushConstantRange { StageFlags = VkShaderStageFlags.VertexBit | VkShaderStageFlags.FragmentBit, Size = ByteSize.Of<Push>() }],
             null
         );
-        _pipeline = CreatePipeline();
+        _pipeline = CreatePipeline("scene.frag", beams: false);
+        _beamPipeline = CreatePipeline("beam.frag", beams: true);
 
         // Every shape in one vertex and one index buffer.
         var vertices = new List<MeshVertex>();
@@ -155,9 +191,12 @@ sealed unsafe class Scene3D : IDisposable
         return buffer;
     }
 
-    VkPipeline CreatePipeline()
+    /// <summary>
+    /// The opaque pipeline, or the beams' (added over what's there, depth tested but not written).
+    /// </summary>
+    VkPipeline CreatePipeline(string fragment, bool beams)
     {
-        using var stages = ShaderLoader.Load(_device, "scene.vert", "scene.frag");
+        using var stages = ShaderLoader.Load(_device, "scene.vert", fragment);
         var vertexInput = new VertexInput(1, 2)
             .AddBinding(0, ByteSize.Of<MeshVertex>(), VkVertexInputRate.Vertex)
             .AddAttribute(0, 0, VkFormat.R32G32B32SFloat, ByteSize.Zero)
@@ -184,8 +223,8 @@ sealed unsafe class Scene3D : IDisposable
                 ViewportState = &viewportState,
                 RasterizationState = Presets.Rasterization.Fill.CullNone,
                 MultisampleState = Presets.Multisample.None,
-                DepthStencilState = Presets.DepthStencil.DepthTestWrite,
-                ColorBlendState = Presets.BlendState.BlendNone,
+                DepthStencilState = beams ? Presets.DepthStencil.DepthTestNoWrite : Presets.DepthStencil.DepthTestWrite,
+                ColorBlendState = beams ? Presets.BlendState.BlendAdditive : Presets.BlendState.BlendNone,
                 DynamicState = &dynamicState,
                 Layout = _pipelineLayout,
             },
@@ -224,16 +263,18 @@ sealed unsafe class Scene3D : IDisposable
             return;
         var extent = _color.Extent;
         var instances = _frames[frameIndex];
+        // The shapes, then the beams after them.
         var count = frame.Items.Count;
+        var all = count + frame.Beams.Count;
         var lightCount = frame.Lights.Count;
-        if (instances.Buffer is null || instances.Capacity < count)
-            (instances.Buffer, instances.Capacity) = Grow<Instance>(instances.Buffer, count, 256, instances.Set, 0);
+        if (instances.Buffer is null || instances.Capacity < all)
+            (instances.Buffer, instances.Capacity) = Grow<Instance>(instances.Buffer, all, 256, instances.Set, 0);
         if (instances.Lights is null || instances.LightCapacity < lightCount)
             (instances.Lights, instances.LightCapacity) = Grow<Light>(instances.Lights, lightCount, 64, instances.Set, 1);
-        var mapped = new Span<Instance>((void*)instances.Buffer.Info.PMappedData, count);
-        for (var i = 0; i < count; i++)
+        var mapped = new Span<Instance>((void*)instances.Buffer.Info.PMappedData, all);
+        for (var i = 0; i < all; i++)
         {
-            var it = frame.Items[i];
+            var it = i < count ? frame.Items[i] : frame.Beams[i - count];
             Matrix4x4.Invert(it.World, out var inverse);
             mapped[i] = new Instance
             {
@@ -243,8 +284,8 @@ sealed unsafe class Scene3D : IDisposable
                 Extra = new Vector4(it.Glow, 0, 0, 0),
             };
         }
-        if (count > 0)
-            _gpu.Allocator.FlushAllocation(instances.Buffer.Allocation, ByteSize.Zero, ByteSize.Of<Instance>() * count);
+        if (all > 0)
+            _gpu.Allocator.FlushAllocation(instances.Buffer.Allocation, ByteSize.Zero, ByteSize.Of<Instance>() * all);
         var lights = new Span<Light>((void*)instances.Lights.Info.PMappedData, lightCount);
         for (var i = 0; i < lightCount; i++)
         {
@@ -255,6 +296,8 @@ sealed unsafe class Scene3D : IDisposable
                 Direction = new Vector4(l.Direction, l.CosCone),
                 Colour = new Vector4(l.Colour, l.Decay),
                 Extra = new Vector4(l.EdgeSoftness, 0, 0, 0),
+                // w: the gobo's layer, or -1 for none.
+                Right = new Vector4(l.Right, _gobos.LayerOf(l.Gobo)),
             };
         }
         if (lightCount > 0)
@@ -346,6 +389,15 @@ sealed unsafe class Scene3D : IDisposable
             var (first, n, offset) = _meshes[frame.Items[i].Mesh];
             cmd.DrawIndexed(n, 1, first, offset, i);
         }
+        if (frame.Beams.Count > 0)
+        {
+            cmd.BindPipeline(VkPipelineBindPoint.Graphics, _beamPipeline);
+            for (var i = count; i < all; i++)
+            {
+                var (first, n, offset) = _meshes[frame.Beams[i - count].Mesh];
+                cmd.DrawIndexed(n, 1, first, offset, i);
+            }
+        }
         cmd.EndRendering();
 
         cmd.TransitionImage(
@@ -414,6 +466,8 @@ sealed unsafe class Scene3D : IDisposable
         _vertices.Dispose();
         _indices.Dispose();
         _device.DestroyPipeline(_pipeline, null);
+        _device.DestroyPipeline(_beamPipeline, null);
+        _gobos.Dispose();
         _device.DestroyPipelineLayout(_pipelineLayout, null);
         _device.DestroyDescriptorPool(_pool, null);
         _device.DestroyDescriptorSetLayout(_setLayout, null);

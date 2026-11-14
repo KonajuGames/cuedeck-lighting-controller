@@ -5,8 +5,9 @@ namespace Cuedeck.Rendering;
 static class Barriers
 {
     /// <summary>
-    /// Moves mip levels <paramref name="baseMip"/> to <paramref name="baseMip"/> + <paramref name="levelCount"/> of
-    /// an image from one layout to another, ordering the access on either side.
+    /// Moves mip levels <paramref name="baseMip"/> to <paramref name="baseMip"/> + <paramref name="levelCount"/> (of
+    /// layers <paramref name="baseLayer"/> on, <paramref name="layerCount"/> of them) of an image from one layout to
+    /// another, ordering the access on either side.
     /// </summary>
     public static void TransitionImage(
         this CommandBuffer commandBuffer,
@@ -19,7 +20,9 @@ static class Barriers
         VkPipelineStageFlags dstStage,
         VkAccessFlags dstAccess,
         int baseMip = 0,
-        int levelCount = 1
+        int levelCount = 1,
+        int baseLayer = 0,
+        int layerCount = 1
     )
     {
         commandBuffer.PipelineBarrier(
@@ -43,7 +46,8 @@ static class Barriers
                         AspectMask = aspect,
                         BaseMipLevel = baseMip,
                         LevelCount = levelCount,
-                        LayerCount = 1,
+                        BaseArrayLayer = baseLayer,
+                        LayerCount = layerCount,
                     },
                 },
             ]

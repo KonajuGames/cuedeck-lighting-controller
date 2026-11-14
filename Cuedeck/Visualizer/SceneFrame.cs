@@ -15,9 +15,21 @@ readonly record struct DrawItem(MeshKind Mesh, Matrix4x4 World, float4 Colour, f
 /// <summary>
 /// One head's light, as Godot's spotlight was set up for it: where it is and which way it shines, its colour times
 /// its energy (linear), the cosine of its cone's half angle, its range, and how it falls off with distance (Godot's
-/// <c>spot_attenuation</c>, a power of the distance) and towards the cone's edge (<c>spot_angle_attenuation</c>).
+/// <c>spot_attenuation</c>, a power of the distance) and towards the cone's edge (<c>spot_angle_attenuation</c>), and
+/// the gobo it projects (base64 artwork, "" for none).
+/// A gobo turns with the light about its direction: <paramref name="Right"/> is the light's right, turned with it.
 /// </summary>
-readonly record struct SpotLight(Vector3 Position, Vector3 Direction, Vector3 Colour, float CosCone, float Range = SpotLight.RANGE, float Decay = 1.2f, float EdgeSoftness = 0.6f)
+readonly record struct SpotLight(
+    Vector3 Position,
+    Vector3 Direction,
+    Vector3 Colour,
+    float CosCone,
+    Vector3 Right = default,
+    string Gobo = "",
+    float Range = SpotLight.RANGE,
+    float Decay = 1.2f,
+    float EdgeSoftness = 0.6f
+)
 {
     /// <summary>
     /// sLight's <c>spot_range</c>, metres.
@@ -61,6 +73,17 @@ sealed class SceneFrame
     /// The fixtures' heads that are lit, each a spotlight.
     /// </summary>
     public List<SpotLight> Lights { get; } = [];
+
+    /// <summary>
+    /// The beams, drawn added over everything: open cones from the lit heads that throw one, their colour (linear,
+    /// its brightness already in it) fading out along their length.
+    /// </summary>
+    public List<DrawItem> Beams { get; } = [];
+
+    /// <summary>
+    /// A beam's length (sLight's <c>_beam_len</c>), metres.
+    /// </summary>
+    public const float BEAM_LENGTH = 13;
     public Matrix4x4 View { get; private set; }
 
     /// <summary>
@@ -132,6 +155,7 @@ sealed class SceneFrame
             var placement = FixtureRig.Placement(fx.Position, fx.Rotation);
             AddBody(f.Items, rig, placement, colour);
             AddLights(f.Lights, rig, placement);
+            AddHeads(f, rig, placement);
             if (ReferenceEquals(fx, selected))
                 f.Items.Add(new DrawItem(MeshKind.Ring, Matrix4x4.CreateTranslation(0, -0.02f, 0) * FixtureRig.Placement(fx.Position, fx.Rotation), Selected, 1));
         }
@@ -186,9 +210,57 @@ sealed class SceneFrame
                 continue;
             var world = rig.HeadWorld(i, placement);
             var c = Linear(h.Colour) * (float)(SpotLight.ENERGY * h.Level);
+            // The first head carries the gobo, turned about the light's direction.
+            var gobo = i == 0 ? rig.Gobo : "";
+            var right = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, Matrix4x4.CreateRotationZ(i == 0 ? (float)rig.GoboRoll : 0) * world));
             lights.Add(
-                new SpotLight(Vector3.Transform(Vector3.Zero, world), Vector3.Normalize(Vector3.TransformNormal(-Vector3.UnitZ, world)), new Vector3(c.X, c.Y, c.Z), cos)
+                new SpotLight(
+                    Vector3.Transform(Vector3.Zero, world),
+                    Vector3.Normalize(Vector3.TransformNormal(-Vector3.UnitZ, world)),
+                    new Vector3(c.X, c.Y, c.Z),
+                    cos,
+                    right,
+                    gobo
+                )
             );
+        }
+    }
+
+    static readonly float4 DarkFace = Colors.FromSrgb(0.02f, 0.02f, 0.02f);
+
+    /// <summary>
+    /// What a fixture's heads show themselves: a lit head's beam (sLight's cone: as wide as its angle, 13 m long,
+    /// 0.16 of its level bright up to 0.3), or the lit face of a blinder's or bar's head (its colour glowing seven times
+    /// its level).
+    /// </summary>
+    static void AddHeads(SceneFrame f, FixtureRig rig, Matrix4x4 placement)
+    {
+        var wide = (float)Math.Tan(rig.HalfAngle * Math.PI / 180) * BEAM_LENGTH;
+        for (var i = 0; i < rig.Heads.Count; i++)
+        {
+            var h = rig.Heads[i];
+            var world = rig.HeadWorld(i, placement);
+            if (rig.HasCone && h.Level > 0.004)
+            {
+                var c = Linear(h.Colour);
+                var bright = (float)Math.Clamp(0.16 * h.Level, 0, 0.30);
+                f.Beams.Add(
+                    new DrawItem(
+                        MeshKind.Cone,
+                        Matrix4x4.CreateScale(wide, BEAM_LENGTH, wide)
+                            * Matrix4x4.CreateRotationX(-MathF.PI / 2)
+                            * Matrix4x4.CreateTranslation(0, 0, -BEAM_LENGTH / 2)
+                            * world,
+                        new float4(c.X, c.Y, c.Z, bright)
+                    )
+                );
+            }
+            if (rig.HasFace)
+            {
+                var size = rig.Heads.Count > 1 ? new Vector3(0.22f, 0.14f, 0.02f) : new Vector3(0.5f, 0.32f, 0.02f);
+                var lit = h.Level > 0.002;
+                f.Items.Add(new DrawItem(MeshKind.Box, Matrix4x4.CreateScale(size) * world, lit ? Linear(h.Colour) : DarkFace, (float)(h.Level * 7)));
+            }
         }
     }
 
