@@ -32,6 +32,11 @@ sealed class ConsoleView : Region
     /// </summary>
     public event Action<string>? Status;
 
+    /// <summary>
+    /// The 3D Visualizer tab.
+    /// </summary>
+    public Visualizer.VisualizerView Visualizer { get; }
+
     public ConsoleView(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
     {
         _dialogs = dialogs;
@@ -53,7 +58,9 @@ sealed class ConsoleView : Region
         _right = Add(new TabView(fonts.Body));
         Patch = new PatchTab(fonts, menu, dialogs, show, profiles);
         _right.AddTab("Patch", Patch);
-        _right.AddTab("3D Visualizer", new Placeholder(fonts.Body, "The 3D Visualizer comes in phase 6."));
+        Visualizer = new Visualizer.VisualizerView(fonts, menu, dialogs.Prompt, show);
+        Visualizer.IsShown = () => Visible && _right.SelectedPage == Visualizer;
+        _right.AddTab("3D Visualizer", Visualizer);
         DmxOutput = new DmxOutputTab(fonts, show);
         _right.AddTab("DMX Output", DmxOutput);
         Faders = new FadersTab(fonts, menu, show);
@@ -77,6 +84,8 @@ sealed class ConsoleView : Region
             sound.Update();
         if (_left.SelectedPage is ScrollingPage { Content: GroupsTab groups })
             groups.Update();
+        if (_right.SelectedPage == Visualizer)
+            Visualizer.Update();
         if (_right.SelectedPage == Patch)
             Patch.Update();
         if (_right.SelectedPage == DmxOutput)

@@ -163,6 +163,10 @@ static void Run(string[] args)
     // Drawn in this order: the screen, then the dialogs over it, then the menu over everything.
     var djPerform = new DjPerformView(fonts, performer, show.Flash, picker);
     var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), show, profiles, djEdit, djPerform));
+    // The 3D Visualizer: drawn by the renderer's 3D pass; the middle button slides its camera.
+    renderer.Scene = screen.Console.Visualizer;
+    screen.Console.Visualizer.Root = ui;
+    ui.PointerHooks.Add(screen.Console.Visualizer);
     editPlayback.IsShown = () => screen.View == AppView.DjEdit && djEdit.IsTimelineShown;
     ui.Add(editor);
     ui.Add(triggers);
@@ -211,6 +215,9 @@ static void Run(string[] args)
         // DJ Edit Mode's timeline has first say (Space plays its song there, rather than going the next cue).
         var uiKey = GlfwUiInput.ToUiKey(key);
         var uiMods = (Modifiers)((int)mods & 0xF);
+        // The 3D Visualizer's Ctrl+Z / Ctrl+Y, while the mouse is over it.
+        if (screen.View == AppView.Console && uiKey != Key.Other && screen.Console.Visualizer.KeyDown(uiKey, uiMods, ui.Mouse))
+            return;
         if (screen.View == AppView.DjEdit && djEdit.IsTimelineShown && uiKey != Key.Other && timelineView.KeyDown(uiKey, uiMods))
             return;
         // The Positions editor's Ctrl+C / Ctrl+V.

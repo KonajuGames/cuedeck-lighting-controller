@@ -65,44 +65,15 @@ sealed unsafe class OverlayRenderer : IDisposable
             null
         );
 
-        var poolSize = new VkDescriptorPoolSize { Type = VkDescriptorType.CombinedImageSampler, DescriptorCount = 1 };
+        // The atlas's set and the other textures' (see SetTexture).
+        var poolSize = new VkDescriptorPoolSize { Type = VkDescriptorType.CombinedImageSampler, DescriptorCount = MAX_TEXTURES };
         _descriptorPool = _device.CreateDescriptorPool(
-            new VkDescriptorPoolCreateInfo { MaxSets = 1, PoolSizeCount = 1, PoolSizes = &poolSize },
+            new VkDescriptorPoolCreateInfo { MaxSets = MAX_TEXTURES, PoolSizeCount = 1, PoolSizes = &poolSize },
             null
         );
 
-        var setLayout = _descriptorSetLayout;
-        Span<VkDescriptorSet> sets = stackalloc VkDescriptorSet[1];
-        _device.AllocateDescriptorSets(
-            new VkDescriptorSetAllocateInfo
-            {
-                DescriptorPool = _descriptorPool,
-                DescriptorSetCount = 1,
-                SetLayouts = &setLayout,
-            },
-            sets
-        );
-        _descriptorSet = sets[0];
-
-        var imageInfo = new VkDescriptorImageInfo
-        {
-            Sampler = _sampler,
-            ImageView = _atlasImage.View,
-            ImageLayout = VkImageLayout.ShaderReadOnlyOptimal,
-        };
-        _device.UpdateDescriptorSets(
-            [
-                new VkWriteDescriptorSet
-                {
-                    DstSet = _descriptorSet,
-                    DstBinding = 0,
-                    DescriptorCount = 1,
-                    DescriptorType = VkDescriptorType.CombinedImageSampler,
-                    ImageInfo = &imageInfo,
-                },
-            ],
-            []
-        );
+        _descriptorSet = AllocateSet();
+        WriteSet(_descriptorSet, _atlasImage.View);
 
         _pipelineLayout = _device.CreatePipelineLayout(
             [_descriptorSetLayout],
@@ -120,6 +91,61 @@ sealed unsafe class OverlayRenderer : IDisposable
         _frames = new FrameVertices[framesInFlight];
         for (var i = 0; i < framesInFlight; i++)
             _frames[i] = new FrameVertices();
+    }
+
+    const int MAX_TEXTURES = 4;
+
+    readonly Dictionary<int, VkDescriptorSet> _textures = [];
+
+    VkDescriptorSet AllocateSet()
+    {
+        var setLayout = _descriptorSetLayout;
+        Span<VkDescriptorSet> sets = stackalloc VkDescriptorSet[1];
+        _device.AllocateDescriptorSets(
+            new VkDescriptorSetAllocateInfo
+            {
+                DescriptorPool = _descriptorPool,
+                DescriptorSetCount = 1,
+                SetLayouts = &setLayout,
+            },
+            sets
+        );
+        return sets[0];
+    }
+
+    void WriteSet(VkDescriptorSet set, VkImageView view)
+    {
+        var imageInfo = new VkDescriptorImageInfo
+        {
+            Sampler = _sampler,
+            ImageView = view,
+            ImageLayout = VkImageLayout.ShaderReadOnlyOptimal,
+        };
+        _device.UpdateDescriptorSets(
+            [
+                new VkWriteDescriptorSet
+                {
+                    DstSet = set,
+                    DstBinding = 0,
+                    DescriptorCount = 1,
+                    DescriptorType = VkDescriptorType.CombinedImageSampler,
+                    ImageInfo = &imageInfo,
+                },
+            ],
+            []
+        );
+    }
+
+    /// <summary>
+    /// Makes <paramref name="view"/> texture <paramref name="id"/> (1 and up), for <see cref="Batch.AddTexture"/>; it
+    /// must be in the shader-read layout whenever the UI's drawn. Call while the GPU isn't using the old one (after a
+    /// wait for idle).
+    /// </summary>
+    public void SetTexture(int id, VkImageView view)
+    {
+        if (!_textures.TryGetValue(id, out var set))
+            _textures[id] = set = AllocateSet();
+        WriteSet(set, view);
     }
 
     static GpuImage UploadAtlas(GpuContext gpu, FontAtlas atlas)
@@ -263,7 +289,6 @@ sealed unsafe class OverlayRenderer : IDisposable
         cmd.SetScissor(0, [new VkRect2D(extent)]);
 
         cmd.BindPipeline(VkPipelineBindPoint.Graphics, _pipeline);
-        cmd.BindDescriptorSets(VkPipelineBindPoint.Graphics, _pipelineLayout, 0, [_descriptorSet], []);
         cmd.PushConstants(
             _pipelineLayout,
             VkShaderStageFlags.VertexBit,
@@ -271,7 +296,28 @@ sealed unsafe class OverlayRenderer : IDisposable
             new PushConstants { ScreenSize = screen }
         );
         cmd.BindVertexBuffers(0, [frame.Buffer.Buffer], [new ByteSize64(0)]);
-        cmd.Draw(vertexCount, 1, 0, 0);
+        // In runs, each from its texture: the atlas, but where an image of the renderer's own is drawn.
+        var start = 0;
+        var texture = 0;
+        foreach (var (at, next) in _batch.TextureChanges)
+        {
+            Run(start, at, texture);
+            (start, texture) = (at, next);
+        }
+        Run(start, vertexCount, texture);
+
+        void Run(int from, int to, int id)
+        {
+            if (to <= from)
+                return;
+            VkDescriptorSet set;
+            if (id == 0)
+                set = _descriptorSet;
+            else if (!_textures.TryGetValue(id, out set))
+                return;
+            cmd.BindDescriptorSets(VkPipelineBindPoint.Graphics, _pipelineLayout, 0, [set], []);
+            cmd.Draw(to - from, 1, from, 0);
+        }
     }
 
     public void Dispose()

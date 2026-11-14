@@ -198,6 +198,11 @@ sealed class Root
     float2? _mouse;
 
     /// <summary>
+    /// Where the mouse is, or null while it's outside the window.
+    /// </summary>
+    public float2? Mouse => _mouse;
+
+    /// <summary>
     /// Whether focus last moved by keyboard, which is when focus rings show.
     /// </summary>
     bool _focusVisible;

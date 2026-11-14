@@ -33,6 +33,12 @@ sealed unsafe class Renderer : IDisposable
     bool _swapchainStale;
 
     readonly OverlayRenderer _ui;
+    readonly Scene3D _scene;
+
+    /// <summary>
+    /// The 3D view drawn before the UI each frame, if it's on screen.
+    /// </summary>
+    public IScene3DSource? Scene { get; set; }
 
     readonly VkCommandPool _commandPool;
     readonly Frame[] _frames = new Frame[FRAMES_IN_FLIGHT];
@@ -46,6 +52,7 @@ sealed unsafe class Renderer : IDisposable
 
         _swapchain = new Swapchain(gpu, window.FramebufferSize, null);
         _ui = new OverlayRenderer(gpu, fonts, _swapchain.Format, FRAMES_IN_FLIGHT);
+        _scene = new Scene3D(gpu, FRAMES_IN_FLIGHT);
 
         _commandPool = _device.CreateCommandPool(
             new VkCommandPoolCreateInfo
@@ -167,6 +174,14 @@ sealed unsafe class Renderer : IDisposable
         var image = _swapchain.Images[imageIndex];
         var extent = _swapchain.Extent;
 
+        // The 3D view's picture first, for the UI to show.
+        if (Scene?.SceneSize is { } size)
+        {
+            if (_scene.EnsureSize(new VkExtent2D((int)size.X, (int)size.Y)))
+                _ui.SetTexture(Scene3D.TEXTURE, _scene.View!.Value);
+            _scene.Record(cmd, _frameIndex, Scene.BuildScene());
+        }
+
         // Previous contents are discarded (Undefined) since the image is cleared.
         cmd.TransitionImage(
             image,
@@ -225,6 +240,7 @@ sealed unsafe class Renderer : IDisposable
         }
         _device.DestroyCommandPool(_commandPool, null);
 
+        _scene.Dispose();
         _ui.Dispose();
         _swapchain.Dispose();
     }

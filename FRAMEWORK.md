@@ -53,6 +53,12 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 - `UI/MainScreen.cs` and `UI/Console/TopBar.cs` (slice 5c): DJ Perform Mode in the View dropdown too.
 - `Input/Key.cs` and `Input/GlfwUiInput.cs` (slice 5c): `Key.B`, `Key.S` and `Key.W`, for the live flashes.
 - `UI/Console/OptionsDialog.cs` (slice 5c): `Settings`, the settings it edits.
+- `UI/Batch.cs` and `UI/OverlayRenderer.cs` (slice 6b): `Batch.AddTexture`, a quad from another texture than the font
+  atlas (the 3D view's picture), drawn as a run of its own with that texture's descriptor set
+  (`OverlayRenderer.SetTexture`).
+- `Rendering/Renderer.cs` (slice 6b): the 3D pass (`Scene3D`, `IScene3DSource`) recorded before the UI each frame.
+- `UI/Root.cs` (slice 6b): `Mouse`, where the pointer is.
+- `UI/NumberBox.cs` (slice 6b): `Submitted`, raised on Enter.
 
 ## Adapted
 

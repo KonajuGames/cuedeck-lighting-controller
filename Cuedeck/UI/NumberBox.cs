@@ -24,7 +24,11 @@ sealed class NumberBox : Row
         var up = Add(new Button(font, "+") { Padding = 4, MinSize = new float2(22, 0) });
         down.Clicked += _ => Nudge(-1);
         up.Clicked += _ => Nudge(1);
-        _box.Submitted += _ => Commit();
+        _box.Submitted += _ =>
+        {
+            Commit();
+            Submitted?.Invoke(this);
+        };
         _box.Cancelled += _ => Show();
         Show();
     }
@@ -57,6 +61,11 @@ sealed class NumberBox : Row
     /// The person changed the number.
     /// </summary>
     public event Action<NumberBox>? Changed;
+
+    /// <summary>
+    /// Enter was pressed in it (after what was typed is taken).
+    /// </summary>
+    public event Action<NumberBox>? Submitted;
 
     double Clamp(double v) => Math.Round(Math.Clamp(v, Min, Max), Decimals);
 

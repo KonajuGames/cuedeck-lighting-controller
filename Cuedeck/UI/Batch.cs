@@ -68,6 +68,29 @@ sealed class Batch
     {
         _vertices.Clear();
         _clips.Clear();
+        _textures.Clear();
+    }
+
+    /// <summary>
+    /// Where the texture drawn from changes: from vertex Start on, texture Texture (0 is the font atlas, others are
+    /// what the renderer's given those numbers, such as the 3D view's image).
+    /// </summary>
+    readonly List<(int Start, int Texture)> _textures = [];
+
+    public IReadOnlyList<(int Start, int Texture)> TextureChanges => _textures;
+
+    /// <summary>
+    /// Draws all of texture <paramref name="texture"/> over the rectangle (clipped as anything else), then goes back
+    /// to the atlas.
+    /// </summary>
+    public void AddTexture(int texture, float2 position, float2 size)
+    {
+        var start = _vertices.Count;
+        AddQuad(position, position + size, new float2(0, 0), new float2(1, 1), Colors.White);
+        if (_vertices.Count == start)
+            return;
+        _textures.Add((start, texture));
+        _textures.Add((_vertices.Count, 0));
     }
 
     /// <summary>

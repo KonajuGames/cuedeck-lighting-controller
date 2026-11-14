@@ -289,10 +289,20 @@ from the scene's data outwards: first everything that isn't drawing, then §5's 
 | Slice | What | State |
 |---|---|---|
 | 6a | The scene without the GPU (`Visualizer/`): the room, haze, work light and shadows settings; the orbit camera and the saved views; trusses and models; picking by ray and dragging on the floor; selection, typed positions and turns, Auto-arrange and the undo history; saved with the show as sLight's `viz`; and each fixture's rig (category, yoke or fixed, its heads, pan and tilt eased towards its DMX, the beam's angle) | ✅ |
-| 6b | The 3D pass (`Rendering/Scene3D`): an offscreen colour and depth image shown in the 3D Visualizer tab, one lit opaque pipeline (Lambert, ambient and the work light), the floor, wall, trusses and schematic bodies; the camera, picking and dragging by mouse; the toolbar and the selected item's properties | next |
-| 6c | Lights: each head a spotlight (colour, level, cone, aim), looped over in the opaque shader | |
+| 6b | The 3D pass (`Rendering/Scene3D`): an offscreen colour and depth image shown in the 3D Visualizer tab, one lit opaque pipeline (Lambert, ambient and the work light), the floor, wall, trusses and schematic bodies; the camera, picking and dragging by mouse; the toolbar and the selected item's properties | ✅ |
+| 6c | Lights: each head a spotlight (colour, level, cone, aim), looped over in the opaque shader | next |
 | 6d | Beams: additive cones fading with distance and haze, lit faces of blinders and bars, strobe; gobos | |
 | 6e | GDTF models: the glTF parts (SharpGLTF) on the profile's geometry tree, pan and tilt on its axes; models as set pieces | |
+
+**Where slice 6b differs from sLight:** the scene is drawn into an image of its own each frame
+(`Rendering/Scene3D`: one pipeline, Lambert under the ambient light and the work light) that the UI shows as a
+second texture, where Godot rendered a `SubViewport`. The haze is a veil thickening with distance, lit by the same
+light, standing in for Godot's volumetric fog until the beams come in 6d; highlights are rolled off rather than
+ACES-mapped, which darkened the room well below sLight's. No MSAA yet. The fixture's selection ring and a selected
+truss glow cyan as sLight's did; a set piece is a grey box until its model's read (6e). Load Model…, Import and Export
+MVR…, Screenshot and Record come with 6e and phase 7, and the Shadows switch is kept and saved but does nothing yet.
+Tried in the app: two moving heads and two RGB pars patched, the room, wall and fixtures drawn at sLight's scale and
+tone, a fixture picked with the mouse and its properties shown, the views switched.
 
 **Where slice 6a differs from sLight:** the scene is an engine class (`VizScene`, on `LightingShow.Visualizer`) that
 the screen will drive, where sLight's panel held it in its nodes; the fixtures' places stay on the patch as before.
