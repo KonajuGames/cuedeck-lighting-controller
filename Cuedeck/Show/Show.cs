@@ -57,6 +57,11 @@ sealed class LightingShow : IDisposable
     public List<FixtureGroup> Groups { get; } = [];
     public PaletteLibrary Palettes { get; } = new();
     public PositionLibrary Positions { get; } = new();
+
+    /// <summary>
+    /// The 3D Visualizer's room, camera, trusses and set pieces, and its undo history of moves.
+    /// </summary>
+    public Visualizer.VizScene Visualizer { get; }
     public CueList Cues { get; }
     public LiveFlash Flash { get; } = new();
     public FaderBank Faders { get; }
@@ -106,6 +111,7 @@ sealed class LightingShow : IDisposable
                 Triggers.OnBeat();
         };
         Patch = new Patch(Dmx);
+        Visualizer = new Visualizer.VizScene(Patch);
         Cues = new CueList(Dmx, Palettes, Patch);
         Faders = new FaderBank(Dmx, Effects, Patch, () => Groups, Cues.StandingLook) { EffectRunner = SetEffectRunning };
         Flash.Fixtures = () => Patch.All;

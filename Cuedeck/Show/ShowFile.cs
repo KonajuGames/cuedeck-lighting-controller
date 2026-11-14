@@ -21,7 +21,7 @@ static class ShowFile
     static readonly HashSet<string> Known =
     [
         "format", "version", "universes", "live", "run_mode", "cues", "chases", "effects", "sound", "groups", "positions",
-        "palettes", "live_flash", "faders", "sacn_cid", "timelines", "triggers",
+        "palettes", "live_flash", "faders", "sacn_cid", "timelines", "triggers", "viz",
     ];
 
     /// <summary>
@@ -65,7 +65,7 @@ static class ShowFile
             ["palettes"] = show.Palettes.ToJson(),
             ["live_flash"] = show.Flash.ToJson(),
             ["faders"] = show.Faders.ToJson(),
-            ["viz"] = Carried(show, "viz"),
+            ["viz"] = show.Visualizer.ToJson(),
             ["sacn_cid"] = Convert.ToBase64String(show.Dmx.SacnCid),
         };
         if (show.TimelinesFolder is { } folder)
@@ -75,8 +75,6 @@ static class ShowFile
                 d[key] = value?.DeepClone();
         return d;
     }
-
-    static JsonNode Carried(LightingShow show, string key) => show.Carried.GetValueOrDefault(key)?.DeepClone() ?? new JsonObject();
 
     /// <summary>
     /// The show without what changes just by running it (the live levels, where the cue list is, the faders'
@@ -204,6 +202,8 @@ static class ShowFile
 
         show.Faders.FromJson(doc.Obj("faders")); // after the cues, chases and groups
         show.Flash.FromJson(doc.Obj("live_flash"));
+        show.Visualizer.Reset();
+        show.Visualizer.FromJson(doc.Obj("viz"));
         show.Triggers.FromJson(doc.Get("triggers"));
         show.RunMode = (RunMode)doc.Int("run_mode", 0);
 

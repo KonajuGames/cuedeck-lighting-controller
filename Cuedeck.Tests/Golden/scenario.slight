@@ -1189,6 +1189,88 @@
 			}
 		]
 	},
-	"viz": {},
+	"viz": {
+		"room": "Black Box",
+		"haze": 0.3,
+		"work_light": true,
+		"shadows": false,
+		"cam": [
+			0,
+			1.5,
+			-3,
+			0.4,
+			0.35,
+			15
+		],
+		"views": [
+			{
+				"name": "Orbit",
+				"target": [
+					0,
+					1.5,
+					-3
+				],
+				"yaw": 0.4,
+				"pitch": 0.35,
+				"dist": 15,
+				"fov": 55,
+				"ortho": false
+			},
+			{
+				"name": "Front",
+				"target": [
+					0,
+					2,
+					-4
+				],
+				"yaw": 0,
+				"pitch": 0.05,
+				"dist": 15,
+				"fov": 50,
+				"ortho": false
+			},
+			{
+				"name": "Audience",
+				"target": [
+					0,
+					2.5,
+					-5
+				],
+				"yaw": 0,
+				"pitch": 0.18,
+				"dist": 24,
+				"fov": 40,
+				"ortho": false
+			},
+			{
+				"name": "FOH high",
+				"target": [
+					0,
+					2,
+					-5
+				],
+				"yaw": 0.15,
+				"pitch": 0.55,
+				"dist": 20,
+				"fov": 45,
+				"ortho": false
+			},
+			{
+				"name": "Top",
+				"target": [
+					0,
+					1,
+					-4
+				],
+				"yaw": 0,
+				"pitch": 1.4,
+				"dist": 24,
+				"fov": 50,
+				"ortho": true
+			}
+		],
+		"trusses": [],
+		"props": []
+	},
 	"sacn_cid": "AAAAAAAAAAAAAAAAAAAAAA=="
 }

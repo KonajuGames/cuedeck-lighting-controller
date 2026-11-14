@@ -105,7 +105,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 | 3 | ✅ **Sound and triggers** (built 2026-11-13, see §7.3; not yet tried with a real line-in or controller). Live capture, sound reactors and the Sound tab with spectrogram. MIDI/OSC triggers with Learn and feedback (WinMidi out). Options dialog (VirtualDJ or Cuepoint). | Beat-reactive chases run from line-in; a controller's LEDs follow. |
 | 4 | ✅ **DJ Edit Mode** (done 2026-11-14; see §7.4). Music browser (drives, VirtualDJ lists, Cuepoint library), song analysis, the structure bar, heatmap and timeline editor, timeline generator, timeline store and the position editor. Port `music_*`, `timeline_*`, `structure_detection`, `virtualdj_*`, `cuepoint_library` and `m4a_playback` tests. | Generate → edit → save a song's timelines, and the files load in sLight too. |
 | 5 | 🔶 **DJ Perform Mode** (built 2026-11-14 and tried with Cuepoint; VirtualDJ still to try; see §7.5). OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
-| 6 | **Visualizer.** §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
+| 6 | 🔶 **Visualizer** (in progress; see §7.6). §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
 | 7 | **Native extras and polish.** USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
 
 ### 7.1 Phase 1 as built
@@ -280,6 +280,27 @@ ported, so there it reports no DNS-SD service and points at VirtualDJ's `os2lDir
 without finishing a message is dropped. The tests advertise through a fake responder on a loopback listener, so they
 don't touch the network or bring up the firewall's prompt; the real registration was checked once by hand, Cuepoint's
 own mDNS browser finding it on the right port and stopping withdrawing it.
+
+### 7.6 Phase 6 progress
+
+sLight's visualizer is `visualizer_panel.gd` and `fixture_view.gd` (1,700 lines) over Godot's renderer, so it's done
+from the scene's data outwards: first everything that isn't drawing, then §5's steps.
+
+| Slice | What | State |
+|---|---|---|
+| 6a | The scene without the GPU (`Visualizer/`): the room, haze, work light and shadows settings; the orbit camera and the saved views; trusses and models; picking by ray and dragging on the floor; selection, typed positions and turns, Auto-arrange and the undo history; saved with the show as sLight's `viz`; and each fixture's rig (category, yoke or fixed, its heads, pan and tilt eased towards its DMX, the beam's angle) | ✅ |
+| 6b | The 3D pass (`Rendering/Scene3D`): an offscreen colour and depth image shown in the 3D Visualizer tab, one lit opaque pipeline (Lambert, ambient and the work light), the floor, wall, trusses and schematic bodies; the camera, picking and dragging by mouse; the toolbar and the selected item's properties | next |
+| 6c | Lights: each head a spotlight (colour, level, cone, aim), looped over in the opaque shader | |
+| 6d | Beams: additive cones fading with distance and haze, lit faces of blinders and bars, strobe; gobos | |
+| 6e | GDTF models: the glTF parts (SharpGLTF) on the profile's geometry tree, pan and tilt on its axes; models as set pieces | |
+
+**Where slice 6a differs from sLight:** the scene is an engine class (`VizScene`, on `LightingShow.Visualizer`) that
+the screen will drive, where sLight's panel held it in its nodes; the fixtures' places stay on the patch as before.
+Picking is a ray against each item's box, where sLight asked Godot's physics. A set piece whose model file isn't there
+is kept (and saved again) rather than dropped on load, and a new or loaded show starts from the default scene before
+its `viz` is read, where sLight kept the last show's room and camera for anything a file left out. sLight's
+`visualizer_undo_test.gd` is ported but for its Ctrl+Z / Ctrl+Y and Enter-in-a-field checks, which come with the
+screen in 6b. The golden scenario now carries a full `viz`, and sLight, reading it, plays the same frames.
 
 Phases 1 and 2 are the critical path; 3–5 can then go in any order, and 6 can start alongside them once phase 1's `DmxRender` exists.
 

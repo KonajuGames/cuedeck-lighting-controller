@@ -168,7 +168,9 @@ public sealed class ShowFileTests : IDisposable
         File.WriteAllText(path, Json.Stringify(doc));
         Assert.Null(_session.Load(path));
         var again = ShowFile.ToJson(_show);
-        Assert.True(Json.SameTree(doc["viz"], again["viz"]));
+        // The visualizer's scene is read now (phase 6): its room and haze kept, a camera it can't read left as it was.
+        Assert.Equal(("Club", 0.5), (again.Obj("viz").Str("room"), again.Obj("viz").Num("haze")));
+        Assert.Equal(6, again.Obj("viz").Arr("cam").Count);
         // Triggers are read now (phase 3), and saved whole.
         var trigger = again.Get("triggers").Arr("triggers")[0];
         Assert.Equal((3, 40, "action"), (trigger.Int("action"), trigger.Int("midi_number"), trigger.Str("fb_watch_key")));
