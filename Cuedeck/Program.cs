@@ -8,6 +8,11 @@ using Cuedeck.Rendering;
 using Cuedeck.Show;
 using Cuedeck.UI;
 using Cuedeck.UI.Console;
+using Cuedeck.UI.DjEdit;
+using Cuedeck.UI.Timeline;
+using Cuedeck.Audio;
+using Cuedeck.Music;
+using Cuedeck.Timelines;
 
 WindowsShell.AttachParentConsole();
 
@@ -105,9 +110,27 @@ static void Run(string[] args)
     var library = new LibraryDialog(ui, fonts, menu, bundled, new OnlineLibrary(bundled, Path.Combine(AppPaths.Folder, "fixture_online")));
     var editor = new ProfileEditor(ui, fonts, menu);
     var triggers = new TriggersDialog(ui, fonts, menu, show);
-    var options = new OptionsDialog(ui, fonts, menu, new AppSettings(AppSettings.DefaultPath));
+    var settings = new AppSettings(AppSettings.DefaultPath);
+    var options = new OptionsDialog(ui, fonts, menu, settings);
+    // DJ Edit Mode: the song timelines follow the show (the session points them at its folder), over the patch and
+    // its named positions.
+    var timelines = new SongTimelines
+    {
+        Fixtures = () => [.. show.Patch.All],
+        PositionIds = SongTimelines.PositionsFrom(show.Positions),
+    };
+    session.Timelines = timelines;
+    using var songPlayer = new SdlSongPlayer();
+    var timelineView = new TimelineView(fonts, menu, picker, timelines, songPlayer)
+    {
+        Positions = () => [.. show.Positions.Positions.Select(p => new PositionChoice(p.Id, p.Name, Colors.FromSrgb(p.Colour.R, p.Colour.G, p.Colour.B)))],
+        PlateColour = uid => show.Patch.FindByUid(uid) is { } f && ModelColours.Of(show.Patch).TryGetValue(f.Profile.FullName, out var c) ? c : null,
+    };
+    var djEdit = new DjEditView(fonts, images, menu, confirm, timelines, timelineView, new MusicBrowser(timelines, () => DjLibrary.Load(settings.DjSoftware)));
+    show.Patch.Changed += timelines.RefreshFixtures;
+    ui.PointerHooks.Add(timelineView);
     // Drawn in this order: the screen, then the dialogs over it, then the menu over everything.
-    var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), show, profiles));
+    var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), show, profiles, djEdit));
     ui.Add(editor);
     ui.Add(triggers);
     ui.Add(options);
@@ -147,6 +170,10 @@ static void Run(string[] args)
             return;
         var ctrl = (mods & GlfwModifier.Control) != 0;
         var shift = (mods & GlfwModifier.Shift) != 0;
+        // DJ Edit Mode's timeline has first say (Space plays its song there, rather than going the next cue).
+        var uiKey = GlfwUiInput.ToUiKey(key);
+        if (screen.View == AppView.DjEdit && djEdit.IsTimelineShown && uiKey != Key.Other && timelineView.KeyDown(uiKey, (Modifiers)((int)mods & 0xF)))
+            return;
         switch (key)
         {
             case GlfwKey.S when ctrl && shift:
@@ -244,6 +271,7 @@ static void Run(string[] args)
             window.Visible = windowShown = true;
     }
 
+    timelines.Flush(); // the open song's timelines
     shell.End();
     if (OperatingSystem.IsWindows())
         WindowChrome.Remove();

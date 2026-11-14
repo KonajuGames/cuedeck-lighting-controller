@@ -15,6 +15,15 @@ sealed record Fonts(Font Small, Font Body, Font Bold, Font Heading, Font Big);
 /// the bottom. Everything is sized to the window each frame, so set <see cref="ScreenSize"/> and call
 /// <see cref="Update"/> before laying out.
 /// </summary>
+/// <summary>
+/// What fills the screen below the top bar: the console, or DJ Edit Mode.
+/// </summary>
+enum AppView
+{
+    Console,
+    DjEdit,
+}
+
 sealed class MainScreen : Panel
 {
     const float STATUS_HEIGHT = 26;
@@ -27,12 +36,27 @@ sealed class MainScreen : Panel
     public TopBar TopBar { get; }
     public ConsoleView Console { get; }
 
-    public MainScreen(Fonts fonts, Images images, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
+    /// <summary>
+    /// DJ Edit Mode, if the app has it (tests of the console leave it out).
+    /// </summary>
+    public DjEdit.DjEditView? DjEdit { get; }
+
+    public AppView View { get; private set; } = AppView.Console;
+
+    public MainScreen(Fonts fonts, Images images, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles, DjEdit.DjEditView? djEdit = null)
     {
         Background = Theme.Background;
         TitleBar = Add(new TitleBar(fonts.Body, fonts.Bold, images));
         TopBar = Add(new TopBar(fonts, menu, show));
         Console = Add(new ConsoleView(fonts, menu, dialogs, show, profiles));
+        if (djEdit is not null)
+        {
+            DjEdit = Add(djEdit);
+            djEdit.Visible = false;
+            TopBar.HasDjEdit = true;
+            dialogs.Options.DjSoftwareChanged += _ => djEdit.ReloadLibrary();
+        }
+        TopBar.ViewChosen += SetView;
         _status = Add(new Label(fonts.Body, "") { Color = Theme.Muted });
         TopBar.Status += Log;
         TopBar.OpenTriggers += dialogs.Triggers.Show;
@@ -49,13 +73,36 @@ sealed class MainScreen : Panel
 
     public string StatusText => _status.Text;
 
+    /// <summary>
+    /// Shows the console or DJ Edit Mode. Leaving DJ Edit Mode pauses its song and saves its timelines; showing it
+    /// reads the DJ software's library the first time.
+    /// </summary>
+    public void SetView(AppView view)
+    {
+        if (view == AppView.DjEdit && DjEdit is null)
+            view = AppView.Console;
+        if (View == AppView.DjEdit && view != AppView.DjEdit)
+            DjEdit!.Timeline.Hidden();
+        View = view;
+        Console.Visible = view == AppView.Console;
+        if (DjEdit is not null)
+        {
+            DjEdit.Visible = view == AppView.DjEdit;
+            if (DjEdit.Visible)
+                DjEdit.EnsureLoaded();
+        }
+        TopBar.View = view;
+    }
+
     public void Update()
     {
         TitleBar.Width = ScreenSize.X;
         TitleBar.Update();
         TopBar.Width = ScreenSize.X - 2 * TopBar.Padding;
         TopBar.Update();
-        Console.Update();
+        if (Console.Visible)
+            Console.Update();
+        DjEdit?.Update();
         _status.MaxWidth = ScreenSize.X - 20;
     }
 
@@ -64,8 +111,15 @@ sealed class MainScreen : Panel
         TitleBar.Measure();
         TopBar.Measure();
         _status.Measure();
-        Console.Available = new float2(ScreenSize.X, MathF.Max(100, ScreenSize.Y - TitleBar.HEIGHT - TopBar.Size.Y - STATUS_HEIGHT));
-        Console.Measure();
+        var room = new float2(ScreenSize.X, MathF.Max(100, ScreenSize.Y - TitleBar.HEIGHT - TopBar.Size.Y - STATUS_HEIGHT));
+        Console.Available = room;
+        if (Console.Visible)
+            Console.Measure();
+        if (DjEdit is { Visible: true } dj)
+        {
+            dj.Available = room - new float2(16, 8);
+            dj.Measure();
+        }
         return Size = ScreenSize;
     }
 
@@ -74,7 +128,9 @@ sealed class MainScreen : Panel
         ArrangeSelf(position);
         TitleBar.Arrange(position);
         TopBar.Arrange(position + new float2(0, TitleBar.HEIGHT));
-        Console.Arrange(position + new float2(0, TitleBar.HEIGHT + TopBar.Size.Y));
+        if (Console.Visible)
+            Console.Arrange(position + new float2(0, TitleBar.HEIGHT + TopBar.Size.Y));
+        DjEdit?.Arrange(position + new float2(8, TitleBar.HEIGHT + TopBar.Size.Y + 6));
         _status.Arrange(position + new float2(10, ScreenSize.Y - STATUS_HEIGHT + MathF.Round((STATUS_HEIGHT - _status.Size.Y) / 2)));
     }
 

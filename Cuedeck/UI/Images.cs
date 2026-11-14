@@ -26,7 +26,8 @@ sealed record Images(
     Image Knob,
     Image LargeKnob,
     Image Dot,
-    Image Pause
+    Image Pause,
+    Image Timeline
 )
 {
     /// <summary>
@@ -49,8 +50,59 @@ sealed record Images(
             Knob: atlas.AddImage(Read("knob-18.png")),
             LargeKnob: atlas.AddImage(Read("knob-32.png")),
             Dot: atlas.AddImage(Read("dot-8.png")),
-            Pause: atlas.AddImage(Read("pause-14.png"))
+            Pause: atlas.AddImage(Read("pause-14.png")),
+            Timeline: atlas.AddImage(NodeLine())
         );
+
+    /// <summary>
+    /// The space after <see cref="Timeline"/>'s line, before the title it's put in front of.
+    /// </summary>
+    public const int TIMELINE_GAP = 4;
+
+    /// <summary>
+    /// DJ Edit Mode's "has lighting timelines" mark: a little dimmer node line, three segments with a dot at each node,
+    /// 16 x 12 pixels and a gap, white (tinted when drawn), drawn by coverage (4 x 4 samples a pixel) so it's smooth.
+    /// sLight's <c>timeline_icon()</c>.
+    /// </summary>
+    static Png.Image NodeLine()
+    {
+        const int W = 16;
+        const int H = 12;
+        (float X, float Y)[] pts = [(1.6f, 9.6f), (5.6f, 3.4f), (10.2f, 7.2f), (14.4f, 2.2f)];
+        static float Dist(float ax, float ay, float bx, float by) => MathF.Sqrt((ax - bx) * (ax - bx) + (ay - by) * (ay - by));
+        bool On(float qx, float qy)
+        {
+            foreach (var p in pts)
+                if (Dist(qx, qy, p.X, p.Y) <= 1.75f)
+                    return true;
+            for (var i = 0; i + 1 < pts.Length; i++)
+            {
+                var (a, b) = (pts[i], pts[i + 1]);
+                var (dx, dy) = (b.X - a.X, b.Y - a.Y);
+                var t = Math.Clamp(((qx - a.X) * dx + (qy - a.Y) * dy) / (dx * dx + dy * dy), 0, 1);
+                if (Dist(qx, qy, a.X + dx * t, a.Y + dy * t) <= 0.6f)
+                    return true;
+            }
+            return false;
+        }
+        var w = W + TIMELINE_GAP;
+        var px = new byte[w * H * 4];
+        for (var y = 0; y < H; y++)
+        {
+            for (var x = 0; x < W; x++)
+            {
+                var hit = 0;
+                for (var sy = 0; sy < 4; sy++)
+                    for (var sx = 0; sx < 4; sx++)
+                        if (On(x + (sx + 0.5f) / 4, y + (sy + 0.5f) / 4))
+                            hit++;
+                var at = (y * w + x) * 4;
+                px[at] = px[at + 1] = px[at + 2] = 255;
+                px[at + 3] = (byte)(255 * hit / 16);
+            }
+        }
+        return new Png.Image(w, H, px);
+    }
 
     /// <summary>
     /// A PNG built into the app, decoded. Throws if it's missing, which would mean a broken build.

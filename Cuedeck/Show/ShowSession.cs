@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Cuedeck.Common;
+using Cuedeck.Timelines;
 
 namespace Cuedeck.Show;
 
@@ -26,6 +27,13 @@ sealed class ShowSession
     public string Path { get; private set; } = "";
 
     public Autosave Autosave { get; } = new();
+
+    /// <summary>
+    /// DJ Edit Mode's song timelines, which follow the show: each show's are kept in a folder beside its file
+    /// ("&lt;show&gt;.timelines", or the one it names), copied there by Save As, saved with it, and swapped when another
+    /// is loaded. None for a show never saved.
+    /// </summary>
+    public SongTimelines? Timelines { get; set; }
 
     /// <summary>
     /// Where the current show file's path is kept between runs, so it's reopened at the next start.
@@ -65,6 +73,18 @@ sealed class ShowSession
     /// </summary>
     public string? Save(string path)
     {
+        if (Timelines is { } tl)
+        {
+            var dir = path == Path ? TimelinesFolderOf(path) : TimelineStore.FolderForShow(path);
+            if (tl.Store is null)
+                tl.SetTimelineStore(new TimelineStore(dir), reload: false);
+            else if (tl.Store.Dir != dir)
+            {
+                tl.SetTimelineStore(tl.Store.CopyTo(dir), reload: false);
+                Show.TimelinesFolder = null; // beside the new file, by its name
+            }
+            tl.Flush();
+        }
         if (ShowFile.Save(Show, path) is { } error)
             return error;
         Path = path;
@@ -79,9 +99,11 @@ sealed class ShowSession
     /// </summary>
     public string? Load(string path)
     {
+        Timelines?.Flush(); // the outgoing show's open song
         if (ShowFile.Load(Show, path, UsbAvailable) is { } error)
             return error;
         Path = path;
+        OpenTimelines();
         Remember(path);
         MarkSaved();
         return null;
@@ -92,9 +114,40 @@ sealed class ShowSession
     /// </summary>
     public void New()
     {
+        Timelines?.Flush();
         Show.NewShow();
         Path = "";
+        Timelines?.SetTimelineStore(null);
         MarkSaved();
+    }
+
+    /// <summary>
+    /// Points the timelines at the show file's folder: the one it names, else the default beside it; none for a show
+    /// never saved.
+    /// </summary>
+    void OpenTimelines()
+    {
+        if (Timelines is not { } tl)
+            return;
+        if (Path == "")
+        {
+            tl.SetTimelineStore(null);
+            return;
+        }
+        tl.SetTimelineStore(new TimelineStore(TimelinesFolderOf(Path)));
+    }
+
+    /// <summary>
+    /// The timelines folder of the show file at <paramref name="path"/>: the one the show names (beside it), else the
+    /// default.
+    /// </summary>
+    string TimelinesFolderOf(string path)
+    {
+        if (Show.TimelinesFolder is not { } named)
+            return TimelineStore.FolderForShow(path);
+        var p = path.Replace('\\', '/');
+        var slash = p.LastIndexOf('/');
+        return Gd.PathJoin(slash >= 0 ? p[..slash] : "", named);
     }
 
     /// <summary>
@@ -137,6 +190,7 @@ sealed class ShowSession
         Path = snapshot.Str("show_path", "");
         if (Path != "")
             Remember(Path);
+        OpenTimelines();
         return null;
     }
 }

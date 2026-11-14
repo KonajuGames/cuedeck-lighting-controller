@@ -167,6 +167,11 @@ sealed class GlfwUiInput : IDisposable
     // GLFW's Shift, Control, Alt and Super bits match Modifiers; Caps Lock and Num Lock are dropped.
     static Modifiers ToModifiers(GlfwModifier mods) => (Modifiers)((int)mods & 0xF);
 
+    /// <summary>
+    /// A GLFW key as the UI knows it (<see cref="Key.Other"/> for one it doesn't).
+    /// </summary>
+    public static Key ToUiKey(GlfwKey key) => ToKey(key);
+
     static Key ToKey(GlfwKey key) =>
         key switch
         {

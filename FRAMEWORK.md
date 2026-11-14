@@ -44,6 +44,10 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
   (`SecondaryClick(point, modifiers)`); the up-down, four-way and grabbing cursors (`Cursor.ResizeVertical`, `Move`,
   `Grab`), in `Input/GlfwUiInput.cs` too; and `Key.D`.
 - `UI/Theme.cs` (slice 4f): the song timeline's colours.
+- `UI/Images.cs` (slice 4g): `Timeline`, DJ Edit Mode's "has lighting timelines" mark, drawn when the app starts
+  rather than read from a PNG.
+- `UI/MainScreen.cs` and `UI/Console/TopBar.cs` (slice 4g): the View dropdown and DJ Edit Mode in place of the
+  console.
 
 ## Adapted
 

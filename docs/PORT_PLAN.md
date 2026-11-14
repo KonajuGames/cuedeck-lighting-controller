@@ -185,11 +185,18 @@ outwards, each slice's tests ported before its code.
 | 4d | The timeline generator (`Timelines/TimelineGenerator`, on Godot's random numbers in `Common/GodotRandom`), checked node for node against sLight's own shows, and regenerating a list of songs' timelines (`TimelineBatch`) | ✅ |
 | 4e | DJ Edit Mode's timelines without the screen (`Timelines/SongTimelines`, `MusicTimeline`'s engine half): the fixtures' tracks, selecting by row and time, Delete, Cut, Copy, Paste, dragging a selection and its edges, the rows' menus' edits, mute, solo and collapsing, saving as songs are left, undo and redo per song, the structure cache and its analysis, VirtualDJ's grid on it, Generate (into a selection too), Shift+Generate, and generating into songs not open (for `TimelineBatch` and DJ Perform Mode) | ✅ |
 | 4f | The timeline's screen (`UI/Timeline`): the waveform and overview (`WaveView`, `ViewBox`), the bar ruler, the structure bar and its edits (`StructureEdits`), the tracks with their name plates (`TrackView`, `NamePlate`), the pointer and keys onto `SongTimelines`, the context menus, middle-button panning, and playback (`Audio/SongPlayer`, `WaveformEnvelope`) | ✅ |
-| 4g | The music browser (drives, VirtualDJ lists, the Cuepoint library, Regenerate Lighting Timelines) and DJ Edit Mode's tab | next |
-| 4h | The position editor and list | |
+| 4g | The music browser (`Music/MusicBrowser`, `MusicFolders`, `DjLibrary`; `UI/DjEdit/DjEditView`): drives and folders, the DJ software's lists, the track list with its timelines marks, Regenerate and Remove Lighting Timelines; DJ Edit Mode on the top bar's View dropdown; each show's timelines folder following its file (`ShowSession`) | ✅ |
+| 4h | The position editor and list | next |
 
-**Where slice 4f differs from sLight:** the screen (`TimelineView`) isn't on a tab yet: DJ Edit Mode's tab comes
-with the browser in 4g, so it hasn't been looked at in the running app, and `SdlSongPlayer` (SDL_mixer on the default
+**Where slice 4g differs from sLight:** the Positions section of the left column (and its editor) comes in 4h; until
+then Generate uses the show's named positions as they are (making a "Centre" one when there are none, as sLight did).
+The track list sorts by sLight's columns but doesn't let a column be hidden, and selects whole rows already (sLight
+had to make Godot's cell selection whole). Copy Path and Show in File Explorer go through the app's clipboard and
+Explorer. sLight's own test of real VirtualDJ lists on its machine isn't ported; the tests stand in a library. Tried
+in the running app: a real MP3 decoded and its waveform drawn (the first real MP3 since 4c), its structure analysed,
+playback moving the playhead through SDL_mixer (not listened to), and Generate filling the master's rows.
+
+**Where slice 4f differs from sLight:** the screen (`TimelineView`) only went on show with the browser in 4g, and `SdlSongPlayer` (SDL_mixer on the default
 output device) hasn't played through real speakers; the tests play on a fake clock (`FakePlayer`). A song is
 decoded once, for both its waveform (`WaveformEnvelope`, sLight's native `waveform_file`, ported) and playback; sLight
 read the waveform natively and decoded M4A again for playback. Its structure is still analysed from the file

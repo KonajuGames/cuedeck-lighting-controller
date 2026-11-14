@@ -14,6 +14,7 @@ sealed class TopBar : Panel
     readonly Slider _master;
     readonly Label _masterValue;
     readonly Dropdown<RunMode> _runMode;
+    readonly Dropdown<AppView> _view;
     readonly Label _tempo;
     readonly Button _tempoStop;
     readonly Button _sending;
@@ -43,6 +44,21 @@ sealed class TopBar : Panel
     public event Action? RemoveUniverse;
     public event Action<string>? Status;
 
+    /// <summary>
+    /// The View dropdown chose the console or DJ Edit Mode.
+    /// </summary>
+    public event Action<AppView>? ViewChosen;
+
+    /// <summary>
+    /// The view showing, for the View dropdown.
+    /// </summary>
+    public AppView View { get; set; } = AppView.Console;
+
+    /// <summary>
+    /// Whether DJ Edit Mode is there to choose.
+    /// </summary>
+    public bool HasDjEdit { get; set; }
+
     public float Width
     {
         get => _top.Width;
@@ -57,6 +73,18 @@ sealed class TopBar : Panel
         Background = Theme.Background;
 
         _top = Add(new Flow(8));
+        _top.Add(new Label(fonts.Body, "View:") { Color = Theme.Muted });
+        _view = _top.Add(
+            new Dropdown<AppView>(fonts.Body)
+            {
+                Menu = menu,
+                Width = 140,
+                Items = () => HasDjEdit ? [AppView.Console, AppView.DjEdit] : [AppView.Console],
+                Text = v => v == AppView.DjEdit ? "DJ Edit Mode" : "Console",
+            }
+        );
+        _view.Chosen += v => ViewChosen?.Invoke(v);
+        _top.Add(new Spacer(8));
         _top.Add(new Label(fonts.Body, "Grand Master:") { Color = Theme.Muted });
         _master = _top.Add(new Slider { Min = 0, Max = 1, Length = 150, DefaultValue = 1, ShowFill = true, Value = 1 });
         _master.Changed += s => show.Dmx.Master = s.Value;
@@ -118,6 +146,7 @@ sealed class TopBar : Panel
             _master.Value = (float)_show.Dmx.Master;
         _masterValue.Text = $"{Math.Round(_show.Dmx.Master * 100).ToString(CultureInfo.InvariantCulture)}%";
         _runMode.Selected = _show.RunMode;
+        _view.Selected = View;
         _tempo.Text = _show.Tempo.Describe();
         _tempo.Color = Theme.Mix(Theme.Text, Theme.Accent, (float)_show.Tempo.BeatPulse);
         _tempoStop.Visible = _show.Tempo.Running;

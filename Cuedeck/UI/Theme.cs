@@ -105,6 +105,13 @@ static class Theme
     public static readonly float4 PlateSoloOn = Colors.Hex(0xF2D940);
     public static readonly float4 PlateButtonTextOn = Colors.Hex(0x14141A);
 
+    // DJ Edit Mode's music browser: a missing file's row, the "has timelines" mark (orange for temporary ones), and a
+    // song's regeneration's progress behind its row.
+    public static readonly float4 MusicMissing = Colors.Hex(0xFF8080);
+    public static readonly float4 TimelineMark = Colors.Hex(0x73B8F2);
+    public static readonly float4 TemporaryMark = Colors.Hex(0xFA9E40);
+    public static readonly float4 RegenerateProgress = Colors.Hex(0x73B8F2, 0.28f);
+
     /// <summary>
     /// Each kind of section's colour in sRGB (the structure bar lightens it by the section's energy), as sLight's.
     /// </summary>

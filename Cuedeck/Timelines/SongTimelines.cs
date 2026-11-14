@@ -2159,6 +2159,19 @@ sealed class SongTimelines : ISongTimelines
     }
 
     /// <summary>
+    /// The show's named positions as Generate takes them, each with how widely it spreads the beams. Movement needs a
+    /// position to move around: with none named yet, a "Centre" one is made (no points of its own: every fixture
+    /// centred).
+    /// </summary>
+    public static Func<IReadOnlyList<GeneratorPosition>> PositionsFrom(PositionLibrary library) =>
+        () =>
+        {
+            if (library.Positions.Count == 0)
+                library.Rename(library.Add().Id, "Centre");
+            return [.. library.Positions.Select(p => new GeneratorPosition(p.Id, Spread(p.Points.Values)))];
+        };
+
+    /// <summary>
     /// How far apart a position's points are: their mean distance from their middle (0 with fewer than two).
     /// </summary>
     public static double Spread(IReadOnlyCollection<Vector2> points)
