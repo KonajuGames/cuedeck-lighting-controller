@@ -104,7 +104,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 | 2 | ✅ **Console UI** (done 2026-11-13; see §7.2). Shell (top bar, grand master, run mode, Sending, universes, save/load), Patch/universe tabs with the fixture library dialog, then Cues, Chases, Effects, Groups, Faders/fader bank, Palettes and DMX Output. New widgets from §3 as each tab needs them. | Every console tab works for the sLight User Guide walkthrough. |
 | 3 | ✅ **Sound and triggers** (built 2026-11-13, see §7.3; not yet tried with a real line-in or controller). Live capture, sound reactors and the Sound tab with spectrogram. MIDI/OSC triggers with Learn and feedback (WinMidi out). Options dialog (VirtualDJ or Cuepoint). | Beat-reactive chases run from line-in; a controller's LEDs follow. |
 | 4 | ✅ **DJ Edit Mode** (done 2026-11-14; see §7.4). Music browser (drives, VirtualDJ lists, Cuepoint library), song analysis, the structure bar, heatmap and timeline editor, timeline generator, timeline store and the position editor. Port `music_*`, `timeline_*`, `structure_detection`, `virtualdj_*`, `cuepoint_library` and `m4a_playback` tests. | Generate → edit → save a song's timelines, and the files load in sLight too. |
-| 5 | **DJ Perform Mode.** OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
+| 5 | 🔶 **DJ Perform Mode** (in progress; see §7.5). OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
 | 6 | **Visualizer.** §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
 | 7 | **Native extras and polish.** USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
 
@@ -247,6 +247,22 @@ the browser in 4g.
 **Where slice 4b differs from sLight:** `TimelineTrack` is the data alone; sLight's was a Godot control that drew itself and took the mouse. Its edits take times and levels rather than pixels (the screen in 4e turns one into the other), and most of `timeline_track_test.gd`, which drives the timeline's screen, comes over with it. So does the half of `timeline_store_test.gd` that saves as songs are opened and left.
 
 **Where slice 4a differs from sLight:** sLight's tests also loaded the VirtualDJ and Cuepoint libraries on the machine running them, as a check; those parts aren't ported, as Cuedeck's tests don't depend on what's installed.
+
+### 7.5 Phase 5 progress
+
+| Slice | What | State |
+|---|---|---|
+| 5a | The OS2L server (`Os2l/Os2lServer`): JSON objects back to back over TCP, split on bytes with braces and quotes in strings handled; beat, button and command events, VirtualDJ's subscribed values (kept, raised only when they change), feedback sent back; and mDNS advertising (`_os2l._tcp`) through Windows' own DNS-SD responder (`Os2l/MdnsAdvertiser`, dnsapi.dll), a loopback-only listener not advertised | ✅ |
+| 5b | The DJ performer (`dj_performer.gd`): following the decks from OS2L, mixing their songs' timelines into the rig by crossfader and level, and DJ Edit Mode's playback through it (`song_output`) | next |
+| 5c | The perform panel and the "DJ Perform Mode" view, and trying it live against Cuepoint and VirtualDJ | |
+
+**Where slice 5a differs from sLight:** the server is polled by whoever owns it, raising C# events where sLight's
+node emitted signals from `_process()`. Advertising goes straight to dnsapi.dll from C#, where sLight needed its native
+extension built (so "native extension not built" can't happen); the macOS and Linux responders it also had aren't
+ported, so there it reports no DNS-SD service and points at VirtualDJ's `os2lDirectIp`. A client that sends 1 MiB
+without finishing a message is dropped. The tests advertise through a fake responder on a loopback listener, so they
+don't touch the network or bring up the firewall's prompt; the real registration was checked once by hand, Cuepoint's
+own mDNS browser finding it on the right port and stopping withdrawing it.
 
 Phases 1 and 2 are the critical path; 3–5 can then go in any order, and 6 can start alongside them once phase 1's `DmxRender` exists.
 
