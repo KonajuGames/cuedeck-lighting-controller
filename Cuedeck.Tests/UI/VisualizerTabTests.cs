@@ -117,6 +117,14 @@ public sealed class VisualizerTabTests : ConsoleHarness
         TypeInto(_viz.SizeBox, "2");
         Assert.Equal(2, prop.Scale, 6);
 
+        // MVR import and export say how they went on the status line.
+        _viz.ImportMvr = () => "Imported 2 fixtures, 0 trusses from rig.mvr";
+        Click(Find<Button>(b => b.Text == "Import MVR…"));
+        Assert.Equal("Imported 2 fixtures, 0 trusses from rig.mvr", Screen.StatusText);
+        _viz.ExportMvr = () => ""; // cancelled: nothing said
+        Click(Find<Button>(b => b.Text == "Export MVR…"));
+        Assert.Equal("Imported 2 fixtures, 0 trusses from rig.mvr", Screen.StatusText);
+
         Choose(Find<Dropdown<string>>(d => d.Selected == "Black Box"), "Club");
         Assert.Equal("Club", Scene.Room.Name);
         Choose(Find<Dropdown<int>>(_ => true), "Top");

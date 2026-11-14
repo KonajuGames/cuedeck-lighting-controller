@@ -68,6 +68,11 @@ sealed class ConsoleView : Region
         Palettes = new PalettesTab(fonts, menu, dialogs, show);
         _right.AddTab("Palettes", new ScrollingPage(Palettes));
         Palettes.Status += m => Status?.Invoke(m);
+        Visualizer.Status += m =>
+        {
+            if (m != "")
+                Status?.Invoke(m);
+        };
     }
 
     public void Update()

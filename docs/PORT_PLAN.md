@@ -106,7 +106,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 | 4 | ✅ **DJ Edit Mode** (done 2026-11-14; see §7.4). Music browser (drives, VirtualDJ lists, Cuepoint library), song analysis, the structure bar, heatmap and timeline editor, timeline generator, timeline store and the position editor. Port `music_*`, `timeline_*`, `structure_detection`, `virtualdj_*`, `cuepoint_library` and `m4a_playback` tests. | Generate → edit → save a song's timelines, and the files load in sLight too. |
 | 5 | 🔶 **DJ Perform Mode** (built 2026-11-14 and tried with Cuepoint; VirtualDJ still to try; see §7.5). OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
 | 6 | ✅ **Visualizer** (done 2026-11-14; see §7.6). §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
-| 7 | **Native extras and polish.** USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
+| 7 | 🔶 **Native extras and polish** (in progress; see §7.7). USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
 
 ### 7.1 Phase 1 as built
 
@@ -333,6 +333,23 @@ is kept (and saved again) rather than dropped on load, and a new or loaded show 
 its `viz` is read, where sLight kept the last show's room and camera for anything a file left out. sLight's
 `visualizer_undo_test.gd` is ported but for its Ctrl+Z / Ctrl+Y and Enter-in-a-field checks, which come with the
 screen in 6b. The golden scenario now carries a full `viz`, and sLight, reading it, plays the same frames.
+
+### 7.7 Phase 7 progress
+
+sLight has no tests of its own for these, so each slice's are new, written from its code.
+
+| Slice | What | State |
+|---|---|---|
+| 7a | MVR (My Virtual Rig) import and export (`Fixtures/Mvr`): a rig's fixtures read from its scene description with their GDTFs, addresses and places, its trusses as the visualizer's; and the patch written out as a scene description with a GDTF made for each profile; from the visualizer's toolbar | ✅ |
+| 7b | The visualizer's extras: anti-aliasing, Screenshot, recording to MP4 (Media Foundation's sink writer), the pop-out window, and shadows for the beams | next |
+| 7c | USB DMX: Enttec Open DMX and DMX USB Pro (FTDI's D2XX, P/Invoked), a universe's USB output | |
+| 7d | Remembered folders for every file dialog (sLight's `RecentDirs`), and what else the feature check turns up | |
+| 7e | The README and user guide rewritten for Cuedeck, with new screenshots (a capture tool), and sLight's feature list ticked off | |
+
+**Where slice 7a differs from sLight:** none in what's read and written. A fixture's GDTF is read straight from the
+archive rather than through a temporary file, and a GDTF reader for streams (`FixtureImport.FromGdtf`) came with it.
+Checked: an MVR exported by Cuedeck, read by sLight's own `MvrIO` in headless Godot, gives back both fixtures, their
+universes, channels, modes, places, headings and channel roles.
 
 Phases 1 and 2 are the critical path; 3–5 can then go in any order, and 6 can start alongside them once phase 1's `DmxRender` exists.
 

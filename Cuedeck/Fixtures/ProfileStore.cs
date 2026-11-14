@@ -179,6 +179,18 @@ sealed class ProfileStore
     }
 
     /// <summary>
+    /// Keeps a profile read from elsewhere (an MVR's GDTF) as a custom profile, under an id of its own if its own's
+    /// taken, with its 3D models beside it.
+    /// </summary>
+    public void AddImported(FixtureProfile profile, IReadOnlyDictionary<string, byte[]> models)
+    {
+        if (IdInUse(profile.Id))
+            profile.Id = UniqueId(SafeId(profile.Id));
+        SaveModels(profile, models);
+        Save(profile);
+    }
+
+    /// <summary>
     /// Writes a GDTF's model files into the profile's own models folder, and notes them in its geometry.
     /// </summary>
     void SaveModels(FixtureProfile profile, IReadOnlyDictionary<string, byte[]> models)

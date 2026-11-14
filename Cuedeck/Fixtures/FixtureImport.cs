@@ -176,10 +176,26 @@ static class FixtureImport
 
     static ImportResult FromGdtfPath(string path)
     {
+        try
+        {
+            using var file = File.OpenRead(path);
+            return FromGdtf(file);
+        }
+        catch (IOException)
+        {
+            return ImportResult.Fail("Can't open .gdtf (not a ZIP archive?).");
+        }
+    }
+
+    /// <summary>
+    /// Reads a .gdtf from a stream (one inside an MVR, say).
+    /// </summary>
+    public static ImportResult FromGdtf(Stream stream)
+    {
         ZipArchive zip;
         try
         {
-            zip = ZipFile.OpenRead(path);
+            zip = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
         }
         catch (Exception e) when (e is InvalidDataException or IOException)
         {

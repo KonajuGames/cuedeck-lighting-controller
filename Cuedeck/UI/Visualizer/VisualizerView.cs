@@ -15,7 +15,7 @@ namespace Cuedeck.UI.Visualizer;
 /// and played live from each universe's output. Drag on nothing to orbit, Shift-drag or middle-drag to slide, the
 /// wheel to move in and out; press on a fixture, truss or set piece to select it and drag it on the floor, or type
 /// its position and turn below. Over it, the toolbar (haze, work light, shadows and room; the camera's views, field
-/// of view and Ortho; Undo, Redo, Add Truss, Load Model… and Auto-arrange) and Hide UI. sLight's <c>VisualizerPanel</c>; its
+/// of view and Ortho; Undo, Redo, Add Truss, Load Model…, Auto-arrange, and MVR import and export) and Hide UI. sLight's <c>VisualizerPanel</c>; its
 /// scene is <see cref="VizScene"/>.
 /// </summary>
 sealed class VisualizerView : Region, IScene3DSource, IPointerHook
@@ -134,6 +134,18 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
         };
         var arrange = scene.Add(new Button(fonts.Body, "Auto-arrange") { Padding = 4, Tooltip = "Every fixture back in rows over the stage, pointing down" });
         arrange.Clicked += _ => Scene.AutoArrange();
+        var importMvr = scene.Add(new Button(fonts.Body, "Import MVR…") { Padding = 4, Tooltip = "Patch a rig from a My Virtual Rig file: its fixtures' GDTFs, addresses and places, and its trusses" });
+        importMvr.Clicked += _ =>
+        {
+            if (ImportMvr is { } import)
+                Status?.Invoke(import());
+        };
+        var exportMvr = scene.Add(new Button(fonts.Body, "Export MVR…") { Padding = 4, Tooltip = "Save the patch as a My Virtual Rig file, with a GDTF for each fixture type" });
+        exportMvr.Clicked += _ =>
+        {
+            if (ExportMvr is { } export)
+                Status?.Invoke(export());
+        };
 
         // ---- the selected item's properties.
         _props = Add(new Panel { Padding = 8, Spacing = 6, Background = OverlayBackground });
@@ -180,6 +192,21 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
     /// The root it's in, to let go of the keyboard (set by whoever adds it).
     /// </summary>
     public Root? Root { get; set; }
+
+    /// <summary>
+    /// Asks for an MVR and imports it, returning what to say ("" when none was chosen); null when there's no way to.
+    /// </summary>
+    public Func<string>? ImportMvr { get; set; }
+
+    /// <summary>
+    /// Asks where to export an MVR and does, returning what to say ("" when cancelled).
+    /// </summary>
+    public Func<string>? ExportMvr { get; set; }
+
+    /// <summary>
+    /// Something for the status line.
+    /// </summary>
+    public event Action<string>? Status;
 
     /// <summary>
     /// Asks for a glTF model file to place; null when none's chosen.

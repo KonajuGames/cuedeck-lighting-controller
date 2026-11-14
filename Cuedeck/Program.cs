@@ -181,6 +181,15 @@ static void Run(string[] args)
     var shell = new AppShell(session, screen, confirm, () => OperatingSystem.IsWindows() ? WindowChrome.Handle : 0);
     screen.Console.Visualizer.AskForModel = () =>
         WindowsShell.AskForFile(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Load glTF Model (set piece / stage element)", ("glTF model", "*.glb;*.gltf"));
+    // MVR import and export, from the visualizer's toolbar (they change the patch and keep profiles).
+    screen.Console.Visualizer.ImportMvr = () =>
+        WindowsShell.AskForFile(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Import MVR (My Virtual Rig)", ("My Virtual Rig", "*.mvr")) is { } mvr
+            ? Mvr.Apply(Mvr.Import(mvr), show, profiles, Path.GetFileName(mvr))
+            : "";
+    screen.Console.Visualizer.ExportMvr = () =>
+        WindowsShell.AskWhereToSave(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Export MVR (My Virtual Rig)", [("My Virtual Rig", "*.mvr")], "rig.mvr") is { } where
+            ? Mvr.Export(where.Path, show)
+            : "";
     screen.Console.Patch.AskForFixtureFile = () =>
         WindowsShell.AskForFile(
             OperatingSystem.IsWindows() ? WindowChrome.Handle : 0,
