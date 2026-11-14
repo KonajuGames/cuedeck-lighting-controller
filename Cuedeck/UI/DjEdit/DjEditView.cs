@@ -71,10 +71,22 @@ sealed class DjEditView : Region
     readonly ListHeader<MusicRow> _header;
     readonly ScrollPanel _listScroll;
     readonly Dictionary<MusicColumn, ListColumn<MusicRow>> _columns = [];
+    readonly Label _positionsHead;
+    readonly Button _addPosition;
+    readonly ScrollPanel _positionsScroll;
     MusicRow? _openRow;
     bool _treeBuilt;
 
-    public DjEditView(Fonts fonts, Images images, ContextMenu menu, ConfirmDialog confirm, SongTimelines timelines, TimelineView timeline, MusicBrowser browser)
+    public DjEditView(
+        Fonts fonts,
+        Images images,
+        ContextMenu menu,
+        ConfirmDialog confirm,
+        SongTimelines timelines,
+        TimelineView timeline,
+        MusicBrowser browser,
+        PositionEditor editor
+    )
     {
         _fonts = fonts;
         _images = images;
@@ -117,6 +129,25 @@ sealed class DjEditView : Region
         _songRow = Add(new Button(fonts.Body, "No song open") { TextIndent = images.Timeline.Size.X + 2 });
         _songRow.Clicked += _ => ShowTimeline();
 
+        // The named positions, under their header, its "+" adding one.
+        Editor = editor;
+        Positions = editor.Library;
+        _positionsHead = Add(new Label(fonts.Bold, "Positions") { Color = Theme.Text });
+        _addPosition = Add(new Button(fonts.Bold, "+") { Padding = 2, MinSize = new float2(26, 0), Tooltip = "Add a new position" });
+        _addPosition.Clicked += _ => AddPosition();
+        _positionsScroll = Add(new ScrollPanel { Background = Theme.Well });
+        PositionList = new PositionList(fonts.Body, Positions);
+        _positionsScroll.Add(PositionList);
+        PositionList.Picked += OpenPosition;
+        PositionList.DeleteRequested += ConfirmDeletePosition;
+        PositionList.ContextRequested += (id, at) => _menu.Show(at, PositionMenu(id));
+        Positions.Changed += () =>
+        {
+            // Its position gone (deleted, another show loaded): back to the list.
+            if (IsPositionShown && Positions.Find(Editor.PositionId) is null)
+                ShowTrackList();
+        };
+
         _heading = Add(new Label(fonts.Bold, "") { Color = Theme.Text });
         List = new ListView<MusicRow>(fonts.Body) { EmptyText = "No music here", TextColor = Theme.Text };
         AddColumns();
@@ -135,6 +166,8 @@ sealed class DjEditView : Region
         List.ProgressColor = Theme.RegenerateProgress;
         Add(timeline);
         timeline.Visible = false;
+        Add(editor);
+        editor.Visible = false;
 
         browser.RowsChanged += () =>
         {
@@ -162,6 +195,16 @@ sealed class DjEditView : Region
     public Button SongRow => _songRow;
 
     public bool IsTimelineShown => Timeline.Visible;
+
+    public PositionEditor Editor { get; }
+    public Show.PositionLibrary Positions { get; }
+    public PositionList PositionList { get; }
+    public Button AddPositionButton => _addPosition;
+
+    /// <summary>
+    /// Whether a position's open in the editor (rather than the list or a timeline).
+    /// </summary>
+    public bool IsPositionShown => Editor.Visible;
 
     void AddColumns()
     {
@@ -221,8 +264,8 @@ sealed class DjEditView : Region
             Group(list.Group).Items.Add(new FolderNode(list.Name) { Kind = FolderNode.Kinds.List, Path = list.Path, List = list });
         roots.Add(lists);
         Tree.Roots = roots;
-        if (!IsTimelineShown)
-            ShowTrackList(); // the heading names the DJ software now it's known
+        if (!IsTimelineShown && !IsPositionShown)
+            _heading.Text = ListHeading(); // it names the DJ software now that's known
     }
 
     /// <summary>
@@ -288,8 +331,17 @@ sealed class DjEditView : Region
 
     void ShowTimelineView()
     {
+        CloseEditor();
         Timeline.Visible = true;
+        _heading.Visible = true;
         _heading.Text = _openRow?.Heading ?? "";
+    }
+
+    void CloseEditor()
+    {
+        Editor.Visible = false;
+        Editor.Showing = false;
+        PositionList.SelectedId = "";
     }
 
     /// <summary>
@@ -300,8 +352,80 @@ sealed class DjEditView : Region
         if (Timeline.Visible)
             Timeline.Pause();
         Timeline.Visible = false;
-        _heading.Text = Browser.ListHeading != "" ? Browser.ListHeading : $"Select a folder or a {(Browser.IsLoaded ? Browser.Library.SoftwareName : "DJ software")} list.";
+        CloseEditor();
+        _heading.Visible = true;
+        _heading.Text = ListHeading();
     }
+
+    /// <summary>
+    /// The view's been hidden (another view chosen): its song pauses and is saved, and the editor's fixtures are put
+    /// back.
+    /// </summary>
+    public void Hidden()
+    {
+        Timeline.Hidden();
+        Editor.Showing = false;
+    }
+
+    // ------------------------------------------------------------ positions --
+
+    /// <summary>
+    /// Opens position <paramref name="id"/> in the editor, in place of the list or timeline, selected in the list.
+    /// </summary>
+    public void OpenPosition(string id)
+    {
+        if (Timeline.Visible)
+            Timeline.Pause();
+        Timeline.Visible = false;
+        _heading.Visible = false; // the editor has its name
+        Editor.Visible = true;
+        Editor.Open(id);
+        Editor.Showing = Visible;
+        PositionList.SelectedId = id;
+    }
+
+    /// <summary>
+    /// The Positions header's "+": adds one, and opens it.
+    /// </summary>
+    public void AddPosition() => OpenPosition(Positions.Add().Id);
+
+    /// <summary>
+    /// A position's right-click menu: Rename (opens it, its name selected to type over), Duplicate (a copy after it,
+    /// opened) and Delete… (asks first).
+    /// </summary>
+    public List<MenuItem> PositionMenu(string id) =>
+        [
+            new("Rename", () =>
+            {
+                OpenPosition(id);
+                if (Root is { } root)
+                    Editor.FocusName(root);
+            }),
+            new("Duplicate", () =>
+            {
+                if (Positions.Duplicate(id) is { } copy)
+                    OpenPosition(copy.Id);
+            }),
+            new("Delete…", () => ConfirmDeletePosition(id)),
+        ];
+
+    /// <summary>
+    /// The root the view's in, for focusing the name (set by whoever adds it).
+    /// </summary>
+    public Root? Root { get; set; }
+
+    /// <summary>
+    /// Asks, then deletes a named position.
+    /// </summary>
+    public void ConfirmDeletePosition(string id)
+    {
+        if (Positions.Find(id) is not { } p)
+            return;
+        _confirm.Show("Delete Position", $"Delete the position \"{p.Name}\"?", "Delete", () => Positions.Remove(id));
+    }
+
+    string ListHeading() =>
+        Browser.ListHeading != "" ? Browser.ListHeading : $"Select a folder or a {(Browser.IsLoaded ? Browser.Library.SoftwareName : "DJ software")} list.";
 
     // ------------------------------------------------------------ track menu --
 
@@ -367,6 +491,7 @@ sealed class DjEditView : Region
         _songRow.Tooltip = open ? _openRow!.Heading : "Double-click a song in the list to open its timeline";
         _songRow.Enabled = open;
         _songRow.Lit = open && Timeline.Visible;
+        Editor.Showing = Visible && Editor.Visible;
         _songMark = temporary ? Theme.TemporaryMark : Theme.TimelineMark;
     }
 
@@ -381,7 +506,17 @@ sealed class DjEditView : Region
         _timelineHead.Measure();
         _songRow.MinSize = new float2(LEFT_WIDTH, 0);
         _songRow.Measure();
-        var treeH = Math.Max(h - _foldersHead.Size.Y - _timelineHead.Size.Y - _songRow.Size.Y - 3 * 4 - GAP, 60);
+        _positionsHead.Measure();
+        _addPosition.Measure();
+        // The folders take three quarters of what's left, the positions the rest (at least 110).
+        var room = Math.Max(h - _foldersHead.Size.Y - _timelineHead.Size.Y - _songRow.Size.Y - _positionsHead.Size.Y - 4 * 4 - 2 * GAP, 170);
+        var posH = Math.Max(room / 4, 110);
+        var treeH = Math.Max(room - posH, 60);
+        PositionList.Width = LEFT_WIDTH - 2;
+        _positionsScroll.MinSize = new float2(LEFT_WIDTH, posH);
+        _positionsScroll.MaxWidth = LEFT_WIDTH;
+        _positionsScroll.MaxHeight = posH;
+        _positionsScroll.Measure();
         _treeScroll.MinSize = new float2(LEFT_WIDTH, treeH);
         _treeScroll.MaxWidth = LEFT_WIDTH;
         _treeScroll.MaxHeight = treeH;
@@ -392,6 +527,8 @@ sealed class DjEditView : Region
         var below = h - _heading.Size.Y - 6;
         Timeline.Available = new float2(rightW, below);
         Timeline.Measure();
+        Editor.Available = new float2(rightW, h);
+        Editor.Measure();
         // The title column takes what the others leave.
         var others = List.Columns.Where(c => c != _columns[MusicColumn.Title]).Sum(c => c.Width);
         _columns[MusicColumn.Title].Width = Math.Max(160, rightW - others - _listScroll.ScrollbarHitWidth - 2);
@@ -401,7 +538,7 @@ sealed class DjEditView : Region
         _listScroll.MaxWidth = rightW;
         _listScroll.MaxHeight = listH;
         _listScroll.Measure();
-        _header.Visible = _listScroll.Visible = !Timeline.Visible;
+        _header.Visible = _listScroll.Visible = !Timeline.Visible && !Editor.Visible;
     }
 
     public override void Arrange(float2 position)
@@ -415,10 +552,16 @@ sealed class DjEditView : Region
         _timelineHead.Arrange(new float2(position.X, y));
         y += _timelineHead.Size.Y + 4;
         _songRow.Arrange(new float2(position.X, y));
+        y += _songRow.Size.Y + GAP;
+        _positionsHead.Arrange(new float2(position.X, y));
+        _addPosition.Arrange(new float2(position.X + LEFT_WIDTH - _addPosition.Size.X, y - 2));
+        y += _positionsHead.Size.Y + 4;
+        _positionsScroll.Arrange(new float2(position.X, y));
         var x = position.X + LEFT_WIDTH + GAP;
         _heading.Arrange(new float2(x, position.Y));
         var top = position.Y + _heading.Size.Y + 6;
         Timeline.Arrange(new float2(x, top));
+        Editor.Arrange(new float2(x, position.Y));
         _header.Arrange(new float2(x - _listScroll.ScrollOffset.X, top));
         _listScroll.Arrange(new float2(x, top + _header.Size.Y));
     }

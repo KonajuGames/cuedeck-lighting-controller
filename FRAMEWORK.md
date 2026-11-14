@@ -46,6 +46,8 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 - `UI/Theme.cs` (slice 4f): the song timeline's colours.
 - `UI/Images.cs` (slice 4g): `Timeline`, DJ Edit Mode's "has lighting timelines" mark, drawn when the app starts
   rather than read from a PNG.
+- `UI/ListView.cs` (slice 4h): `SelectItems`, to select several rows from code.
+- `UI/FontAtlas.cs` (slice 4h): the up and down arrows baked too.
 - `UI/MainScreen.cs` and `UI/Console/TopBar.cs` (slice 4g): the View dropdown and DJ Edit Mode in place of the
   console.
 

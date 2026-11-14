@@ -82,7 +82,7 @@ sealed class MainScreen : Panel
         if (view == AppView.DjEdit && DjEdit is null)
             view = AppView.Console;
         if (View == AppView.DjEdit && view != AppView.DjEdit)
-            DjEdit!.Timeline.Hidden();
+            DjEdit!.Hidden();
         View = view;
         Console.Visible = view == AppView.Console;
         if (DjEdit is not null)

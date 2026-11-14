@@ -108,7 +108,7 @@ sealed unsafe class FontAtlas
         0x2018, 0x2019, 0x201C, 0x201D, // curly quotes
         0x2022, // bullet
         0x2026, // ellipsis
-        0x2190, 0x2192, // left and right arrows
+        0x2190, 0x2191, 0x2192, 0x2193, // the arrows (up for the position pad's Tilt)
         0x2212, // minus
         0x25A0, // black square
         0x25B2, 0x25BA, 0x25BC, 0x25C4, // triangles pointing up, right, down and left

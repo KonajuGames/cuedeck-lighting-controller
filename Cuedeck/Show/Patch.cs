@@ -234,6 +234,7 @@ sealed class Patch
     /// </summary>
     public void Remove(PatchedFixture fixture)
     {
+        SetHighlight(fixture, false);
         if (!_universes[fixture.Universe].Fixtures.Remove(fixture))
             return;
         _dmx.Universes[fixture.Universe].RemoveVirtualDimmer(fixture.Id);
@@ -341,6 +342,112 @@ sealed class Patch
         var universe = _dmx.Universes[fixture.Universe];
         foreach (var (c, v) in saved)
             universe.SetChannel(c, v);
+    }
+
+    // ------------------------------------------------------------ highlight --
+
+    /// <summary>
+    /// Fixtures lit full white to find them (the Positions editor's selection): what each channel had, and its
+    /// virtual dimmer's level.
+    /// </summary>
+    readonly Dictionary<PatchedFixture, (Dictionary<int, int> Channels, double VirtualDimmer)> _highlighted = new(ReferenceEqualityComparer.Instance);
+
+    public bool IsHighlighted(PatchedFixture fixture) => _highlighted.ContainsKey(fixture);
+
+    /// <summary>
+    /// Lights <paramref name="fixture"/> full white to find it, as Flash does, with its shutter open and its virtual
+    /// dimmer full; or (<paramref name="on"/> false) puts back exactly what it had, every channel, so an
+    /// <see cref="Aim"/> is undone too. A show saved meanwhile keeps its real levels (<see cref="LiveToJson"/>).
+    /// </summary>
+    public void SetHighlight(PatchedFixture fixture, bool on)
+    {
+        if (on == _highlighted.ContainsKey(fixture))
+            return;
+        var u = _dmx.Universes[fixture.Universe];
+        if (!on)
+        {
+            var (channels, vdim) = _highlighted[fixture];
+            _highlighted.Remove(fixture);
+            foreach (var (c, v) in channels)
+                u.SetChannel(c, v);
+            if (u.HasVirtualDimmer(fixture.Id))
+                u.SetVirtualDimmerLevel(fixture.Id, vdim);
+            return;
+        }
+        var chans = fixture.Channels;
+        var targets = FlashTargets(chans);
+        for (var k = 0; k < chans.Count; k++)
+            if (chans[k].Role == Roles.Strobe)
+                targets[k] = OpenShutterValue(chans[k]);
+        var saved = new Dictionary<int, int>();
+        for (var k = 0; k < chans.Count; k++)
+            saved[fixture.Start + k] = u.GetChannel(fixture.Start + k);
+        _highlighted[fixture] = (saved, u.VirtualDimmerLevel(fixture.Id));
+        foreach (var (k, v) in targets)
+            u.SetChannel(fixture.Start + k, v);
+        if (u.HasVirtualDimmer(fixture.Id))
+            u.SetVirtualDimmerLevel(fixture.Id, 1);
+    }
+
+    /// <summary>
+    /// Points highlighted <paramref name="fixture"/>'s pan and tilt at <paramref name="point"/> (0 to 1 over each
+    /// axis, tilt bottom-up: a named position's point).
+    /// </summary>
+    public void Aim(PatchedFixture fixture, System.Numerics.Vector2 point)
+    {
+        if (!_highlighted.ContainsKey(fixture))
+            return;
+        var values = new Dictionary<int, int>();
+        WriteAxis(values, fixture.Channels, fixture.Start, Roles.Pan, point.X);
+        WriteAxis(values, fixture.Channels, fixture.Start, Roles.Tilt, point.Y);
+        var u = _dmx.Universes[fixture.Universe];
+        foreach (var (c, v) in values)
+            u.SetChannel(c, v);
+    }
+
+    /// <summary>
+    /// A shutter channel's open value: the middle of its range labelled open, else of the first that isn't closed,
+    /// blackout, strobe or pulse; else its default; else (a default of 0 being closed) 255.
+    /// </summary>
+    public static int OpenShutterValue(FixtureChannel ch)
+    {
+        var fallback = -1;
+        foreach (var r in ch.Ranges)
+        {
+            var label = r.Label.ToLowerInvariant();
+            if (label.Contains("clos") || label.Contains("black") || label.Contains("strob") || label.Contains("puls"))
+                continue;
+            var mid = (r.Lo + r.Hi) / 2;
+            if (label.Contains("open"))
+                return mid;
+            if (fallback == -1)
+                fallback = mid;
+        }
+        return fallback != -1 ? fallback : ch.Default != 0 ? ch.Default : 255;
+    }
+
+    /// <summary>
+    /// Writes a pan or tilt axis at <paramref name="norm"/> (0 to 1) into <paramref name="output"/> by channel: 16-bit
+    /// where a fine channel follows, else over the channel's range.
+    /// </summary>
+    public static void WriteAxis(Dictionary<int, int> output, IReadOnlyList<FixtureChannel> chans, int start, string role, double norm)
+    {
+        for (var k = 0; k < chans.Count; k++)
+        {
+            if (chans[k].Role != role)
+                continue;
+            norm = Math.Clamp(norm, 0, 1);
+            var fine = k + 1 < chans.Count && (chans[k + 1].Fine || chans[k + 1].Role == role + "_FINE");
+            if (fine)
+            {
+                var v = Gd.RoundToInt(norm * 65535.0);
+                output[start + k] = (v >> 8) & 0xFF;
+                output[start + k + 1] = v & 0xFF;
+            }
+            else
+                output[start + k] = Gd.RoundToInt(Gd.Lerp(chans[k].Min, chans[k].Max, norm));
+            return;
+        }
     }
 
     /// <summary>
@@ -538,10 +645,24 @@ sealed class Patch
         for (var c = 0; c < DmxUniverse.Size; c++)
             if (universe.Data[c] != 0)
                 channels[c] = universe.Data[c];
+        // Highlighted fixtures: the levels they really have, not the white.
+        foreach (var (f, (saved, _)) in _highlighted)
+        {
+            if (f.Universe != index)
+                continue;
+            foreach (var (c, v) in saved)
+            {
+                if (v != 0)
+                    channels[c] = v;
+                else
+                    channels.Remove(c);
+            }
+        }
+        double? Vdim(PatchedFixture f) => VirtualDimmer(f) is { } v ? _highlighted.TryGetValue(f, out var h) ? h.VirtualDimmer : v : null;
         return new JsonObject
         {
             ["channels"] = Look.ChannelsToJson(channels),
-            ["virtual_dimmers"] = new JsonArray([.. _universes[index].Fixtures.Select(f => VirtualDimmer(f) is { } v ? JsonValue.Create(v) : null)]),
+            ["virtual_dimmers"] = new JsonArray([.. _universes[index].Fixtures.Select(f => Vdim(f) is { } v ? JsonValue.Create(v) : null)]),
         };
     }
 

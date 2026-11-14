@@ -255,6 +255,20 @@ sealed class ListView<T> : Element
 
     public bool IsSelected(T item) => _selection.Contains(item);
 
+    /// <summary>
+    /// Selects just <paramref name="items"/> (those listed), the first of them current.
+    /// </summary>
+    public void SelectItems(IEnumerable<T> items)
+    {
+        var wanted = new HashSet<T>(items.Where(i => IndexOf(i) >= 0), ReferenceEqualityComparer.Instance);
+        if (wanted.SetEquals(_selection))
+            return;
+        _selection.Clear();
+        _selection.UnionWith(wanted);
+        _selected = _anchor = _items.Count == 0 ? -1 : _items.ToList().FindIndex(i => _selection.Contains(i));
+        SelectionChanged?.Invoke(this);
+    }
+
     public override bool IsInteractive => true;
     public override bool IsFocusable => true;
     public override Cursor Cursor => Cursor.Arrow;

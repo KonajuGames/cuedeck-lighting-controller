@@ -32,6 +32,8 @@ public sealed class DjEditTests : IDisposable
     readonly SongTimelines _tl;
     readonly MusicBrowser _browser;
     readonly DjEditView _view;
+    readonly LightingShow _show;
+    readonly PositionEditor _editor;
     DjLibrary _library = DjLibrary.Empty();
     Func<string, SongAnalysis> _analyse = _ => throw new InvalidDataException("not analysed here");
 
@@ -42,12 +44,18 @@ public sealed class DjEditTests : IDisposable
         _tl = new SongTimelines { AnalyseStructure = (path, _) => _analyse(path) };
         var timeline = new TimelineView(fonts, _menu, null, _tl, new FakePlayer());
         _browser = new MusicBrowser(_tl, () => _library);
-        _view = _ui.Add(new DjEditView(fonts, MainScreenTests.Pictures, _menu, _confirm, _tl, timeline, _browser));
+        _show = new LightingShow();
+        _editor = new PositionEditor(fonts, _menu, _show.Positions, _show.Patch);
+        _view = _ui.Add(new DjEditView(fonts, MainScreenTests.Pictures, _menu, _confirm, _tl, timeline, _browser, _editor) { Root = _ui });
         _ui.Add(_confirm);
         _ui.Add(_menu);
     }
 
-    public void Dispose() => _dir.Dispose();
+    public void Dispose()
+    {
+        _show.Dispose();
+        _dir.Dispose();
+    }
 
     void Frame()
     {
@@ -305,7 +313,7 @@ public sealed class DjEditTests : IDisposable
                 return DjLibrary.Empty();
             }
         );
-        var dj = new DjEditView(fonts, MainScreenTests.Pictures, menu, new ConfirmDialog(ui, fonts.Body, fonts.Bold, fonts.Heading), tl, new TimelineView(fonts, menu, null, tl, new FakePlayer()), browser);
+        var dj = new DjEditView(fonts, MainScreenTests.Pictures, menu, new ConfirmDialog(ui, fonts.Body, fonts.Bold, fonts.Heading), tl, new TimelineView(fonts, menu, null, tl, new FakePlayer()), browser, new PositionEditor(fonts, menu, show.Positions, show.Patch));
         var dialogs = new Dialogs(
             new ConfirmDialog(ui, fonts.Body, fonts.Bold, fonts.Heading),
             new NamePrompt(ui, fonts.Body, fonts.Bold, fonts.Heading),

@@ -126,8 +126,13 @@ static void Run(string[] args)
         Positions = () => [.. show.Positions.Positions.Select(p => new PositionChoice(p.Id, p.Name, Colors.FromSrgb(p.Colour.R, p.Colour.G, p.Colour.B)))],
         PlateColour = uid => show.Patch.FindByUid(uid) is { } f && ModelColours.Of(show.Patch).TryGetValue(f.Profile.FullName, out var c) ? c : null,
     };
-    var djEdit = new DjEditView(fonts, images, menu, confirm, timelines, timelineView, new MusicBrowser(timelines, () => DjLibrary.Load(settings.DjSoftware)));
+    var positionEditor = new PositionEditor(fonts, menu, show.Positions, show.Patch);
+    var djEdit = new DjEditView(fonts, images, menu, confirm, timelines, timelineView, new MusicBrowser(timelines, () => DjLibrary.Load(settings.DjSoftware)), positionEditor)
+    {
+        Root = ui,
+    };
     show.Patch.Changed += timelines.RefreshFixtures;
+    show.Patch.Changed += positionEditor.RefreshFixtures;
     ui.PointerHooks.Add(timelineView);
     // Drawn in this order: the screen, then the dialogs over it, then the menu over everything.
     var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), show, profiles, djEdit));
@@ -172,7 +177,11 @@ static void Run(string[] args)
         var shift = (mods & GlfwModifier.Shift) != 0;
         // DJ Edit Mode's timeline has first say (Space plays its song there, rather than going the next cue).
         var uiKey = GlfwUiInput.ToUiKey(key);
-        if (screen.View == AppView.DjEdit && djEdit.IsTimelineShown && uiKey != Key.Other && timelineView.KeyDown(uiKey, (Modifiers)((int)mods & 0xF)))
+        var uiMods = (Modifiers)((int)mods & 0xF);
+        if (screen.View == AppView.DjEdit && djEdit.IsTimelineShown && uiKey != Key.Other && timelineView.KeyDown(uiKey, uiMods))
+            return;
+        // The Positions editor's Ctrl+C / Ctrl+V.
+        if (screen.View == AppView.DjEdit && djEdit.IsPositionShown && uiKey != Key.Other && positionEditor.KeyDown(uiKey, uiMods))
             return;
         switch (key)
         {
