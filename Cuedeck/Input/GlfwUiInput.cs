@@ -16,6 +16,8 @@ sealed class GlfwUiInput : IDisposable
     readonly GlfwCursor _handCursor;
     readonly GlfwCursor _textCursor;
     readonly GlfwCursor _resizeCursor;
+    readonly GlfwCursor _resizeVerticalCursor;
+    readonly GlfwCursor _moveCursor;
     Cursor _shownCursor = Cursor.Arrow;
     readonly HashSet<GlfwKey> _keysHeldByUi = [];
 
@@ -43,6 +45,8 @@ sealed class GlfwUiInput : IDisposable
         _handCursor = Glfw.CreateCursor(GlfwStandardCursor.PointingHand);
         _textCursor = Glfw.CreateCursor(GlfwStandardCursor.IBeam);
         _resizeCursor = Glfw.CreateCursor(GlfwStandardCursor.ResizeEw);
+        _resizeVerticalCursor = Glfw.CreateCursor(GlfwStandardCursor.ResizeNs);
+        _moveCursor = Glfw.CreateCursor(GlfwStandardCursor.ResizeAll);
 
         Clipboard.GetText = () => Glfw.Clipboard;
         Clipboard.SetText = text => Glfw.Clipboard = text;
@@ -182,6 +186,7 @@ sealed class GlfwUiInput : IDisposable
             GlfwKey.PageDown => Key.PageDown,
             GlfwKey.A => Key.A,
             GlfwKey.C => Key.C,
+            GlfwKey.D => Key.D,
             GlfwKey.V => Key.V,
             GlfwKey.X => Key.X,
             GlfwKey.Y => Key.Y,
@@ -204,6 +209,8 @@ sealed class GlfwUiInput : IDisposable
                 Cursor.Hand => _handCursor,
                 Cursor.Text => _textCursor,
                 Cursor.ResizeHorizontal => _resizeCursor,
+                Cursor.ResizeVertical => _resizeVerticalCursor,
+                Cursor.Move or Cursor.Grab => _moveCursor,
                 _ => default,
             }
         );
@@ -222,6 +229,8 @@ sealed class GlfwUiInput : IDisposable
         _handCursor.Dispose();
         _textCursor.Dispose();
         _resizeCursor.Dispose();
+        _resizeVerticalCursor.Dispose();
+        _moveCursor.Dispose();
         Clipboard.GetText = () => null;
         Clipboard.SetText = _ => { };
     }

@@ -547,8 +547,30 @@ sealed class SongTimelines : ISongTimelines
     public void MarkEdited()
     {
         HasUnsavedTimelines = true;
-        if (!_batching)
+        if (_batching || _groupDepth > 0)
+        {
+            _groupEdited |= _groupDepth > 0;
+            return;
+        }
+        RecordEdit();
+    }
+
+    int _groupDepth;
+    bool _groupEdited;
+
+    /// <summary>
+    /// Starts a run of edits that undo as one (a colour picked live, changing as it's dragged): until
+    /// <see cref="EndEditGroup"/>, edits aren't recorded one by one.
+    /// </summary>
+    public void BeginEditGroup() => _groupDepth++;
+
+    public void EndEditGroup()
+    {
+        if (_groupDepth == 0 || --_groupDepth > 0)
+            return;
+        if (_groupEdited)
             RecordEdit();
+        _groupEdited = false;
     }
 
     /// <summary>

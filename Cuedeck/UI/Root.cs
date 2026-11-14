@@ -16,6 +16,43 @@ enum Cursor
     /// Left and right, as over an edge that can be dragged to resize.
     /// </summary>
     ResizeHorizontal,
+
+    /// <summary>
+    /// Up and down, as over a line that can be dragged up or down.
+    /// </summary>
+    ResizeVertical,
+
+    /// <summary>
+    /// Four ways, as over something that can be dragged anywhere.
+    /// </summary>
+    Move,
+
+    /// <summary>
+    /// A grabbing hand, while the view's being dragged along.
+    /// </summary>
+    Grab,
+}
+
+/// <summary>
+/// Sees the mouse before the elements under it do, for a gesture that works the same wherever it starts in an area,
+/// such as dragging a view along with the middle button. Added to <see cref="Root.PointerHooks"/>.
+/// </summary>
+interface IPointerHook
+{
+    /// <summary>
+    /// A button went down or up at <paramref name="at"/>. Returns whether it took it (the elements don't see it).
+    /// </summary>
+    bool Button(MouseButton button, bool down, float2 at, Modifiers modifiers);
+
+    /// <summary>
+    /// The mouse moved to <paramref name="at"/>. Returns whether it took it.
+    /// </summary>
+    bool Move(float2 at);
+
+    /// <summary>
+    /// The cursor to show while it's busy, or null.
+    /// </summary>
+    Cursor? Cursor { get; }
 }
 
 /// <summary>
@@ -141,7 +178,12 @@ sealed class Root
     /// </summary>
     public bool WantsMouse => IsMouseOver || Pressed is not null;
 
-    public Cursor Cursor => Hovered?.Cursor ?? Cursor.Arrow;
+    public Cursor Cursor => PointerHooks.Select(h => h.Cursor).FirstOrDefault(c => c is not null) ?? Hovered?.Cursor ?? Cursor.Arrow;
+
+    /// <summary>
+    /// What sees the mouse first, in order (see <see cref="IPointerHook"/>).
+    /// </summary>
+    public List<IPointerHook> PointerHooks { get; } = [];
 
     /// <summary>
     /// The element keys and typed characters go to, if any.
@@ -263,6 +305,9 @@ sealed class Root
     {
         _mouse = position;
         UpdateHover();
+        foreach (var hook in PointerHooks.ToList())
+            if (hook.Move(position))
+                return;
 
         if (Dragging is not null)
         {
@@ -408,13 +453,17 @@ sealed class Root
         // Any press puts the tooltip away, until the pointer moves on to something else.
         if (down)
             _tooltipDismissed = true;
+        if (_mouse is { } point)
+            foreach (var hook in PointerHooks.ToList())
+                if (hook.Button(button, down, point, modifiers))
+                    return;
 
         // A right-click goes to what's under the mouse as it goes down, and does nothing else: no focus, no press.
         // Qualified, since inside this class the bare name means this method.
         if (button == Input.MouseButton.Right)
         {
             if (down && Hovered is { } target && _mouse is { } at)
-                target.SecondaryClick(at);
+                target.SecondaryClick(at, modifiers);
             return;
         }
         if (button != Input.MouseButton.Left)
@@ -453,6 +502,8 @@ sealed class Root
 
         Pressed = null;
         pressed.IsPressed = false;
+        if (_mouse is { } upAt)
+            pressed.PointerUp(upAt);
         pressed.RaisePressEnded();
         if (pressed == Hovered)
             pressed.RaiseClicked();

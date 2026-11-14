@@ -36,6 +36,14 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
   than red.
 - `UI/FontAtlas.cs`: arrows and the minus sign added to the characters baked.
 - `UI/Batch.cs`: `Colors.FromSrgb`.
+- `UI/Batch.cs` (slice 4f): triangles with a colour per corner, lines, polylines, dashed lines, convex polygons,
+  circles and arcs, all cut to the clip rectangle (Sutherland-Hodgman, their colours and texture coordinates with
+  them), and `AddTextUp` for text turned a quarter turn (the timeline's name plates).
+- `UI/Root.cs` (slice 4f): `PointerHooks` (`IPointerHook`), which see the mouse before the elements do (the
+  timeline's middle-button pan); `Element.PointerUp` when a press ends; right-clicks pass the keys held
+  (`SecondaryClick(point, modifiers)`); the up-down, four-way and grabbing cursors (`Cursor.ResizeVertical`, `Move`,
+  `Grab`), in `Input/GlfwUiInput.cs` too; and `Key.D`.
+- `UI/Theme.cs` (slice 4f): the song timeline's colours.
 
 ## Adapted
 

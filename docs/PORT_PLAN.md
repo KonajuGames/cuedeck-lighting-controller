@@ -184,9 +184,22 @@ outwards, each slice's tests ported before its code.
 | 4c | Song analysis (`Audio/`): decoding (Cuepoint's `AudioDecoder`: SDL_mixer and Media Foundation; sLight's WAV reader), sLight's native front end (`song_features.cpp`) and its detection (`song_detect`: tempo, DP beats, downbeat, key, structure), `SongAnalysis` saved as sLight saved it | ✅ |
 | 4d | The timeline generator (`Timelines/TimelineGenerator`, on Godot's random numbers in `Common/GodotRandom`), checked node for node against sLight's own shows, and regenerating a list of songs' timelines (`TimelineBatch`) | ✅ |
 | 4e | DJ Edit Mode's timelines without the screen (`Timelines/SongTimelines`, `MusicTimeline`'s engine half): the fixtures' tracks, selecting by row and time, Delete, Cut, Copy, Paste, dragging a selection and its edges, the rows' menus' edits, mute, solo and collapsing, saving as songs are left, undo and redo per song, the structure cache and its analysis, VirtualDJ's grid on it, Generate (into a selection too), Shift+Generate, and generating into songs not open (for `TimelineBatch` and DJ Perform Mode) | ✅ |
-| 4f | The timeline's screen: the waveform heatmap and overview, the bar ruler, the structure bar, the tracks drawn with their name plates, pointer and keys onto `SongTimelines`, the context menus, and playback (with `m4a_playback_test`) | next |
-| 4g | The music browser (drives, VirtualDJ lists, the Cuepoint library, Regenerate Lighting Timelines) and DJ Edit Mode's tab | |
+| 4f | The timeline's screen (`UI/Timeline`): the waveform and overview (`WaveView`, `ViewBox`), the bar ruler, the structure bar and its edits (`StructureEdits`), the tracks with their name plates (`TrackView`, `NamePlate`), the pointer and keys onto `SongTimelines`, the context menus, middle-button panning, and playback (`Audio/SongPlayer`, `WaveformEnvelope`) | ✅ |
+| 4g | The music browser (drives, VirtualDJ lists, the Cuepoint library, Regenerate Lighting Timelines) and DJ Edit Mode's tab | next |
 | 4h | The position editor and list | |
+
+**Where slice 4f differs from sLight:** the screen (`TimelineView`) isn't on a tab yet: DJ Edit Mode's tab comes
+with the browser in 4g, so it hasn't been looked at in the running app, and `SdlSongPlayer` (SDL_mixer on the default
+output device) hasn't played through real speakers; the tests play on a fake clock (`FakePlayer`). A song is
+decoded once, for both its waveform (`WaveformEnvelope`, sLight's native `waveform_file`, ported) and playback; sLight
+read the waveform natively and decoded M4A again for playback. Its structure is still analysed from the file
+separately (`SongAnalyzer`). The context menus have no separators, shortcut hints or icons (sLight's colour swatches
+and position triangles), and Static Colour… and Gradient… use the app's colour picker: the selection follows it live
+as one undo step, a gradient picking its start and then its end. Shift-dragging a dimmer node locks the axis if
+Shift was held as it was pressed (Cuedeck's pointer drags don't carry the keys). A position's colour and the "Centre"
+position made for Generate come with the position list in 4h. sLight's tests on real files (M4A timing against
+VirtualDJ's grid, variable-tempo grids, a long mix cancelled) aren't ported, as in 4c, and nor are those of its
+Godot-specific details (embedded subwindows, the cursor shape over a node, drawing only what's scrolled into view).
 
 **Where slice 4e differs from sLight:** sLight's `MusicTimeline` was one Godot control that drew the timelines and
 took their input as well as holding their edits; here `SongTimelines` holds the edits and the screen in 4f will drive

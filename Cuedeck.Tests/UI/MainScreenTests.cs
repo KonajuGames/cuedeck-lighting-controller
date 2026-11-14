@@ -9,7 +9,7 @@ namespace Cuedeck.Tests.UI;
 
 public class MainScreenTests
 {
-    static readonly FontAtlas Atlas = new();
+    internal static readonly FontAtlas Atlas = new();
     internal static readonly Images Pictures = Images.Load(Atlas);
 
     internal static readonly Fonts TestFonts = MakeFonts();

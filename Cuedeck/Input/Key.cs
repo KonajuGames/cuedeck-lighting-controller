@@ -22,6 +22,7 @@ enum Key
     PageDown,
     A,
     C,
+    D,
     V,
     X,
     Y,

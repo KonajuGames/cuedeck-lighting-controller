@@ -167,10 +167,21 @@ abstract class Element
     public virtual void SecondaryClick(float2 point) { }
 
     /// <summary>
+    /// <see cref="SecondaryClick(float2)"/> with the keys held, for elements that do something else with, say, Ctrl
+    /// held.
+    /// </summary>
+    public virtual void SecondaryClick(float2 point, Modifiers modifiers) => SecondaryClick(point);
+
+    /// <summary>
     /// The mouse moved to <paramref name="point"/> while the left button, pressed on this element, is still held.
     /// The point can be outside the element.
     /// </summary>
     public virtual void PointerDrag(float2 point) { }
+
+    /// <summary>
+    /// The left button, pressed on this element, came up at <paramref name="point"/> (which can be outside it).
+    /// </summary>
+    public virtual void PointerUp(float2 point) { }
 
     /// <summary>
     /// The mouse moved to <paramref name="point"/> while over this element (it's <see cref="Root.Hovered"/>), for
