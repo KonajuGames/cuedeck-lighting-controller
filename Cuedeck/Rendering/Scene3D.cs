@@ -10,7 +10,8 @@ namespace Cuedeck.Rendering;
 /// <summary>
 /// The 3D Visualizer's pass: draws a <see cref="SceneFrame"/> into an offscreen colour image (with its own depth
 /// buffer), which the UI then shows as texture <see cref="TEXTURE"/> (<see cref="UI.Batch.AddTexture"/>). One lit,
-/// opaque pipeline: every shape a mesh made once, placed by its instance's matrices from a storage buffer.
+/// opaque pipeline: every shape a mesh made once, placed by its instance's matrices from a storage buffer, and lit by
+/// the fixtures' spotlights from another, looped over in the fragment shader.
 /// </summary>
 sealed unsafe class Scene3D : IDisposable
 {
@@ -39,6 +40,14 @@ sealed unsafe class Scene3D : IDisposable
         public Vector4 Extra;
     }
 
+    struct Light
+    {
+        public Vector4 Position;
+        public Vector4 Direction;
+        public Vector4 Colour;
+        public Vector4 Extra;
+    }
+
     struct MeshVertex
     {
         public Vector3 Position;
@@ -49,6 +58,8 @@ sealed unsafe class Scene3D : IDisposable
     {
         public GpuBuffer? Buffer;
         public int Capacity;
+        public GpuBuffer? Lights;
+        public int LightCapacity;
         public VkDescriptorSet Set;
     }
 
@@ -70,15 +81,26 @@ sealed unsafe class Scene3D : IDisposable
         _gpu = gpu;
         _device = gpu.Device;
 
-        var binding = new VkDescriptorSetLayoutBinding
+        // The instances, for the vertex shader; the lights, for the fragment shader.
+        var bindings = stackalloc VkDescriptorSetLayoutBinding[]
         {
-            Binding = 0,
-            DescriptorType = VkDescriptorType.StorageBuffer,
-            DescriptorCount = 1,
-            StageFlags = VkShaderStageFlags.VertexBit,
+            new()
+            {
+                Binding = 0,
+                DescriptorType = VkDescriptorType.StorageBuffer,
+                DescriptorCount = 1,
+                StageFlags = VkShaderStageFlags.VertexBit,
+            },
+            new()
+            {
+                Binding = 1,
+                DescriptorType = VkDescriptorType.StorageBuffer,
+                DescriptorCount = 1,
+                StageFlags = VkShaderStageFlags.FragmentBit,
+            },
         };
-        _setLayout = _device.CreateDescriptorSetLayout(new VkDescriptorSetLayoutCreateInfo { BindingCount = 1, Bindings = &binding }, null);
-        var poolSize = new VkDescriptorPoolSize { Type = VkDescriptorType.StorageBuffer, DescriptorCount = framesInFlight };
+        _setLayout = _device.CreateDescriptorSetLayout(new VkDescriptorSetLayoutCreateInfo { BindingCount = 2, Bindings = bindings }, null);
+        var poolSize = new VkDescriptorPoolSize { Type = VkDescriptorType.StorageBuffer, DescriptorCount = 2 * framesInFlight };
         _pool = _device.CreateDescriptorPool(new VkDescriptorPoolCreateInfo { MaxSets = framesInFlight, PoolSizeCount = 1, PoolSizes = &poolSize }, null);
         _frames = new FrameInstances[framesInFlight];
         var layout = _setLayout;
@@ -203,31 +225,11 @@ sealed unsafe class Scene3D : IDisposable
         var extent = _color.Extent;
         var instances = _frames[frameIndex];
         var count = frame.Items.Count;
+        var lightCount = frame.Lights.Count;
         if (instances.Buffer is null || instances.Capacity < count)
-        {
-            instances.Buffer?.Dispose();
-            instances.Capacity = (int)BitOperations.RoundUpToPowerOf2((uint)Math.Max(count, 256));
-            instances.Buffer = GpuBuffer.Create(
-                _gpu.Allocator,
-                ByteSize.Of<Instance>() * instances.Capacity,
-                VkBufferUsageFlags.StorageBufferBit,
-                VmaAllocationCreateFlags.HostAccessSequentialWriteBit | VmaAllocationCreateFlags.MappedBit
-            );
-            var info = new VkDescriptorBufferInfo { Buffer = instances.Buffer.Buffer, Range = ByteSize.Of<Instance>() * instances.Capacity };
-            _device.UpdateDescriptorSets(
-                [
-                    new VkWriteDescriptorSet
-                    {
-                        DstSet = instances.Set,
-                        DstBinding = 0,
-                        DescriptorCount = 1,
-                        DescriptorType = VkDescriptorType.StorageBuffer,
-                        BufferInfo = &info,
-                    },
-                ],
-                []
-            );
-        }
+            (instances.Buffer, instances.Capacity) = Grow<Instance>(instances.Buffer, count, 256, instances.Set, 0);
+        if (instances.Lights is null || instances.LightCapacity < lightCount)
+            (instances.Lights, instances.LightCapacity) = Grow<Light>(instances.Lights, lightCount, 64, instances.Set, 1);
         var mapped = new Span<Instance>((void*)instances.Buffer.Info.PMappedData, count);
         for (var i = 0; i < count; i++)
         {
@@ -243,6 +245,20 @@ sealed unsafe class Scene3D : IDisposable
         }
         if (count > 0)
             _gpu.Allocator.FlushAllocation(instances.Buffer.Allocation, ByteSize.Zero, ByteSize.Of<Instance>() * count);
+        var lights = new Span<Light>((void*)instances.Lights.Info.PMappedData, lightCount);
+        for (var i = 0; i < lightCount; i++)
+        {
+            var l = frame.Lights[i];
+            lights[i] = new Light
+            {
+                Position = new Vector4(l.Position, l.Range),
+                Direction = new Vector4(l.Direction, l.CosCone),
+                Colour = new Vector4(l.Colour, l.Decay),
+                Extra = new Vector4(l.EdgeSoftness, 0, 0, 0),
+            };
+        }
+        if (lightCount > 0)
+            _gpu.Allocator.FlushAllocation(instances.Lights.Allocation, ByteSize.Zero, ByteSize.Of<Light>() * lightCount);
 
         // The UI may still be reading last frame's picture: wait for that, then draw over it.
         cmd.TransitionImage(
@@ -317,7 +333,7 @@ sealed unsafe class Scene3D : IDisposable
             new Push
             {
                 ViewProj = frame.View * frame.Projection,
-                CameraPos = new Vector4(frame.CameraPosition, 1),
+                CameraPos = new Vector4(frame.CameraPosition, lightCount),
                 Ambient = new Vector4(SceneFrame.Ambient.X, SceneFrame.Ambient.Y, SceneFrame.Ambient.Z, frame.HazeDensity),
                 WorkDir = new Vector4(work, 0),
                 WorkColour = new Vector4(frame.WorkLight.X, frame.WorkLight.Y, frame.WorkLight.Z, 0),
@@ -345,6 +361,39 @@ sealed unsafe class Scene3D : IDisposable
     }
 
     /// <summary>
+    /// A bigger host-visible storage buffer (at least <paramref name="minimum"/> items) in place of
+    /// <paramref name="old"/>, which this frame slot's finished with, pointed to by its set's
+    /// <paramref name="binding"/>.
+    /// </summary>
+    (GpuBuffer Buffer, int Capacity) Grow<T>(GpuBuffer? old, int needed, int minimum, VkDescriptorSet set, int binding)
+        where T : unmanaged
+    {
+        old?.Dispose();
+        var capacity = (int)BitOperations.RoundUpToPowerOf2((uint)Math.Max(needed, minimum));
+        var buffer = GpuBuffer.Create(
+            _gpu.Allocator,
+            ByteSize.Of<T>() * capacity,
+            VkBufferUsageFlags.StorageBufferBit,
+            VmaAllocationCreateFlags.HostAccessSequentialWriteBit | VmaAllocationCreateFlags.MappedBit
+        );
+        var info = new VkDescriptorBufferInfo { Buffer = buffer.Buffer, Range = ByteSize.Of<T>() * capacity };
+        _device.UpdateDescriptorSets(
+            [
+                new VkWriteDescriptorSet
+                {
+                    DstSet = set,
+                    DstBinding = binding,
+                    DescriptorCount = 1,
+                    DescriptorType = VkDescriptorType.StorageBuffer,
+                    BufferInfo = &info,
+                },
+            ],
+            []
+        );
+        return (buffer, capacity);
+    }
+
+    /// <summary>
     /// The backdrop through the same highlight roll-off as the shapes.
     /// </summary>
     static Vector3 Tonemap(float4 c)
@@ -356,7 +405,10 @@ sealed unsafe class Scene3D : IDisposable
     public void Dispose()
     {
         foreach (var f in _frames)
+        {
             f.Buffer?.Dispose();
+            f.Lights?.Dispose();
+        }
         _color?.Dispose();
         _depth?.Dispose();
         _vertices.Dispose();

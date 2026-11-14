@@ -290,9 +290,14 @@ from the scene's data outwards: first everything that isn't drawing, then §5's 
 |---|---|---|
 | 6a | The scene without the GPU (`Visualizer/`): the room, haze, work light and shadows settings; the orbit camera and the saved views; trusses and models; picking by ray and dragging on the floor; selection, typed positions and turns, Auto-arrange and the undo history; saved with the show as sLight's `viz`; and each fixture's rig (category, yoke or fixed, its heads, pan and tilt eased towards its DMX, the beam's angle) | ✅ |
 | 6b | The 3D pass (`Rendering/Scene3D`): an offscreen colour and depth image shown in the 3D Visualizer tab, one lit opaque pipeline (Lambert, ambient and the work light), the floor, wall, trusses and schematic bodies; the camera, picking and dragging by mouse; the toolbar and the selected item's properties | ✅ |
-| 6c | Lights: each head a spotlight (colour, level, cone, aim), looped over in the opaque shader | next |
-| 6d | Beams: additive cones fading with distance and haze, lit faces of blinders and bars, strobe; gobos | |
+| 6c | Lights: each lit head a spotlight (`SceneFrame.Lights`: its colour times sLight's energy and its level, its cone from the beam's angle, aimed by the rig), looped over in the opaque shader with Godot's fall-off with distance and towards the cone's edge, and faded out 24 m to 34 m from the camera as sLight's were | ✅ |
+| 6d | Beams: additive cones fading with distance and haze, lit faces of blinders and bars, strobe; gobos | next |
 | 6e | GDTF models: the glTF parts (SharpGLTF) on the profile's geometry tree, pan and tilt on its axes; models as set pieces | |
+
+**Where slice 6c differs from sLight:** every lit head's light is looped over for every pixel, with no culling (a
+few hundred lights is fine at this size); no shadows. Godot's energy units are kept, scaling a spot's energy by pi
+as Godot does, so its light on the floor is as strong as sLight's. Tried in the app: two RGB pars and two moving heads
+at full, the pars' pools of light on the floor under them.
 
 **Where slice 6b differs from sLight:** the scene is drawn into an image of its own each frame
 (`Rendering/Scene3D`: one pipeline, Lambert under the ambient light and the work light) that the UI shows as a

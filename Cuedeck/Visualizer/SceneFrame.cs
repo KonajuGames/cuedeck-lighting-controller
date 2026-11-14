@@ -13,6 +13,24 @@ namespace Cuedeck.Visualizer;
 readonly record struct DrawItem(MeshKind Mesh, Matrix4x4 World, float4 Colour, float Glow = 0);
 
 /// <summary>
+/// One head's light, as Godot's spotlight was set up for it: where it is and which way it shines, its colour times
+/// its energy (linear), the cosine of its cone's half angle, its range, and how it falls off with distance (Godot's
+/// <c>spot_attenuation</c>, a power of the distance) and towards the cone's edge (<c>spot_angle_attenuation</c>).
+/// </summary>
+readonly record struct SpotLight(Vector3 Position, Vector3 Direction, Vector3 Colour, float CosCone, float Range = SpotLight.RANGE, float Decay = 1.2f, float EdgeSoftness = 0.6f)
+{
+    /// <summary>
+    /// sLight's <c>spot_range</c>, metres.
+    /// </summary>
+    public const float RANGE = 28;
+
+    /// <summary>
+    /// Its light's energy at full (sLight's <c>_base_energy</c>).
+    /// </summary>
+    public const float ENERGY = 12;
+}
+
+/// <summary>
 /// Everything the 3D pass needs for one frame, worked out without the GPU: the shapes, the camera's matrices, the
 /// backdrop and the light that isn't the fixtures' (the ambient and the work light). Colours are linear.
 /// </summary>
@@ -38,6 +56,11 @@ sealed class SceneFrame
     static readonly float4 DefaultBody = Colors.FromSrgb(0.14f, 0.14f, 0.14f);
 
     public List<DrawItem> Items { get; } = [];
+
+    /// <summary>
+    /// The fixtures' heads that are lit, each a spotlight.
+    /// </summary>
+    public List<SpotLight> Lights { get; } = [];
     public Matrix4x4 View { get; private set; }
 
     /// <summary>
@@ -106,7 +129,9 @@ sealed class SceneFrame
             if (!rigs.TryGetValue(fx, out var rig))
                 continue;
             var colour = bodyColours.TryGetValue(fx.Profile.FullName, out var c) ? c : DefaultBody;
-            AddBody(f.Items, rig, FixtureRig.Placement(fx.Position, fx.Rotation), colour);
+            var placement = FixtureRig.Placement(fx.Position, fx.Rotation);
+            AddBody(f.Items, rig, placement, colour);
+            AddLights(f.Lights, rig, placement);
             if (ReferenceEquals(fx, selected))
                 f.Items.Add(new DrawItem(MeshKind.Ring, Matrix4x4.CreateTranslation(0, -0.02f, 0) * FixtureRig.Placement(fx.Position, fx.Rotation), Selected, 1));
         }
@@ -145,6 +170,25 @@ sealed class SceneFrame
                     )
                 );
                 break;
+        }
+    }
+
+    /// <summary>
+    /// A spotlight for each of a fixture's heads that's lit (over 0.2 %, as sLight hid its lights below that).
+    /// </summary>
+    static void AddLights(List<SpotLight> lights, FixtureRig rig, Matrix4x4 placement)
+    {
+        var cos = (float)Math.Cos(rig.HalfAngle * Math.PI / 180);
+        for (var i = 0; i < rig.Heads.Count; i++)
+        {
+            var h = rig.Heads[i];
+            if (h.Level <= 0.002)
+                continue;
+            var world = rig.HeadWorld(i, placement);
+            var c = Linear(h.Colour) * (float)(SpotLight.ENERGY * h.Level);
+            lights.Add(
+                new SpotLight(Vector3.Transform(Vector3.Zero, world), Vector3.Normalize(Vector3.TransformNormal(-Vector3.UnitZ, world)), new Vector3(c.X, c.Y, c.Z), cos)
+            );
         }
     }
 

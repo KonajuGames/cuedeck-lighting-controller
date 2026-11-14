@@ -1,5 +1,6 @@
 using System.Numerics;
 using Brutal.Numerics;
+using Cuedeck.Fixtures;
 using Cuedeck.Show;
 using Cuedeck.Visualizer;
 
@@ -63,5 +64,32 @@ public sealed class SceneFrameTests : IDisposable
         Assert.Equal((float)(viz.Haze * VizScene.HAZE_MAX), f.HazeDensity, 6);
         viz.WorkLight = false;
         Assert.Equal(new float4(0, 0, 0, 0), SceneFrame.Build(viz, _show.Patch, rigs, colours, 1.5f).WorkLight);
+    }
+
+    [Fact]
+    public void Each_lit_head_is_a_spotlight()
+    {
+        var par = _show.Patch.Add(0, Profiles.Simple("rgb", "RGB par", ("Dimmer", "DIMMER"), ("Red", "RED"), ("Green", "GREEN"), ("Blue", "BLUE")), 0, position: new Vector3(0, 4, -2));
+        var rig = new FixtureRig(par.Profile, 0);
+        var rigs = new Dictionary<PatchedFixture, FixtureRig> { [par] = rig };
+        var output = new byte[512];
+        rig.Update(DmxRender.Evaluate(par.Profile, 0, output, 0), 0.1);
+        Assert.Empty(SceneFrame.Build(_show.Visualizer, _show.Patch, rigs, new Dictionary<string, float4>(), 1.5f).Lights); // dark: none
+
+        output[0] = 255; // full, red
+        output[1] = 255;
+        rig.Update(DmxRender.Evaluate(par.Profile, 0, output, 0), 0.1);
+        var light = Assert.Single(SceneFrame.Build(_show.Visualizer, _show.Patch, rigs, new Dictionary<string, float4>(), 1.5f).Lights);
+        // Hung pointing down (tilted 90°), from the front of its can.
+        Assert.True(Vector3.Distance(light.Position, new Vector3(0, 3.87f, -2)) < 1e-3f, $"{light.Position}");
+        Assert.True(Vector3.Dot(light.Direction, -Vector3.UnitY) > 0.9999f, $"{light.Direction}");
+        Assert.Equal(SpotLight.ENERGY, light.Colour.X, 3);
+        Assert.Equal(0, light.Colour.Y, 6);
+        Assert.Equal((float)Math.Cos(rig.HalfAngle * Math.PI / 180), light.CosCone, 6);
+
+        output[0] = 128; // half: half the energy, in linear light
+        rig.Update(DmxRender.Evaluate(par.Profile, 0, output, 0), 0.1);
+        light = Assert.Single(SceneFrame.Build(_show.Visualizer, _show.Patch, rigs, new Dictionary<string, float4>(), 1.5f).Lights);
+        Assert.Equal(SpotLight.ENERGY * 128 / 255.0, light.Colour.X, 1);
     }
 }
