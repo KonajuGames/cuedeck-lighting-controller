@@ -118,4 +118,55 @@ public sealed class ConsoleTests : ConsoleHarness
         Click(ButtonCalled("Tap"));
         Assert.True(Show.Tempo.Running);
     }
+
+    [Fact]
+    public void The_menu_bar()
+    {
+        var bar = Screen.MenuBar;
+        Assert.Equal(["File", "Edit", "Mode"], bar.MenuTitles);
+        Assert.Null(bar.OpenTitle);
+
+        // File opens below its title, with the file commands and their keys.
+        Click(MenuTitle("File"));
+        Assert.Equal("File", bar.OpenTitle);
+        var menu = Ui.Elements.OfType<ContextMenu>().Single();
+        Assert.Equal(["New Show", "Load Show…", "Save Show", "Save Show As…", "Save Preset", "Load Preset", "Options…", "Exit"], menu.ItemTexts);
+        Assert.Equal(3, All(menu).OfType<Divider>().Count());
+        Assert.True(MenuItemCalled("New Show").ScreenPosition.Y >= bar.ScreenPosition.Y + bar.Size.Y - 1);
+        Assert.True(MenuTitle("File").Lit);
+
+        // Moving onto another title opens its menu instead; clicking the open title puts it away.
+        Ui.MouseMove(MenuTitle("Edit").ScreenPosition + MenuTitle("Edit").Size / 2);
+        Frame();
+        Assert.Equal("Edit", bar.OpenTitle);
+        Assert.Contains("Triggers…", menu.ItemTexts);
+        ClickAt(MenuTitle("Edit").ScreenPosition + MenuTitle("Edit").Size / 2); // the open menu takes the click
+        Assert.Null(bar.OpenTitle);
+        Assert.False(menu.Visible);
+
+        // Edit: nothing to undo in the console; the universes and Triggers.
+        Click(MenuTitle("Edit"));
+        Assert.False(MenuItemCalled("Undo Move").Enabled);
+        Assert.False(MenuItemCalled("Remove Universe…").Enabled);
+        Click(MenuItemCalled("Add Universe"));
+        Assert.Equal(2, Show.Patch.Universes.Count);
+        Assert.False(menu.Visible);
+        FromMenu("Edit", "Remove Universe…");
+        Click(ButtonCalled("Remove"));
+        Assert.Single(Show.Patch.Universes);
+
+        // Mode: the views (only the console here) and the run mode, the one in effect ticked.
+        FromMenu("Mode", "Sound Reactive");
+        Assert.Equal(RunMode.SoundReactive, Show.RunMode);
+        Assert.StartsWith("Sound Reactive", Screen.StatusText);
+        Click(MenuTitle("Mode"));
+        Assert.Equal(["Console", "Cue Mode", "Sound Reactive"], menu.ItemTexts);
+        Click(MenuItemCalled("Cue Mode"));
+        Assert.Equal(RunMode.Cues, Show.RunMode);
+
+        // File's New Show goes to the shell, which asks about the universes changed above.
+        FromMenu("File", "New Show");
+        Click(ButtonCalled("Don't Save"));
+        Assert.Equal("New show (not saved yet).", Screen.StatusText);
+    }
 }

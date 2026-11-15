@@ -22,7 +22,7 @@ public sealed class TriggersDialogTests : ConsoleHarness
     {
         var chase = new Chase { Name = "Swirl" };
         Show.Effects.Chases.Add(chase);
-        Click(ButtonCalled("Triggers…"));
+        FromMenu("Edit", "Triggers…");
         Assert.True(Dialog.Visible);
         Assert.Contains(All(Dialog).OfType<Label>(), l => l.Text == "No MIDI devices found");
 
@@ -63,7 +63,7 @@ public sealed class TriggersDialogTests : ConsoleHarness
         Show.Patch.Add(0, Profiles.Simple("dim", "Dim", ("Dimmer", "DIMMER")), 0);
         Show.Cues.Record(-1, 0);
         Show.Cues.Record(-1, 0);
-        Click(ButtonCalled("Triggers…"));
+        FromMenu("Edit", "Triggers…");
         Click(ButtonCalled("Add"));
         Choose(Field<Dropdown<TriggerSource>>("Source"), "OSC");
         var address = Field<TextBox>("Address");
@@ -84,7 +84,7 @@ public sealed class TriggersDialogTests : ConsoleHarness
     [Fact]
     public void Bindings_are_copied_and_deleted()
     {
-        Click(ButtonCalled("Triggers…"));
+        FromMenu("Edit", "Triggers…");
         Click(ButtonCalled("Add"));
         Click(ButtonCalled("Duplicate"));
         Assert.Equal(["Trigger 1", "Trigger 1 copy"], Show.Triggers.Triggers.Select(t => t.Name));
@@ -96,7 +96,7 @@ public sealed class TriggersDialogTests : ConsoleHarness
     [Fact]
     public void Escape_stops_a_learn_before_closing()
     {
-        Click(ButtonCalled("Triggers…"));
+        FromMenu("Edit", "Triggers…");
         Click(ButtonCalled("Add"));
         Click(Find<Button>(b => b.Text.StartsWith("Learn", StringComparison.Ordinal)));
         Ui.KeyDown(Key.Escape, Modifiers.None);

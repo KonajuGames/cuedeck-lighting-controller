@@ -5,8 +5,8 @@ using Cuedeck.Show;
 namespace Cuedeck.UI.Console;
 
 /// <summary>
-/// The console's top bar: the grand master, run mode, tap tempo, Sending, Blackout All and the universes on the first
-/// line; the show's file buttons on the second.
+/// The console's top bar: the grand master, run mode, tap tempo, Sending, Blackout All and the universes. The show's
+/// file commands and the views are in the menu bar above it.
 /// </summary>
 sealed class TopBar : Panel
 {
@@ -14,13 +14,11 @@ sealed class TopBar : Panel
     readonly Slider _master;
     readonly Label _masterValue;
     readonly Dropdown<RunMode> _runMode;
-    readonly Dropdown<AppView> _view;
     readonly Label _tempo;
     readonly Button _tempoStop;
     readonly Button _sending;
     readonly Button _removeUniverse;
     readonly Flow _top;
-    readonly Flow _files;
 
     /// <summary>
     /// Whether frames go out on the wire; otherwise they're only worked out (for the 3D view). The show's, so
@@ -32,42 +30,15 @@ sealed class TopBar : Panel
         set => _show.Sending = value;
     }
 
-    public event Action? NewShow;
-    public event Action? SaveShow;
-    public event Action? SaveShowAs;
-    public event Action? LoadShow;
-    public event Action? SavePreset;
-    public event Action? LoadPreset;
-    public event Action? OpenTriggers;
     public event Action? BlackoutAll;
     public event Action? AddUniverse;
     public event Action? RemoveUniverse;
     public event Action<string>? Status;
 
-    /// <summary>
-    /// The View dropdown chose the console or DJ Edit Mode.
-    /// </summary>
-    public event Action<AppView>? ViewChosen;
-
-    /// <summary>
-    /// The view showing, for the View dropdown.
-    /// </summary>
-    public AppView View { get; set; } = AppView.Console;
-
-    /// <summary>
-    /// Whether DJ Edit Mode is there to choose.
-    /// </summary>
-    public bool HasDjEdit { get; set; }
-
-    /// <summary>
-    /// Whether the View dropdown offers DJ Perform Mode.
-    /// </summary>
-    public bool HasDjPerform { get; set; }
-
     public float Width
     {
         get => _top.Width;
-        set => _top.Width = _files.Width = value;
+        set => _top.Width = value;
     }
 
     public TopBar(Fonts fonts, ContextMenu menu, LightingShow show)
@@ -78,24 +49,6 @@ sealed class TopBar : Panel
         Background = Theme.Background;
 
         _top = Add(new Flow(8));
-        _top.Add(new Label(fonts.Body, "View:") { Color = Theme.Muted });
-        _view = _top.Add(
-            new Dropdown<AppView>(fonts.Body)
-            {
-                Menu = menu,
-                Width = 140,
-                Items = () => [AppView.Console, .. HasDjEdit ? [AppView.DjEdit] : Array.Empty<AppView>(), .. HasDjPerform ? [AppView.DjPerform] : Array.Empty<AppView>()],
-                Text = v =>
-                    v switch
-                    {
-                        AppView.DjEdit => "DJ Edit Mode",
-                        AppView.DjPerform => "DJ Perform Mode",
-                        _ => "Console",
-                    },
-            }
-        );
-        _view.Chosen += v => ViewChosen?.Invoke(v);
-        _top.Add(new Spacer(8));
         _top.Add(new Label(fonts.Body, "Grand Master:") { Color = Theme.Muted });
         _master = _top.Add(new Slider { Min = 0, Max = 1, Length = 150, DefaultValue = 1, ShowFill = true, Value = 1 });
         _master.Changed += s => show.Dmx.Master = s.Value;
@@ -111,13 +64,7 @@ sealed class TopBar : Panel
                 Text = m => m == RunMode.SoundReactive ? "Sound Reactive" : "Cue Mode",
             }
         );
-        _runMode.Chosen += m =>
-        {
-            show.RunMode = m;
-            Status?.Invoke(
-                m == RunMode.SoundReactive ? "Sound Reactive — monitoring the audio input. Arm reactors in the Sound tab." : "Cue Mode — cue list drives playback."
-            );
-        };
+        _runMode.Chosen += SetRunMode;
         var tap = _top.Add(new Button(fonts.Body, "Tap") { Tooltip = "Tap Tempo (T)" });
         tap.Clicked += _ => show.Tempo.Tap();
         _tempo = _top.Add(new Label(fonts.Body, "— BPM") { Color = Theme.Text });
@@ -132,23 +79,17 @@ sealed class TopBar : Panel
         add.Clicked += _ => AddUniverse?.Invoke();
         _removeUniverse = _top.Add(new Button(fonts.Body, "Remove Universe") { Tooltip = "Ctrl+Shift+R" });
         _removeUniverse.Clicked += _ => RemoveUniverse?.Invoke();
+    }
 
-        _files = Add(new Flow(6));
-        (string Text, string Keys, Func<Action?> Handler)[] files =
-        [
-            ("New Show", "Ctrl+N", () => NewShow),
-            ("Save Show", "Ctrl+S", () => SaveShow),
-            ("Save Show As…", "Ctrl+Shift+S", () => SaveShowAs),
-            ("Load Show…", "Ctrl+O", () => LoadShow),
-            ("Save Preset", "Keep every universe's live levels, to load again later", () => SavePreset),
-            ("Load Preset", "Put the saved live levels back", () => LoadPreset),
-            ("Triggers…", "MIDI and OSC triggers: pads, keys and messages that fire cues, chases, effects and flashes", () => OpenTriggers),
-        ];
-        foreach (var (text, keys, handler) in files)
-        {
-            var b = _files.Add(new Button(fonts.Body, text) { Tooltip = keys });
-            b.Clicked += _ => handler()?.Invoke();
-        }
+    /// <summary>
+    /// Puts the show in Cue Mode or Sound Reactive, and says what that means on the status line.
+    /// </summary>
+    public void SetRunMode(RunMode mode)
+    {
+        _show.RunMode = mode;
+        Status?.Invoke(
+            mode == RunMode.SoundReactive ? "Sound Reactive — monitoring the audio input. Arm reactors in the Sound tab." : "Cue Mode — cue list drives playback."
+        );
     }
 
     public void Update()
@@ -157,7 +98,6 @@ sealed class TopBar : Panel
             _master.Value = (float)_show.Dmx.Master;
         _masterValue.Text = $"{Math.Round(_show.Dmx.Master * 100).ToString(CultureInfo.InvariantCulture)}%";
         _runMode.Selected = _show.RunMode;
-        _view.Selected = View;
         _tempo.Text = _show.Tempo.Describe();
         _tempo.Color = Theme.Mix(Theme.Text, Theme.Accent, (float)_show.Tempo.BeatPulse);
         _tempoStop.Visible = _show.Tempo.Running;

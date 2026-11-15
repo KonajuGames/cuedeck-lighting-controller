@@ -9,7 +9,8 @@ Cuepoint and Cuedeck both build on it. Change it there, for both apps; its READM
 The lists below are the history up to then: what's marked as changed in `Rendering/*`, `Input/*`, `Shaders/ui.*`,
 the shared `UI/` controls, `WindowChrome`, `WindowsShell` and `ErrorLog` is now the framework's, while
 `UI/Images.cs` and `UI/MainScreen.cs` are still Cuedeck's; the title bar followed into the framework as a bar
-apps add their own widgets to, which Cuedeck leaves empty. Cuedeck's general-purpose widgets
+apps add their own widgets to, which Cuedeck leaves empty. The menu bar was written in the framework (`MenuBar`,
+with shortcuts and separators added to `ContextMenu`); Cuedeck's menus are `UI/AppMenus.cs`. Cuedeck's general-purpose widgets
 (`UI/Layout.cs`, `TabView`, `NumberBox`, `ColourPicker`) followed them into the framework, the picker now picking an
 `Srgb`, which Cuedeck's `Rgb` converts to and from. `UI/Theme.cs` was split: the shared colours are the framework's
 `Theme`, Cuedeck's own are `UI/AppTheme.cs`. The 3D pass moved out of the renderer into `Rendering/ScenePass.cs`,

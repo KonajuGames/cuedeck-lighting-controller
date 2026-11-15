@@ -19,9 +19,11 @@ opens.
 
 The window has three areas:
 
-- **Top bar**: the **View** selector (**Console**, **DJ Edit Mode**, **DJ Perform Mode**), the Grand Master fader,
-  **Run Mode**, the tempo clock's **Tap**, **Sending**, **Blackout All**, Add/Remove Universe, New/Save/Load Show and
-  Preset, and **Triggers…** for MIDI and OSC. These stay visible whatever tab or view you're on.
+- **Menu bar and top bar**: the menus **File** (New, Load and Save Show, Save and Load Preset, Options, Exit),
+  **Edit** (Undo, Redo, Cut, Copy and Paste for whatever you're editing, Add/Remove Universe, and **Triggers…** for
+  MIDI and OSC) and **Mode** (**Console**, **DJ Edit Mode** or **DJ Perform Mode**, and the run mode); under them the
+  Grand Master fader, **Run Mode**, the tempo clock's **Tap**, **Sending**, **Blackout All** and Add/Remove Universe.
+  These stay visible whatever tab or view you're on.
 - **Left side, the playback tabs**: **Cues**, **Chases**, **Effects**, **Sound** and **Groups**. This is where you
   build and run a show.
 - **Right side**: **Patch** (a page per universe, for patching fixtures and setting them by hand), the
@@ -404,7 +406,7 @@ you'd rather click a flash on and click it off again.
 
 ## Optional: MIDI and OSC control surfaces
 
-**Triggers…** in the top bar opens the binding editor, so a MIDI controller or an OSC app like TouchOSC can fire cues,
+**Edit > Triggers…** opens the binding editor, so a MIDI controller or an OSC app like TouchOSC can fire cues,
 toggle chases and effects, tap the tempo, flash, or black out.
 
 ![The MIDI/OSC Triggers dialog with a note and a pitch-bend binding](img/10-triggers-dialog.png)
@@ -429,7 +431,7 @@ chases, effects, groups, palettes, faders, named positions, sound reactors, trig
 songs' lighting timelines go in a folder beside it (`MyShow.slight` → `MyShow.timelines`), so keep the two together
 when you copy a show to another computer. Show files are the same as sLight's, so either app can open the other's.
 
-| Top bar | Keys | Does |
+| File menu | Keys | Does |
 | --- | --- | --- |
 | **Save Show** | **Ctrl+S** | Save to the current show file (asks where, for a new show) |
 | **Save Show As…** | **Shift+Ctrl+S** | Save to a new file, copying the timelines folder alongside |

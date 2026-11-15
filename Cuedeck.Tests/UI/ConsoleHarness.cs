@@ -133,6 +133,25 @@ public abstract class ConsoleHarness : IDisposable
     }
 
     /// <summary>
+    /// The menu bar's title called <paramref name="title"/>.
+    /// </summary>
+    private protected Button MenuTitle(string title) => Screen.MenuBar.Children.OfType<Button>().Single(b => b.Text == title);
+
+    /// <summary>
+    /// The open menu's item called <paramref name="text"/>.
+    /// </summary>
+    private protected Button MenuItemCalled(string text) => All(Ui.Elements.OfType<ContextMenu>().Single()).OfType<Button>().First(b => b.Text == text);
+
+    /// <summary>
+    /// Chooses <paramref name="item"/> from the menu bar's <paramref name="menu"/>, by clicking its title, then it.
+    /// </summary>
+    private protected void FromMenu(string menu, string item)
+    {
+        Click(MenuTitle(menu));
+        Click(MenuItemCalled(item));
+    }
+
+    /// <summary>
     /// Runs frames until <paramref name="done"/>, for work in the background (the library's online sources); fails
     /// after five seconds.
     /// </summary>

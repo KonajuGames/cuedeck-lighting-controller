@@ -11,12 +11,7 @@ namespace Cuedeck.UI;
 sealed record Fonts(Font Small, Font Body, Font Bold, Font Heading, Font Big);
 
 /// <summary>
-/// The whole window: the title bar, the console's top bar, the console filling the middle, and a status line along
-/// the bottom. Everything is sized to the window each frame, so set <see cref="ScreenSize"/> and call
-/// <see cref="Update"/> before laying out.
-/// </summary>
-/// <summary>
-/// What fills the screen below the top bar: the console, or DJ Edit Mode.
+/// What fills the screen below the top bar: the console, DJ Edit Mode or DJ Perform Mode.
 /// </summary>
 enum AppView
 {
@@ -25,6 +20,11 @@ enum AppView
     DjPerform,
 }
 
+/// <summary>
+/// The whole window: the title bar, the menu bar, the console's top bar, the console filling the middle, and a status
+/// line along the bottom. Everything is sized to the window each frame, so set <see cref="ScreenSize"/> and call
+/// <see cref="Update"/> before laying out.
+/// </summary>
 sealed class MainScreen : Panel
 {
     const float STATUS_HEIGHT = 26;
@@ -34,6 +34,17 @@ sealed class MainScreen : Panel
     public float2 ScreenSize { get; set; } = new(1280, 720);
 
     public TitleBar TitleBar { get; }
+
+    /// <summary>
+    /// The File, Edit and Mode menus, under the title bar.
+    /// </summary>
+    public MenuBar MenuBar { get; }
+
+    /// <summary>
+    /// What the menus do, for the app's shell to handle the file commands.
+    /// </summary>
+    public AppMenus Menus { get; }
+
     public TopBar TopBar { get; }
     public ConsoleView Console { get; }
 
@@ -59,26 +70,24 @@ sealed class MainScreen : Panel
         Background = Theme.Background;
         Dialogs = dialogs;
         TitleBar = Add(new TitleBar(fonts.Body, fonts.Bold, images.Logo, images.Cog, ("Cue", Theme.Accent), ("deck", Theme.Text)));
+        MenuBar = Add(new MenuBar(fonts.Body, menu));
         TopBar = Add(new TopBar(fonts, menu, show));
         Console = Add(new ConsoleView(fonts, images.Fixture, menu, dialogs, show, profiles));
         if (djEdit is not null)
         {
             DjEdit = Add(djEdit);
             djEdit.Visible = false;
-            TopBar.HasDjEdit = true;
             dialogs.Options.DjSoftwareChanged += _ => djEdit.ReloadLibrary();
         }
         if (djPerform is not null)
         {
             DjPerform = Add(djPerform);
             djPerform.Visible = false;
-            TopBar.HasDjPerform = true;
             djPerform.DjSoftwareName = () => dialogs.Options.Settings.DjSoftwareName;
         }
-        TopBar.ViewChosen += SetView;
+        Menus = new AppMenus(this, MenuBar, show);
         _status = Add(new Label(fonts.Body, "") { Color = Theme.Muted });
         TopBar.Status += Log;
-        TopBar.OpenTriggers += dialogs.Triggers.Show;
         TitleBar.OptionsClicked += dialogs.Options.Show;
         dialogs.Options.DjSoftwareChanged += d => Log($"Music library: {AppSettings.NameOf(d)}.");
         Console.Patch.Status += Log;
@@ -127,13 +136,16 @@ sealed class MainScreen : Panel
                 Log("DJ Perform Mode stopped.");
             }
         }
-        TopBar.View = view;
     }
+
+    // Below the title bar and the menu bar.
+    float BarsHeight => TitleBar.HEIGHT + MenuBar.Size.Y;
 
     public void Update()
     {
         TitleBar.Width = ScreenSize.X;
         TitleBar.Update();
+        MenuBar.Width = ScreenSize.X;
         TopBar.Width = ScreenSize.X - 2 * TopBar.Padding;
         TopBar.Update();
         if (Console.Visible)
@@ -147,9 +159,10 @@ sealed class MainScreen : Panel
     public override float2 Measure()
     {
         TitleBar.Measure();
+        MenuBar.Measure();
         TopBar.Measure();
         _status.Measure();
-        var room = new float2(ScreenSize.X, MathF.Max(100, ScreenSize.Y - TitleBar.HEIGHT - TopBar.Size.Y - STATUS_HEIGHT));
+        var room = new float2(ScreenSize.X, MathF.Max(100, ScreenSize.Y - BarsHeight - TopBar.Size.Y - STATUS_HEIGHT));
         Console.Available = room;
         if (Console.Visible)
             Console.Measure();
@@ -170,11 +183,12 @@ sealed class MainScreen : Panel
     {
         ArrangeSelf(position);
         TitleBar.Arrange(position);
-        TopBar.Arrange(position + new float2(0, TitleBar.HEIGHT));
+        MenuBar.Arrange(position + new float2(0, TitleBar.HEIGHT));
+        TopBar.Arrange(position + new float2(0, BarsHeight));
         if (Console.Visible)
-            Console.Arrange(position + new float2(0, TitleBar.HEIGHT + TopBar.Size.Y));
-        DjEdit?.Arrange(position + new float2(8, TitleBar.HEIGHT + TopBar.Size.Y + 6));
-        DjPerform?.Arrange(position + new float2(8, TitleBar.HEIGHT + TopBar.Size.Y + 6));
+            Console.Arrange(position + new float2(0, BarsHeight + TopBar.Size.Y));
+        DjEdit?.Arrange(position + new float2(8, BarsHeight + TopBar.Size.Y + 6));
+        DjPerform?.Arrange(position + new float2(8, BarsHeight + TopBar.Size.Y + 6));
         _status.Arrange(position + new float2(10, ScreenSize.Y - STATUS_HEIGHT + MathF.Round((STATUS_HEIGHT - _status.Size.Y) / 2)));
     }
 

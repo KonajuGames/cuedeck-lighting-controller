@@ -59,7 +59,7 @@ public sealed class OptionsTests : ConsoleHarness
     {
         var sent = new List<(string Host, int Port, byte[] Bytes)>();
         Show.Triggers.SendUdp = (host, port, bytes) => sent.Add((host, port, bytes));
-        Click(ButtonCalled("Triggers…"));
+        FromMenu("Edit", "Triggers…");
 
         // Where OSC feedback goes, then feedback on.
         var host = Find<TextBox>(b => b.Placeholder == "127.0.0.1");
@@ -89,7 +89,7 @@ public sealed class OptionsTests : ConsoleHarness
 
         // Off again: the pad's put out.
         sent.Clear();
-        Click(ButtonCalled("Triggers…"));
+        FromMenu("Edit", "Triggers…");
         Click(Find<Checkbox>(c => c.Text == "Feedback (LEDs)"));
         Assert.False(Show.Triggers.FeedbackEnabled);
         Assert.Equal([0x90, 60, 0], Assert.Single(sent).Bytes);

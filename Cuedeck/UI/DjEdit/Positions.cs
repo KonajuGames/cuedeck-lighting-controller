@@ -312,6 +312,16 @@ sealed class PositionEditor : Region
     public static bool HasCopiedPoints => _clip.Count > 0;
 
     /// <summary>
+    /// Whether <see cref="CopyPoints"/> has anything to copy, for the Edit menu.
+    /// </summary>
+    public bool CanCopyPoints => HasPosition && SelectedUids().Count > 0;
+
+    /// <summary>
+    /// Whether <see cref="PastePoints"/> has somewhere to paste and something to paste there, for the Edit menu.
+    /// </summary>
+    public bool CanPastePoints => HasPosition && _clip.Count > 0 && SelectedUids().Count > 0;
+
+    /// <summary>
     /// The list's right-click menu, on the selection: Snap Together (two or more), Spread (three or more), Reset.
     /// </summary>
     public List<MenuItem> MenuItems()

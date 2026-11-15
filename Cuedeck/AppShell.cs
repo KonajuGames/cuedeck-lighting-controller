@@ -23,13 +23,17 @@ sealed class AppShell
         _confirm = confirm;
         _owner = owner;
 
+        var menus = screen.Menus;
+        menus.NewShow += New;
+        menus.SaveShow += () => Save();
+        menus.SaveShowAs += () => SaveAs();
+        menus.LoadShow += Load;
+        menus.SavePreset += SavePreset;
+        menus.LoadPreset += LoadPreset;
+        menus.AddUniverse += AddUniverse;
+        menus.RemoveUniverse += ConfirmRemoveUniverse;
+        menus.Exit += RequestClose;
         var top = screen.TopBar;
-        top.NewShow += New;
-        top.SaveShow += () => Save();
-        top.SaveShowAs += () => SaveAs();
-        top.LoadShow += Load;
-        top.SavePreset += SavePreset;
-        top.LoadPreset += LoadPreset;
         top.BlackoutAll += BlackoutAll;
         top.AddUniverse += AddUniverse;
         top.RemoveUniverse += ConfirmRemoveUniverse;

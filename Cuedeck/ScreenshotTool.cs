@@ -502,7 +502,7 @@ sealed class ScreenshotTool
         ToConsole();
         Tab("Groups");
         Tab("3D Visualizer");
-        Click(Find<Button>(b => b.Text == "Triggers…"));
+        _app.Screen.Dialogs.Triggers.Show(); // Edit > Triggers…
         yield return new Wait(5);
         if (_app.Ui.Elements.OfType<TriggersDialog>().FirstOrDefault() is { } dialog)
             SelectFirst(dialog.List);

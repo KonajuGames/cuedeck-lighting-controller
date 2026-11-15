@@ -212,14 +212,14 @@ public sealed class DjPerformTests : IDisposable
         }
         Frame();
         Assert.False(perform.Visible || _perf.IsActive);
-        // The top bar's View dropdown.
-        var view = All(screen).OfType<Dropdown<AppView>>().Single();
-        ui.MouseMove(view.ScreenPosition + view.Size / 2);
+        // The menu bar's Mode menu.
+        var mode = screen.MenuBar.Children.OfType<Button>().Single(b => b.Text == "Mode");
+        ui.MouseMove(mode.ScreenPosition + mode.Size / 2);
         ui.MouseButton(MouseButton.Left, true);
         ui.MouseButton(MouseButton.Left, false);
         Frame();
-        Assert.Contains("DJ Perform Mode", menu.ItemTexts.Select(t => t.Trim()));
-        var choice = All(menu).OfType<Button>().Single(b => b.Text.Contains("DJ Perform Mode"));
+        Assert.Contains("DJ Perform Mode", menu.ItemTexts);
+        var choice = All(menu).OfType<Button>().Single(b => b.Text == "DJ Perform Mode");
         ui.MouseMove(choice.ScreenPosition + choice.Size / 2);
         ui.MouseButton(MouseButton.Left, true);
         ui.MouseButton(MouseButton.Left, false);

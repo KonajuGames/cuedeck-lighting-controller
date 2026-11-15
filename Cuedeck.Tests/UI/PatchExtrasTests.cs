@@ -80,13 +80,13 @@ public sealed class PatchExtrasTests : ConsoleHarness
     public void Presets_saved_and_loaded()
     {
         Shell.PresetPath = Dir.File("preset.json");
-        Click(ButtonCalled("Load Preset"));
+        FromMenu("File", "Load Preset");
         Assert.Equal("No preset found.", Screen.StatusText);
         Show.Dmx.Universes[0].SetChannel(7, 70);
-        Click(ButtonCalled("Save Preset"));
+        FromMenu("File", "Save Preset");
         Assert.Equal("Preset saved (1 universe).", Screen.StatusText);
         Show.Dmx.Universes[0].SetAll(0);
-        Click(ButtonCalled("Load Preset"));
+        FromMenu("File", "Load Preset");
         Assert.Equal(70, Level(7));
         Assert.Equal("Preset loaded.", Screen.StatusText);
     }

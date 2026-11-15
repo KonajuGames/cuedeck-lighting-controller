@@ -333,14 +333,14 @@ public sealed class DjEditTests : IDisposable
         Frame();
         Assert.True(screen.View == AppView.Console && screen.Console.Visible && !dj.Visible);
         Assert.False(loaded); // DJ Edit Mode isn't loaded until it's shown
-        // The top bar's View dropdown.
-        var view = All(screen).OfType<Dropdown<AppView>>().Single();
-        ui.MouseMove(view.ScreenPosition + view.Size / 2);
+        // The menu bar's Mode menu.
+        var mode = screen.MenuBar.Children.OfType<Button>().Single(b => b.Text == "Mode");
+        ui.MouseMove(mode.ScreenPosition + mode.Size / 2);
         ui.MouseButton(MouseButton.Left, true);
         ui.MouseButton(MouseButton.Left, false);
         Frame();
-        Assert.Equal(["• Console", "DJ Edit Mode"], menu.ItemTexts.Select(t => t.Trim()).Select(t => t == "Console" ? "• Console" : t));
-        var choice = All(menu).OfType<Button>().Single(b => b.Text.Contains("DJ Edit Mode"));
+        Assert.Equal(["Console", "DJ Edit Mode", "Cue Mode", "Sound Reactive"], menu.ItemTexts);
+        var choice = All(menu).OfType<Button>().Single(b => b.Text == "DJ Edit Mode");
         ui.MouseMove(choice.ScreenPosition + choice.Size / 2);
         ui.MouseButton(MouseButton.Left, true);
         ui.MouseButton(MouseButton.Left, false);
