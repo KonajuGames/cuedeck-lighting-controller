@@ -421,26 +421,39 @@ sealed class UsbDmxOutput(IUsbLink link, UsbDmxMode mode, string serial, string 
         _thread.Start();
     }
 
+    /// <summary>
+    /// The streaming thread: a frame every 1/<see cref="FPS"/> seconds until disposed, then the link closed, here, so
+    /// it's never closed under a write still going.
+    /// </summary>
     void Stream()
     {
-        var clock = Stopwatch.StartNew();
-        var next = 0.0;
-        while (_running)
+        // Windows sleeps in 15.6 ms steps unless asked for finer ones, which would make 40 frames a second about 32.
+        using var fine = TimerResolution.Fine();
+        try
         {
-            if (!WriteFrame())
+            var clock = Stopwatch.StartNew();
+            var next = 0.0;
+            while (_running)
             {
-                Thread.Sleep(250);
-                continue;
+                if (!WriteFrame())
+                {
+                    Thread.Sleep(250);
+                    continue;
+                }
+                var written = clock.Elapsed.TotalSeconds;
+                next += 1.0 / FPS;
+                if (Mode == UsbDmxMode.OpenDmx)
+                    next = Math.Max(next, written + 0.023); // the last frame's still going out
+                else if (next < written)
+                    next = written; // fell behind: don't spiral
+                var wait = next - clock.Elapsed.TotalSeconds;
+                if (wait > 0)
+                    Thread.Sleep(TimeSpan.FromSeconds(wait));
             }
-            var written = clock.Elapsed.TotalSeconds;
-            next += 1.0 / FPS;
-            if (Mode == UsbDmxMode.OpenDmx)
-                next = Math.Max(next, written + 0.023); // the last frame's still going out
-            else if (next < written)
-                next = written; // fell behind: don't spiral
-            var wait = next - clock.Elapsed.TotalSeconds;
-            if (wait > 0)
-                Thread.Sleep(TimeSpan.FromSeconds(wait));
+        }
+        finally
+        {
+            link.Close();
         }
     }
 
@@ -487,12 +500,48 @@ sealed class UsbDmxOutput(IUsbLink link, UsbDmxMode mode, string serial, string 
             Thread.SpinWait(10);
     }
 
+    /// <summary>
+    /// Stops sending. A streaming thread closes the link itself as it stops (waited for here for a moment; a write
+    /// stuck in the driver means later); without one, it's closed now.
+    /// </summary>
     public void Dispose()
     {
         _running = false;
-        _thread?.Join(500);
-        link.Close();
+        if (_thread is null)
+            link.Close();
+        else
+            _thread.Join(500);
     }
+}
+
+/// <summary>
+/// Windows' timer resolution, asked to be 1 ms while something needs sleeps that short (USB DMX's frame timing).
+/// </summary>
+static partial class TimerResolution
+{
+    public static IDisposable Fine() => OperatingSystem.IsWindows() && timeBeginPeriod(1) == 0 ? new Release() : new Nothing();
+
+    sealed class Release : IDisposable
+    {
+        int _done;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _done, 1) == 0)
+                timeEndPeriod(1);
+        }
+    }
+
+    sealed class Nothing : IDisposable
+    {
+        public void Dispose() { }
+    }
+
+    [System.Runtime.InteropServices.LibraryImport("winmm.dll")]
+    private static partial uint timeBeginPeriod(uint period);
+
+    [System.Runtime.InteropServices.LibraryImport("winmm.dll")]
+    private static partial uint timeEndPeriod(uint period);
 }
 
 /// <summary>

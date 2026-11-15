@@ -195,7 +195,11 @@ sealed class SongTimelines : ISongTimelines
     readonly HashSet<string> _regenerate = [];
     readonly Dictionary<string, CancellationTokenSource> _analysing = [];
     readonly ConcurrentQueue<Action> _posted = new();
-    readonly List<Task> _saves = [];
+    /// <summary>
+    /// The background saves still going, by song: each song's waits for the one before it, and a save or read of the
+    /// song here waits for them (<see cref="WaitForSave"/>), so an older save never lands on top of a newer one.
+    /// </summary>
+    readonly Dictionary<string, Task> _saves = [];
     bool _batching;
 
     public SongTimelines()
@@ -282,7 +286,9 @@ sealed class SongTimelines : ISongTimelines
     {
         while (_posted.TryDequeue(out var action))
             action();
-        _saves.RemoveAll(t => t.IsCompleted);
+        foreach (var (song, task) in _saves.ToList())
+            if (task.IsCompleted)
+                _saves.Remove(song);
     }
 
     // ---------------------------------------------------------- the tracks --
@@ -428,6 +434,7 @@ sealed class SongTimelines : ISongTimelines
     {
         if (!_songs.TryGetValue(path, out var d))
         {
+            WaitForSave(path);
             d = Store?.LoadSong(path) ?? [];
             if (d["tracks"] is not JsonObject)
                 d["tracks"] = new JsonObject();
@@ -446,6 +453,7 @@ sealed class SongTimelines : ISongTimelines
             return "";
         Collect();
         SetTemporary(SongData(), temporary);
+        WaitForSave(Path);
         var err = Store.SaveSong(Path, SongData());
         if (err == "")
         {
@@ -463,6 +471,7 @@ sealed class SongTimelines : ISongTimelines
     /// </summary>
     public bool RemoveSongTimelines(string path)
     {
+        WaitForSave(path);
         var had = Store is not null && Store.RemoveSong(path);
         _songs.Remove(path);
         _history.Remove(path);
@@ -2068,6 +2077,7 @@ sealed class SongTimelines : ISongTimelines
         SetTemporary(d, temporary);
         if (temporary)
             return SaveInBackground(path, d);
+        WaitForSave(path);
         var err = Store.SaveSong(path, d);
         if (err == "")
             TimelinesSaved?.Invoke(path);
@@ -2085,8 +2095,9 @@ sealed class SongTimelines : ISongTimelines
         var job = store.SaveJob(path, d);
         if (job.Error is { } error)
             return error;
-        _saves.Add(
-            Task.Run(() =>
+        var before = _saves.GetValueOrDefault(path) ?? Task.CompletedTask;
+        _saves[path] = before.ContinueWith(
+            _ =>
             {
                 var err = TimelineStore.WriteJob(job);
                 _posted.Enqueue(() =>
@@ -2096,15 +2107,35 @@ sealed class SongTimelines : ISongTimelines
                     else if (store == Store)
                         TimelinesSaved?.Invoke(path);
                 });
-            })
+            },
+            TaskScheduler.Default
         );
         return "";
     }
 
     /// <summary>
+    /// Waits for song <paramref name="path"/>'s background saves to be written.
+    /// </summary>
+    void WaitForSave(string path)
+    {
+        if (_saves.Remove(path, out var task))
+            task.Wait();
+    }
+
+    /// <summary>
+    /// Waits for every background save to be written: before the app closes, so none is cut off.
+    /// </summary>
+    public void WaitForSaves()
+    {
+        foreach (var task in _saves.Values)
+            task.Wait();
+        _saves.Clear();
+    }
+
+    /// <summary>
     /// Whether a song's timelines are still being written in the background.
     /// </summary>
-    public bool IsSaving => _saves.Any(t => !t.IsCompleted);
+    public bool IsSaving => _saves.Values.Any(t => !t.IsCompleted);
 
     /// <summary>
     /// Puts a generated show into the selected areas only, row by row, leaving the timelines outside them as they

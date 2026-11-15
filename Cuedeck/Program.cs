@@ -332,6 +332,9 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     var lastTime = Glfw.Time;
     var tickTime = 0.0;
     var lastAutosave = Glfw.Time;
+    const double TITLE_CHECK = 0.25;
+    var lastTitleCheck = double.NegativeInfinity;
+    var shownTitle = "";
     var windowShown = false;
     while (!shell.MayClose && screenshots?.Done != true)
     {
@@ -376,8 +379,18 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
             continue;
 
         screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = picker.ScreenSize = library.ScreenSize = editor.ScreenSize = triggers.ScreenSize = options.ScreenSize = new float2(size.X, size.Y);
-        screen.TitleBar.Subtitle = session.Title.Replace(" — Cuedeck", "");
-        window.Title = session.Title;
+        // Whether there are unsaved changes means writing out the whole show, so it's asked a few times a second, not
+        // every frame, and the window's told only when the title changes.
+        if (now - lastTitleCheck >= TITLE_CHECK)
+        {
+            lastTitleCheck = now;
+            if (session.Title is var title && title != shownTitle)
+            {
+                shownTitle = title;
+                screen.TitleBar.Subtitle = title.Replace(" — Cuedeck", "");
+                window.Title = title;
+            }
+        }
         screen.Update();
         ui.Layout(screen.ScreenSize);
         input.UpdateCursor();
@@ -390,6 +403,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     popOut.SaveState();
     performer.Stop();
     timelines.Flush(); // the open song's timelines
+    timelines.WaitForSaves(); // and any still being written in the background
     shell.End();
     if (OperatingSystem.IsWindows())
         WindowChrome.Remove();

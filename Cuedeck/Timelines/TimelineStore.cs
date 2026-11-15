@@ -125,27 +125,55 @@ sealed class TimelineStore(string dir = "")
 
     string IndexFile => Gd.PathJoin(Dir, "index.json");
 
+    /// <summary>
+    /// A file's JSON, or null. Opened letting a save replace it meanwhile (<see cref="WriteJson"/>), as decks read
+    /// songs on other threads.
+    /// </summary>
     static JsonNode? ReadJson(string path)
     {
         try
         {
-            return File.Exists(path) ? Json.Parse(File.ReadAllText(path)) : null;
+            if (!File.Exists(path))
+                return null;
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            return Json.Parse(new StreamReader(stream).ReadToEnd());
         }
-        catch (Exception e) when (e is IOException or System.Text.Json.JsonException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
         {
             return null;
         }
     }
 
+    /// <summary>
+    /// Writes a file whole or not at all: into a temporary file beside it, then swapped in, so a reader (or a crash)
+    /// never sees half of it. A swap refused while something has the file open is tried a few more times.
+    /// </summary>
     static bool WriteJson(string path, JsonNode data)
     {
+        var temp = $"{path}.{Guid.NewGuid():N}.tmp";
         try
         {
-            File.WriteAllText(path, Json.StringifyIndented(data));
-            return true;
+            File.WriteAllText(temp, Json.StringifyIndented(data));
+            for (var tries = 1; ; tries++)
+            {
+                try
+                {
+                    File.Move(temp, path, overwrite: true);
+                    return true;
+                }
+                catch (Exception e) when ((e is IOException or UnauthorizedAccessException) && tries < 10)
+                {
+                    Thread.Sleep(Math.Min(20 * tries, 100)); // about 0.7 s in all
+                }
+            }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
+            try
+            {
+                File.Delete(temp);
+            }
+            catch (Exception d) when (d is IOException or UnauthorizedAccessException) { }
             return false;
         }
     }

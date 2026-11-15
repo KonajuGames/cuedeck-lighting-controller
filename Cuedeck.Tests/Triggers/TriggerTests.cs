@@ -181,6 +181,34 @@ public class TriggerTests
         Assert.Empty(OscMessage.Parse([1, 2]));
     }
 
+    [Fact]
+    public void Broken_osc_packets_are_read_as_far_as_they_go_and_never_throw()
+    {
+        // A blob claiming more than there is, then a string: stops at the blob.
+        var m = Assert.Single(OscMessage.Parse([.. "/a\0\0,bs\0"u8, 0, 0, 0, 100]));
+        Assert.Equal("/a", m.Address);
+        Assert.Empty(m.Args);
+        // Sizes near int.MaxValue: a blob's padding and a bundle element's end mustn't wrap round.
+        OscMessage.Parse([.. "/a\0\0,bi\0"u8, 0x7F, 0xFF, 0xFF, 0xFF, 1, 2, 3, 4]);
+        Assert.Empty(OscMessage.Parse([.. "#bundle\0"u8, .. new byte[8], 0x7F, 0xFF, 0xFF, 0xFF, 1, 2, 3, 4]));
+        // A 64-bit argument cut short, then a string.
+        OscMessage.Parse([.. "/a\0\0,ds\0"u8, 1, 2]);
+
+        // Every cut of a good packet, and random bytes.
+        var good = OscMessage.Encode("/fader/1", 0.5f, 3, "hi");
+        for (var n = 0; n <= good.Length; n++)
+            OscMessage.Parse(good.AsSpan(0, n));
+        var random = new Random(1);
+        for (var i = 0; i < 20000; i++)
+        {
+            var bytes = new byte[random.Next(0, 40)];
+            random.NextBytes(bytes);
+            if (bytes.Length > 4 && random.Next(2) == 0)
+                bytes[4] = (byte)','; // a type tag string, more often than chance
+            OscMessage.Parse(bytes);
+        }
+    }
+
     // ------------------------------------------------------------ the show --
 
     [Fact]

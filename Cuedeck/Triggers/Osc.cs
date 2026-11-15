@@ -33,7 +33,7 @@ sealed record OscMessage(string Address, IReadOnlyList<object?> Args)
             {
                 var size = ReadInt(data, p);
                 p += 4;
-                if (size <= 0 || p + size > data.Length)
+                if (size <= 0 || size > data.Length - p)
                     break;
                 Parse(data.Slice(p, size), output);
                 p += size;
@@ -46,20 +46,23 @@ sealed record OscMessage(string Address, IReadOnlyList<object?> Args)
         {
             var (tags, after) = ReadString(data, p);
             p = after;
+            // Each argument is read only if it's all there: a packet cut short (or lying about a blob's size) keeps the
+            // arguments before that point.
             for (var i = 1; i < tags.Length; i++)
             {
                 var stop = false;
+                var left = data.Length - p;
                 switch (tags[i])
                 {
-                    case 'i' or 'r' or 'c':
+                    case 'i' or 'r' or 'c' when left >= 4:
                         args.Add(ReadInt(data, p));
                         p += 4;
                         break;
-                    case 'f':
-                        args.Add(p + 4 <= data.Length ? BinaryPrimitives.ReadSingleBigEndian(data[p..]) : 0f);
+                    case 'f' when left >= 4:
+                        args.Add(BinaryPrimitives.ReadSingleBigEndian(data[p..]));
                         p += 4;
                         break;
-                    case 's' or 'S':
+                    case 's' or 'S' when left > 0:
                         var (s, next) = ReadString(data, p);
                         args.Add(s);
                         p = next;
@@ -73,11 +76,18 @@ sealed record OscMessage(string Address, IReadOnlyList<object?> Args)
                     case 'N' or 'I':
                         args.Add(null);
                         break;
-                    case 'b':
+                    case 'b' when left >= 4:
                         // A blob: its size, then its bytes padded; skipped so later arguments stay aligned.
-                        p += 4 + Pad4(Math.Max(ReadInt(data, p), 0));
+                        var size = ReadInt(data, p);
+                        var padded = ((long)size + 3) & ~3L;
+                        if (size < 0 || padded > left - 4)
+                        {
+                            stop = true;
+                            break;
+                        }
+                        p += 4 + (int)padded;
                         break;
-                    case 'h' or 't' or 'd':
+                    case 'h' or 't' or 'd' when left >= 8:
                         p += 8;
                         break;
                     default:
@@ -139,7 +149,8 @@ sealed record OscMessage(string Address, IReadOnlyList<object?> Args)
     }
 
     /// <summary>
-    /// An OSC string (nul-ended, padded with nuls to four bytes) and where the next thing starts.
+    /// An OSC string (nul-ended, padded with nuls to four bytes) and where the next thing starts (which may be past the
+    /// end, for a string cut short). <paramref name="at"/> must be inside <paramref name="data"/>.
     /// </summary>
     static (string Text, int Next) ReadString(ReadOnlySpan<byte> data, int at)
     {

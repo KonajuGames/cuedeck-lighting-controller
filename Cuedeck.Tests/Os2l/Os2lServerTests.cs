@@ -232,6 +232,56 @@ public sealed class Os2lServerTests
     }
 
     [Fact]
+    public void Messages_arriving_a_byte_at_a_time_come_out_whole_and_once()
+    {
+        var splitter = new Os2lSplitter();
+        var text = """ {"a":"x}y","b":{"c":1}}{"d":2} {"e""";
+        var got = new List<string>();
+        foreach (var b in Encoding.UTF8.GetBytes(text))
+        {
+            splitter.Feed([b]);
+            got.AddRange(splitter.Take());
+        }
+        Assert.Equal(["""{"a":"x}y","b":{"c":1}}""", """{"d":2}"""], got);
+        Assert.Equal("""{"e""", Encoding.UTF8.GetString(splitter.Pending));
+    }
+
+    [Fact]
+    public void Sending_more_than_the_socket_takes_keeps_every_message_whole()
+    {
+        using var s = new Os2lServer { Subscriptions = [] };
+        s.Start(0, "127.0.0.1");
+        using var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp) { ReceiveBufferSize = 4096 };
+        client.Connect("127.0.0.1", s.Port);
+        Assert.True(Pump(s, () => s.ClientCount == 1));
+
+        // Far more than the socket buffers hold, sent while the client isn't reading.
+        const int COUNT = 400;
+        var name = new string('n', 1500);
+        for (var i = 0; i < COUNT; i++)
+            s.SendFeedback($"{name}{i}", true);
+
+        var bytes = new List<byte>();
+        var splitter = new Os2lSplitter();
+        var messages = new List<string>();
+        Assert.True(
+            Pump(
+                s,
+                () =>
+                {
+                    var before = bytes.Count;
+                    ReadAll(client, bytes);
+                    splitter.Feed(bytes.ToArray().AsSpan(before));
+                    messages.AddRange(splitter.Take());
+                    return messages.Count == COUNT;
+                },
+                10000
+            )
+        );
+        Assert.Equal(Enumerable.Range(0, COUNT).Select(i => $"{name}{i}"), messages.Select(m => Json.Parse(m).Str("name")));
+    }
+
+    [Fact]
     public void A_client_that_never_finishes_a_message_is_dropped()
     {
         using var s = new Os2lServer { Subscriptions = [] };

@@ -30,11 +30,23 @@ sealed class Os2lServer : IDisposable
     /// </summary>
     public const int MAX_BUFFER = 1 << 20;
 
+    /// <summary>
+    /// A client that lets this much pile up unread is dropped rather than queued for forever.
+    /// </summary>
+    public const int MAX_UNSENT = 4 << 20;
+
     sealed class Client(Socket socket, string name)
     {
         public Socket Socket { get; } = socket;
         public string Name { get; } = name;
-        public byte[] Buffer { get; set; } = [];
+        public Os2lSplitter Received { get; } = new();
+
+        /// <summary>
+        /// What's waiting to go to it: what its socket wouldn't take yet, sent on as it does.
+        /// </summary>
+        public List<byte> Unsent { get; } = [];
+
+        public bool Broken { get; set; }
     }
 
     TcpListener? _listener;
@@ -211,9 +223,18 @@ sealed class Os2lServer : IDisposable
                 continue;
             }
             Drain(c);
-            if (c.Buffer.Length > MAX_BUFFER)
+            if (c.Received.Pending.Length > MAX_BUFFER)
             {
-                System.Diagnostics.Trace.TraceWarning($"OS2L: {c.Name} sent {c.Buffer.Length} bytes without a complete message; dropping");
+                System.Diagnostics.Trace.TraceWarning($"OS2L: {c.Name} sent {c.Received.Pending.Length} bytes without a complete message; dropping");
+                Drop(c);
+                continue;
+            }
+            Flush(c);
+            if (c.Broken)
+                Drop(c);
+            else if (c.Unsent.Count > MAX_UNSENT)
+            {
+                System.Diagnostics.Trace.TraceWarning($"OS2L: {c.Name} isn't reading what's sent to it; dropping");
                 Drop(c);
             }
         }
@@ -234,7 +255,7 @@ sealed class Os2lServer : IDisposable
                 return true;
             var got = new byte[n];
             var read = c.Socket.Receive(got);
-            c.Buffer = [.. c.Buffer, .. got.AsSpan(0, read)];
+            c.Received.Feed(got.AsSpan(0, read));
             return true;
         }
         catch (SocketException e) when (e.SocketErrorCode == SocketError.WouldBlock)
@@ -256,9 +277,7 @@ sealed class Os2lServer : IDisposable
 
     void Drain(Client c)
     {
-        var (messages, remainder) = SplitMessages(c.Buffer);
-        c.Buffer = remainder;
-        foreach (var text in messages)
+        foreach (var text in c.Received.Take())
         {
             if (Json.Parse(text) is JsonObject msg)
                 HandleMessage(msg, c.Name);
@@ -315,50 +334,13 @@ sealed class Os2lServer : IDisposable
 
     /// <summary>
     /// Splits a byte stream of back-to-back JSON objects into the complete ones' texts, and the rest (an incomplete
-    /// object to keep for next time). Braces in strings, and escaped quotes, are handled; whatever's between objects
-    /// (whitespace, newlines, NULs) is skipped. On bytes, so a UTF-8 character split between reads is fine.
+    /// object to keep for next time), as <see cref="Os2lSplitter"/> does.
     /// </summary>
     public static (List<string> Messages, byte[] Remainder) SplitMessages(ReadOnlySpan<byte> buf)
     {
-        var messages = new List<string>();
-        int depth = 0, start = -1, consumed = 0;
-        bool inString = false, escaped = false;
-        for (var i = 0; i < buf.Length; i++)
-        {
-            var b = buf[i];
-            if (inString)
-            {
-                if (escaped)
-                    escaped = false;
-                else if (b == '\\')
-                    escaped = true;
-                else if (b == '"')
-                    inString = false;
-            }
-            else if (b == '"')
-            {
-                if (depth > 0)
-                    inString = true;
-            }
-            else if (b == '{')
-            {
-                if (depth == 0)
-                    start = i;
-                depth++;
-            }
-            else if (b == '}')
-            {
-                if (depth > 0 && --depth == 0)
-                {
-                    messages.Add(Encoding.UTF8.GetString(buf[start..(i + 1)]));
-                    consumed = i + 1;
-                    start = -1;
-                }
-            }
-            else if (depth == 0)
-                consumed = i + 1; // junk between objects
-        }
-        return (messages, buf[consumed..].ToArray());
+        var splitter = new Os2lSplitter();
+        splitter.Feed(buf);
+        return (splitter.Take(), splitter.Pending.ToArray());
     }
 
     // --------------------------------------------------------------- sending --
@@ -408,16 +390,37 @@ sealed class Os2lServer : IDisposable
             SendTo(c, msg);
     }
 
+    /// <summary>
+    /// Queues a message for a client and sends what its socket will take now; the rest goes on the next polls, so a
+    /// message is never cut short.
+    /// </summary>
     static void SendTo(Client c, JsonObject msg)
     {
+        c.Unsent.AddRange(Encoding.UTF8.GetBytes(msg.ToJsonString()));
+        Flush(c);
+    }
+
+    static void Flush(Client c)
+    {
+        if (c.Broken || c.Unsent.Count == 0)
+            return;
         try
         {
-            var bytes = Encoding.UTF8.GetBytes(msg.ToJsonString());
-            var sent = 0;
-            while (sent < bytes.Length)
-                sent += c.Socket.Send(bytes, sent, bytes.Length - sent, SocketFlags.None);
+            while (c.Unsent.Count > 0)
+            {
+                var sent = c.Socket.Send(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(c.Unsent), SocketFlags.None, out var error);
+                if (sent > 0)
+                    c.Unsent.RemoveRange(0, sent);
+                if (error is not (SocketError.Success or SocketError.WouldBlock))
+                    c.Broken = true; // gone: dropped on the next poll
+                if (error != SocketError.Success || sent == 0)
+                    break; // the socket's full: the rest goes next poll
+            }
         }
-        catch (SocketException) { } // a client gone: noticed on the next poll
+        catch (ObjectDisposedException)
+        {
+            c.Broken = true;
+        }
     }
 
     // ----------------------------------------------------------- advertising --

@@ -213,4 +213,45 @@ public sealed class UsbDmxTests
             Assert.Equal(OutputMode.ArtNet, show.Patch.Universes[0].Output);
         }
     }
+
+    /// <summary>
+    /// A link whose writes hang until let go, as a wedged driver's can.
+    /// </summary>
+    sealed class StuckLink : IUsbLink
+    {
+        public readonly ManualResetEventSlim Writing = new();
+        public readonly ManualResetEventSlim LetGo = new();
+        public volatile bool Closed;
+        public volatile bool WroteAfterClose;
+
+        public string? Write(ReadOnlySpan<byte> frame513)
+        {
+            if (Closed)
+                WroteAfterClose = true;
+            Writing.Set();
+            LetGo.Wait();
+            return null;
+        }
+
+        public void Close() => Closed = true;
+    }
+
+    [Fact]
+    public void A_link_isnt_closed_under_a_write_still_going()
+    {
+        var link = new StuckLink();
+        var output = new UsbDmxOutput(link, UsbDmxMode.EnttecPro, "EN1", "test");
+        output.Start();
+        Assert.True(link.Writing.Wait(2000));
+        output.Dispose(); // gives up waiting for the write
+        Assert.False(link.Closed);
+        link.LetGo.Set(); // the write comes back: the thread stops and closes the link itself
+        Assert.True(SpinWait.SpinUntil(() => link.Closed, 2000));
+        Assert.False(link.WroteAfterClose);
+
+        // Not streaming, it closes straight away.
+        var idle = new StuckLink();
+        new UsbDmxOutput(idle, UsbDmxMode.EnttecPro, "EN2", "test").Dispose();
+        Assert.True(idle.Closed);
+    }
 }

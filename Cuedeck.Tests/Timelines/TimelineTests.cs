@@ -86,6 +86,30 @@ public sealed class TimelineTests : IDisposable
     }
 
     [Fact]
+    public void A_save_replaces_the_file_whole_even_while_its_being_read()
+    {
+        var a = Song("a.wav", 1);
+        var dir = _dir.File("t").Replace('\\', '/');
+        var st = new TimelineStore(dir);
+        Assert.Equal("", st.SaveSong(a, new JsonObject { ["tracks"] = new JsonObject { ["x"] = 1 } }));
+        var file = Directory.GetFiles(dir, "*.json").Single(f => !f.EndsWith("index.json", StringComparison.Ordinal));
+
+        // A reader on another thread (a deck loading the song) has it open for a moment as the save comes: the save
+        // waits its turn and still goes through.
+        var reader = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var closing = new Thread(() =>
+        {
+            Thread.Sleep(60);
+            reader.Dispose();
+        });
+        closing.Start();
+        Assert.Equal("", st.SaveSong(a, new JsonObject { ["tracks"] = new JsonObject { ["x"] = 2 } }));
+        closing.Join();
+        Assert.Equal(2, new TimelineStore(dir).LoadSong(a).Obj("tracks")!.Int("x"));
+        Assert.Equal(new[] { "index.json", Path.GetFileName(file) }.Order(), Directory.GetFiles(dir).Select(Path.GetFileName).Order()); // no temporary files left
+    }
+
+    [Fact]
     public void The_store_knows_its_songs_without_reading_them()
     {
         var a = Song("a.wav", 1);
