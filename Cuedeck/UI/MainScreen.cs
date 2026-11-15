@@ -49,9 +49,15 @@ sealed class MainScreen : Panel
 
     public AppView View { get; private set; } = AppView.Console;
 
+    /// <summary>
+    /// The dialogs the screen opens.
+    /// </summary>
+    public Dialogs Dialogs { get; }
+
     public MainScreen(Fonts fonts, Images images, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles, DjEdit.DjEditView? djEdit = null, DjPerform.DjPerformView? djPerform = null)
     {
         Background = Theme.Background;
+        Dialogs = dialogs;
         TitleBar = Add(new TitleBar(fonts.Body, fonts.Bold, images));
         TopBar = Add(new TopBar(fonts, menu, show));
         Console = Add(new ConsoleView(fonts, menu, dialogs, show, profiles));

@@ -39,6 +39,12 @@ folders; Cuepoint's from its `library.json` files and the `.m3u8` playlists in `
 `%LOCALAPPDATA%` and at the root of each drive). Both talk to Cuedeck over OS2L in the same way. A change takes
 effect at once and is remembered.
 
+**Coming from sLight?** Open your shows as they are (Load Show): they're the same files. The first time Cuedeck
+starts on a computer with sLight's files, it offers to bring them in, and Options has **Import from sLight** for later.
+That copies sLight's custom fixture profiles and their models, its settings, the folders its file dialogs remembered,
+its preset, and the show it kept if you never gave it a name, and then reopens the show sLight had open last. Nothing
+Cuedeck already has is replaced, and sLight's own files aren't changed.
+
 ## Step 1: Add a universe and connect it
 
 Each universe is one 512-channel DMX universe, with a page of its own on the **Patch** tab. A new show starts with

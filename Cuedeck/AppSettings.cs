@@ -28,6 +28,11 @@ sealed class AppSettings(string path)
 
     public string FilePath { get; } = path;
 
+    /// <summary>
+    /// Reads the file again next time a setting's asked for (another program, or an import, changed it).
+    /// </summary>
+    public void Reload() => _values = null;
+
     JsonObject Values
     {
         get

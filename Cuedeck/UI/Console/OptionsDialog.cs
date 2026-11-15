@@ -18,7 +18,18 @@ sealed class OptionsDialog : Panel
     readonly Panel _box;
     readonly Dropdown<DjSoftware> _dj;
     readonly Label _hint;
+    readonly Panel _slight;
     bool _pressedInBox;
+
+    /// <summary>
+    /// sLight's folders on this computer, if any: its import is offered while there are.
+    /// </summary>
+    public IReadOnlyList<string> SlightFolders { get; set; } = [];
+
+    /// <summary>
+    /// Import from sLight was pressed (the dialog's closed first).
+    /// </summary>
+    public event Action? ImportFromSlight;
 
     public float2 ScreenSize { get; set; }
 
@@ -56,6 +67,28 @@ sealed class OptionsDialog : Panel
             DjSoftwareChanged?.Invoke(d);
         };
         _hint = _box.Add(new Label(fonts.Body) { Color = Theme.Muted, MaxWidth = WIDTH - 28, Wrap = true });
+        _slight = _box.Add(new Panel { Spacing = 6 });
+        var slightRow = _slight.Add(new Row(8));
+        slightRow.Add(new Label(fonts.Body, "sLight:") { Color = Theme.Muted });
+        var import = slightRow.Add(new Button(fonts.Body, "Import from sLight") { Tooltip = "Copy sLight's settings and custom fixtures into Cuedeck" });
+        import.Clicked += _ =>
+        {
+            Close();
+            ImportFromSlight?.Invoke();
+        };
+        _slight.Add(
+            new Label(
+                fonts.Body,
+                "Copies sLight's custom fixture profiles and their models, its settings, remembered folders and preset, and "
+                    + "the show it kept untitled, into Cuedeck's folder. Anything Cuedeck already has is kept, and sLight's "
+                    + "files aren't changed."
+            )
+            {
+                Color = Theme.Muted,
+                MaxWidth = WIDTH - 28,
+                Wrap = true,
+            }
+        );
         var footer = _box.Add(new Row(8));
         var close = footer.Add(new Button(fonts.Body, "Close"));
         close.Clicked += _ => Close();
@@ -100,6 +133,7 @@ sealed class OptionsDialog : Panel
         if (Visible && _root.Focused is null)
             _root.Focus(this); // back on the dialog once a menu's gone, so Escape still reaches it
         _dj.Selected = _settings.DjSoftware;
+        _slight.Visible = SlightFolders.Count > 0;
         _hint.Text = _settings.DjSoftware == DjSoftware.Cuepoint
             ? "Songs' beat grids, keys and tempos come from Cuepoint's library files (%LOCALAPPDATA%\\Cuepoint\\library.json, and "
                 + "\\Cuepoint\\library.json on each drive), and DJ Edit Mode lists its virtual folders (the .m3u8 files in "

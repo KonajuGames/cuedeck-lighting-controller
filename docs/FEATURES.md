@@ -121,5 +121,7 @@ did; ➕ is there but works differently, as noted; ❌ isn't ported. Where a sli
 
 - ➕ The window can be resized down to 1024 × 640 (sLight's went to 720 × 480), as the console's tabs need the room
 - ✅ Scroll bars wherever a tab or list is too tall for the window
-- ➕ App data lives in `%LOCALAPPDATA%\Cuedeck` rather than Godot's `user://`
+- ➕ App data lives in `%LOCALAPPDATA%\Cuedeck` rather than Godot's `user://`; sLight's is imported from there (custom
+  profiles and models, settings, remembered folders, preset, untitled and last show), offered at the first start and
+  in Options
 - ➕ Windows only: the audio, MIDI, USB, mDNS and recording all use Windows' own APIs

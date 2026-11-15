@@ -107,7 +107,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 | 5 | 🔶 **DJ Perform Mode** (built 2026-11-14 and tried with Cuepoint; VirtualDJ still to try; see §7.5). OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
 | 6 | ✅ **Visualizer** (done 2026-11-14; see §7.6). §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
 | 7 | ✅ **Native extras and polish** (done 2026-11-15; see §7.7; USB DMX not yet tried with an interface). USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
-| 8 | ✅ **Parity gaps** (done 2026-11-15; see §7.8; libusb not yet tried with an interface). The two ❌ in `docs/FEATURES.md`: bloom on bright beams in the visualizer, and USB DMX through libusb (the anyma uDMX, and FTDI interfaces without the D2XX driver). | `docs/FEATURES.md` has no ❌. |
+| 8 | ✅ **Parity gaps** (done 2026-11-15; see §7.8; libusb not yet tried with an interface). The two ❌ in `docs/FEATURES.md`: bloom on bright beams in the visualizer, and USB DMX through libusb (the anyma uDMX, and FTDI interfaces without the D2XX driver); then importing sLight's own files. | `docs/FEATURES.md` has no ❌. |
 
 ### 7.1 Phase 1 as built
 
@@ -402,6 +402,15 @@ universes, channels, modes, places, headings and channel roles.
 |---|---|---|
 | 8a | Bloom: the visualizer drawn in HDR, its bright parts blurred down a chain of smaller images and added back before the highlight roll-off, with sLight's glow settings (threshold 0.9, intensity 0.5, bloom 0.08) | ✅ |
 | 8b | USB DMX through libusb (`libusb-1.0.dll`, P/Invoked when it's installed): the anyma uDMX (a control transfer per frame) and FTDI interfaces with no D2XX driver (their setup and break as vendor requests, the frame on the bulk endpoint) | ✅ |
+| 8c | Import from sLight (`SlightImport`): sLight's own files in Godot's user:// folder (and its older "DMX Lighting Controller" one) copied into Cuedeck's app folder, which keeps them by the same names; offered at the first start and from Options | ✅ |
+
+**Slice 8c** has no sLight counterpart: it's how someone moving from sLight brings what isn't in their show files.
+Both apps keep the same files by the same names in the same formats, so it copies: custom fixture profiles and their
+GDTF models, the online library's cache, its preset, the show it saved untitled (`dmx_show.json`, with its timelines);
+merges the settings, remembered folders and window places a key at a time, with `user://` paths made Cuedeck's; and
+remembers sLight's last show, which the first-start offer then opens. Nothing Cuedeck has is overwritten, and sLight's
+folder is only read. Its autosave, session marker, renders, logs and caches stay behind. Tried on this machine's own
+sLight folders into a scratch folder: both found, a remembered folder and the older folder's preset brought in.
 
 **Where slice 8b differs from sLight:** the same devices, requests and bytes as sLight's libusb backend: the uDMX
 (16C0:05DC, told from other devices on that shared ID by its name) gets one "set channel range" request a frame with

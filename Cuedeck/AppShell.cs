@@ -34,6 +34,80 @@ sealed class AppShell
         top.AddUniverse += AddUniverse;
         top.RemoveUniverse += ConfirmRemoveUniverse;
         Show.Cues.Status += screen.Log;
+        screen.Dialogs.Options.ImportFromSlight += () => ImportFromSlight();
+    }
+
+    /// <summary>
+    /// The show file open, or "" while it's untitled.
+    /// </summary>
+    public string ShowPath => _session.Path;
+
+    /// <summary>
+    /// sLight's folders on this computer (<see cref="SlightImport.Folders"/>), newest name first.
+    /// </summary>
+    public IReadOnlyList<string> SlightFolders
+    {
+        get => _screen.Dialogs.Options.SlightFolders;
+        set => _screen.Dialogs.Options.SlightFolders = value;
+    }
+
+    /// <summary>
+    /// Where sLight's files are imported to: the app's folder.
+    /// </summary>
+    public string SlightImportFolder { get; set; } = AppPaths.Folder;
+
+    /// <summary>
+    /// sLight's files were imported: what reads them (the profiles, settings, remembered folders) is to read them again.
+    /// </summary>
+    public event Action? SlightImported;
+
+    /// <summary>
+    /// At Cuedeck's first start, with sLight's files on this computer: offers to bring them in.
+    /// </summary>
+    public void OfferSlightImport()
+    {
+        if (SlightFolders.Count == 0)
+            return;
+        _confirm.Show(
+            "Import from sLight",
+            $"sLight's files were found in {SlightFolders[0]}. Bring its custom fixture profiles, settings, remembered folders "
+                + "and last show into Cuedeck? sLight's files aren't changed, and you can do this later from Options.",
+            "Import",
+            () => ImportFromSlight(reopen: true),
+            "Not now",
+            null
+        );
+    }
+
+    /// <summary>
+    /// Imports sLight's files (<see cref="SlightImport"/>) and says what came; with <paramref name="reopen"/>, opens
+    /// the last show sLight had open, if nothing's open here yet.
+    /// </summary>
+    public void ImportFromSlight(bool reopen = false)
+    {
+        SlightImportResult result;
+        try
+        {
+            result = new SlightImport(SlightImportFolder).Import(SlightFolders);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _screen.Log("Import from sLight failed: " + e.Message);
+            return;
+        }
+        SlightImported?.Invoke();
+        var message = result.ToString();
+        if (reopen && result.LastShow is { } last && _session.Path == "" && !_session.HasUnsavedChanges)
+        {
+            if (_session.Load(last) is { } error)
+                message += " Couldn't open its last show: " + error;
+            else
+            {
+                _screen.Console.Patch.Reload();
+                message += $" Opened {Path.GetFileName(last)}.";
+            }
+        }
+        _screen.Log(message);
     }
 
     LightingShow Show => _session.Show;

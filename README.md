@@ -83,6 +83,10 @@ dotnet run --project Cuedeck -- "My show.slight"
 Debug builds turn on Vulkan's validation layers when the Vulkan SDK is installed. Cuedeck keeps its settings,
 autosaves, custom fixture profiles, renders and error log in `%LOCALAPPDATA%\Cuedeck`.
 
+Coming from sLight, open your shows as they are. sLight's own files (its custom fixture profiles and their models,
+settings, remembered folders, preset and last show, in `%APPDATA%\Godotpp_userdata\sLight`) are offered for import
+at Cuedeck's first start, and under **Options → Import from sLight** any time; nothing of either app's is overwritten.
+
 1. On the **Patch** tab's **Universe 1** page, pick an **Output**, set its target (for Art-Net, the IP, port and
    universe; `127.0.0.1:6454` universe 0 by default) and click **Apply Connection**.
 2. Patch some fixtures and move their controls: the universe is sent 30 times a second while **Sending** is on, as

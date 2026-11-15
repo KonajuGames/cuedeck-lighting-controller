@@ -21,7 +21,15 @@ sealed class RecentFolders
     public RecentFolders(string? path)
     {
         _path = path;
-        if (path is null)
+        Reload();
+    }
+
+    /// <summary>
+    /// Reads the folders from the file again (an import added some).
+    /// </summary>
+    public void Reload()
+    {
+        if (_path is not { } path)
             return;
         try
         {

@@ -25,6 +25,9 @@ var capture = ScreenshotTool.Parse(args);
 if (capture is not null)
     ScreenshotTool.UseScratch();
 
+// Cuedeck's first start on this computer: sLight's files, if it finds them, are offered for import.
+var firstStart = capture is null && !Directory.Exists(AppPaths.Folder);
+
 // What goes wrong is written down beside the settings, to look into after a show; even on another thread, where it
 // still ends the app.
 ErrorLog.FilePath = Path.Combine(AppPaths.Folder, "errors.log");
@@ -47,7 +50,7 @@ try
 
     try
     {
-        Run(args, capture);
+        Run(args, capture, firstStart);
     }
     finally
     {
@@ -64,7 +67,7 @@ catch (Exception e)
 
 return 0;
 
-static void Run(string[] args, (string Folder, string[] Names)? capture)
+static void Run(string[] args, (string Folder, string[] Names)? capture, bool firstStart)
 {
     Glfw.WindowHint(GlfwWindowHint.ClientApi, Glfw.Constants.GLFW_NO_API);
 
@@ -302,6 +305,18 @@ static void Run(string[] args, (string Folder, string[] Names)? capture)
 
     // A show file given on the command line (opened with the app) is opened instead of the last one.
     shell.Start(capture is null ? args.FirstOrDefault(File.Exists) : null);
+    // sLight's own files: importable from Options, and offered at the first start.
+    if (capture is null)
+        shell.SlightFolders = SlightImport.Folders();
+    shell.SlightImported += () =>
+    {
+        profiles.Reload();
+        settings.Reload();
+        recent.Reload();
+        djEdit.ReloadLibrary();
+    };
+    if (firstStart)
+        shell.OfferSlightImport();
     var screenshots = capture is { } c ? new ScreenshotTool(new(window, renderer, ui, screen, show, performer, djEdit, session), c.Folder, c.Names) : null;
 
     // Every MIDI input, opened as it's plugged in; what they send goes to the show each frame. Their outputs are left
