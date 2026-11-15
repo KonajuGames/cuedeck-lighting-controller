@@ -278,6 +278,7 @@ sealed class TriggersDialog : Panel
         };
 
     public override bool IsInteractive => true;
+    public override bool IsModal => true;
     public override Cursor Cursor => Cursor.Arrow;
     public override bool IsFocusable => Visible;
 

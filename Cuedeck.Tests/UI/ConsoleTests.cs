@@ -239,6 +239,34 @@ public sealed class ConsoleTests : ConsoleHarness
     }
 
     [Fact]
+    public void The_menus_keys_wait_while_a_dialog_is_open()
+    {
+        var bar = Screen.MenuBar;
+        var menu = Ui.Elements.OfType<ContextMenu>().Single();
+        var triggers = Ui.Elements.OfType<TriggersDialog>().Single();
+        FromMenu("Edit", "Triggers…");
+        Assert.True(triggers.Visible);
+
+        // Neither Alt and a letter nor F10 opens a menu behind it.
+        Press(Key.F, Modifiers.Alt);
+        Press(Key.F10);
+        Assert.Null(bar.OpenTitle);
+        Assert.False(menu.Visible);
+
+        // A dropdown in it is still worked from the keys, its menu being over the dialog.
+        Click(All(triggers).OfType<Dropdown<string>>().First());
+        Assert.True(menu.Visible);
+        Press(Key.Escape);
+        Assert.False(menu.Visible);
+        Assert.True(triggers.Visible);
+
+        // Closed, the menus answer again.
+        Click(ButtonCalled("Close"));
+        Press(Key.F, Modifiers.Alt);
+        Assert.Equal("File", bar.OpenTitle);
+    }
+
+    [Fact]
     public void The_access_letters_are_underlined_while_Alt_is_held()
     {
         var bar = Screen.MenuBar;
