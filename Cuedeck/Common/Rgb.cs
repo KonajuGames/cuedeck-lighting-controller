@@ -4,7 +4,7 @@ namespace Cuedeck.Common;
 
 /// <summary>
 /// A colour as sLight's shows hold one (Godot's <c>Color</c>): red, green, blue and alpha from 0 to 1, in sRGB as
-/// picked. Not the UI's linear <c>float4</c>; see <see cref="UI.Colors"/> for those.
+/// picked. Not the UI's linear <c>float4</c>; see <see cref="Colors"/> for those.
 /// </summary>
 readonly record struct Rgb(float R, float G, float B, float A = 1)
 {
@@ -15,6 +15,13 @@ readonly record struct Rgb(float R, float G, float B, float A = 1)
     public static Rgb operator +(Rgb a, Rgb b) => new(a.R + b.R, a.G + b.G, a.B + b.B, a.A + b.A);
 
     public static Rgb operator *(Rgb a, Rgb b) => new(a.R * b.R, a.G * b.G, a.B * b.B, a.A * b.A);
+
+    /// <summary>
+    /// The same colour as the UI's colour picker has it (<see cref="Srgb"/>), and back: both hold Godot's numbers.
+    /// </summary>
+    public static implicit operator Srgb(Rgb c) => new(c.R, c.G, c.B, c.A);
+
+    public static implicit operator Rgb(Srgb c) => new(c.R, c.G, c.B, c.A);
 
     /// <summary>
     /// Godot's <c>Color.from_hsv()</c>, in 32-bit floats as Godot works it out (the timeline generator's colours must
