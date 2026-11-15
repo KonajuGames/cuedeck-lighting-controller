@@ -115,7 +115,10 @@ sealed class TitleBar : Panel
 
         _left = Add(new Panel { Direction = Direction.Horizontal, Spacing = 10 });
         _left.Add(new Picture(images.Logo));
-        _left.Add(new Label(bold, "Cuedeck") { Color = Theme.Text });
+        // The wordmark: "Cue" in the accent, "deck" in the text's colour, as one word.
+        var name = _left.Add(new Panel { Direction = Direction.Horizontal, Spacing = 0 });
+        name.Add(new Label(bold, "Cue") { Color = Theme.Accent });
+        name.Add(new Label(bold, "deck") { Color = Theme.Text });
         _title = _left.Add(new Label(body) { Color = Theme.Muted });
 
         Centre = Add(new Panel { Direction = Direction.Horizontal, Spacing = 8 });

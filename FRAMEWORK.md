@@ -23,7 +23,7 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
   public.
 - `UI/TitleBar.cs`: kept `IconButton` and `Spacer`; the bar itself is new: logo, name and show, an empty `Centre`
   for the console's controls, the clock, options and the window's buttons.
-- `Assets/draw_assets.py`: no longer draws a logo. The logo PNGs come from sLight's icon via `Assets/make_logo.py`.
+- `Assets/draw_assets.py`: no longer draws a logo. The logo PNGs (Cuedeck's Spotlight C) are drawn by `Assets/make_logo.py`.
 
 - `UI/Elements.cs`: `Element.FocusLost()`; `Button.Lit` (a toggle that's on, the tab showing); `Label.Wrap`.
 - `UI/Root.cs`: calls `FocusLost()` on the element losing focus; a key the focused element doesn't use goes to the
