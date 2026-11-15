@@ -174,6 +174,8 @@ sealed class Patch
         u.UsbMode = p.UsbMode;
         u.SetTarget(p.Ip, p.Port);
         u.SetOutputMode(p.Output);
+        if (p.Output == OutputMode.Usb && p.UsbSerial != "")
+            _dmx.RouteUsb?.Invoke(p.UsbSerial, p.UsbMode);
     }
 
     /// <summary>

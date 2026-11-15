@@ -3,6 +3,7 @@ using Brutal.Numerics;
 using Brutal.VulkanApi;
 using Cuedeck;
 using Cuedeck.Input;
+using Cuedeck.Dmx;
 using Cuedeck.Fixtures;
 using Cuedeck.Rendering;
 using Cuedeck.Show;
@@ -101,7 +102,12 @@ static void Run(string[] args)
 
     // The show, and the show as a document: its file, unsaved changes, autosave.
     using var show = new LightingShow(OperatingSystem.IsWindows() ? new Cuedeck.Audio.WasapiInput() : new Cuedeck.Audio.NoCapture());
-    var session = new ShowSession(show);
+    // USB DMX through FTDI's D2XX driver, if it's installed; a universe set to USB is streamed to its interface.
+    using var usb = new UsbDmx(OperatingSystem.IsWindows() ? Ftd2xx.Load() : null);
+    show.Dmx.RouteUsb = usb.Route;
+    show.Dmx.SendUsb = usb.Send;
+    show.Dmx.ReleaseUsb = usb.Unroute;
+    var session = new ShowSession(show) { UsbAvailable = usb.Available };
     var profiles = new ProfileStore(Path.Combine(AppPaths.Folder, "fixture_profiles"));
 
     var ui = new Root { TooltipFont = fonts.Body };
@@ -198,6 +204,7 @@ static void Run(string[] args)
         WindowsShell.AskWhereToSave(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Export MVR (My Virtual Rig)", [("My Virtual Rig", "*.mvr")], "rig.mvr") is { } where
             ? Mvr.Export(where.Path, show)
             : "";
+    screen.Console.Patch.Usb = usb;
     screen.Console.Patch.AskForFixtureFile = () =>
         WindowsShell.AskForFile(
             OperatingSystem.IsWindows() ? WindowChrome.Handle : 0,

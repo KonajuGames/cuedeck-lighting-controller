@@ -69,6 +69,12 @@ sealed class DmxOutput : IDisposable
     public Action<string, byte[]>? SendUsb { get; set; }
 
     /// <summary>
+    /// Opens a USB DMX interface by its serial number, as a type (<c>UsbDmxMode</c>'s number), for a universe set to
+    /// <see cref="OutputMode.Usb"/>; returns whether it's sending.
+    /// </summary>
+    public Func<string, int, bool>? RouteUsb { get; set; }
+
+    /// <summary>
     /// A USB universe is let go of (removed, or switched to another output).
     /// </summary>
     public Action<string>? ReleaseUsb { get; set; }

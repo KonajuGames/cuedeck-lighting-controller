@@ -24,6 +24,10 @@ sealed class UniversePage : Panel
     readonly NumberBox _priority;
     readonly TextBox _sacnIp;
     readonly Row _sacnRow;
+    readonly Row _usbRow;
+    readonly Dropdown<string> _usbDevice;
+    readonly Dropdown<int> _usbMode;
+    List<UsbDevice> _usbDevices = [];
     readonly Label _where;
     readonly Dropdown<FixtureProfile> _profile;
     readonly Dropdown<int> _mode;
@@ -46,6 +50,11 @@ sealed class UniversePage : Panel
     /// Asks for a fixture definition file to import (Windows' Open dialog in the app); null if none's chosen.
     /// </summary>
     public Func<string?> AskForFixtureFile { get; set; } = () => null;
+
+    /// <summary>
+    /// The USB DMX interfaces (null, or without the driver: no USB output to offer).
+    /// </summary>
+    public Func<UsbDmx?> Usb { get; set; } = () => null;
 
     public UniversePage(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles, int index)
     {
@@ -71,7 +80,7 @@ sealed class UniversePage : Panel
             {
                 Menu = menu,
                 Width = 110,
-                Items = () => [OutputMode.ArtNet, OutputMode.Sacn],
+                Items = () => Usb() is { Available: true } ? [OutputMode.ArtNet, OutputMode.Sacn, OutputMode.Usb] : [OutputMode.ArtNet, OutputMode.Sacn],
                 Text = m => m == OutputMode.Sacn ? "sACN" : m == OutputMode.Usb ? "USB" : "Art-Net",
                 Selected = patch.Output,
             }
@@ -86,6 +95,38 @@ sealed class UniversePage : Panel
         _priority = _sacnRow.Add(new NumberBox(fonts.Body, 0, 200, width: 50) { Value = patch.SacnPriority });
         _sacnRow.Add(new Label(fonts.Body, "Unicast IP:") { Color = Theme.Muted });
         _sacnIp = _sacnRow.Add(new TextBox(fonts.Body) { Width = 130, Placeholder = "(multicast)", Text = patch.SacnIp });
+
+        // USB DMX: which interface, and what kind.
+        _usbRow = Add(new Row(6));
+        _usbRow.Add(new Label(fonts.Body, "Device:") { Color = Theme.Muted });
+        _usbDevice = _usbRow.Add(
+            new Dropdown<string>(fonts.Body)
+            {
+                Menu = menu,
+                Width = 300,
+                Items = () => [.. _usbDevices.Select(d => d.Serial)],
+                Text = serial =>
+                    _usbDevices.FirstOrDefault(d => d.Serial == serial) is { } d ? $"{d.Description}  ({d.Serial})"
+                    : serial != "" ? serial
+                    : "(no USB DMX interfaces found)",
+                Selected = patch.UsbSerial,
+            }
+        );
+        _usbDevice.Chosen += _ => Apply();
+        _usbRow.Add(new Label(fonts.Body, "Interface:") { Color = Theme.Muted });
+        _usbMode = _usbRow.Add(
+            new Dropdown<int>(fonts.Body)
+            {
+                Menu = menu,
+                Width = 120,
+                Items = () => [.. Enumerable.Range(0, UsbDmx.ModeNames.Length)],
+                Text = m => UsbDmx.ModeNames[Math.Clamp(m, 0, UsbDmx.ModeNames.Length - 1)],
+                Selected = Math.Clamp(patch.UsbMode, 0, UsbDmx.ModeNames.Length - 1),
+            }
+        );
+        _usbMode.Chosen += _ => Apply();
+        var rescan = _usbRow.Add(new Button(fonts.Body, "Rescan") { Tooltip = "Look for USB DMX interfaces again" });
+        rescan.Clicked += _ => RescanUsb();
 
         var levels = Add(new Row(6));
         _where = levels.Add(new Label(fonts.Body) { Color = Theme.Muted });
@@ -228,7 +269,18 @@ sealed class UniversePage : Panel
         p.Output = _output.Selected;
         p.SacnPriority = (int)_priority.Value;
         p.SacnIp = _sacnIp.Text.Trim();
+        if (p.Output == OutputMode.Usb && _usbDevices.Count == 0)
+            RescanUsb();
+        p.UsbSerial = _usbDevice.Selected ?? "";
+        if (p.UsbSerial == "" && _usbDevices.Count > 0)
+            p.UsbSerial = _usbDevice.Selected = _usbDevices[0].Serial;
+        p.UsbMode = _usbMode.Selected;
         _show.Patch.ApplyConnection(_index);
+        if (p.Output == OutputMode.Usb)
+        {
+            Status?.Invoke(p.UsbSerial == "" ? "No USB DMX interface found: plug one in and press Rescan." : $"Universe {_index + 1} now sends to USB DMX {p.UsbSerial}.");
+            return;
+        }
         var u = _show.Dmx.Universes[_index];
         Status?.Invoke(u.Connected ? $"Universe {_index + 1} now sends to {Where()}." : $"Universe {_index + 1} couldn't reach {p.Ip}.");
     }
@@ -239,7 +291,7 @@ sealed class UniversePage : Panel
         return u.Mode switch
         {
             OutputMode.Sacn => $"→ sACN universe {Math.Max(u.Number, 1)}, {(u.SacnUnicastIp != "" ? u.SacnUnicastIp : Sacn.MulticastIp(Math.Max(u.Number, 1)))}",
-            OutputMode.Usb => $"→ USB {u.UsbSerial}",
+            OutputMode.Usb => $"→ USB DMX {u.UsbSerial}  [{Usb()?.Status(u.UsbSerial) ?? "no driver"}]",
             _ => $"→ {u.TargetIp}:{u.TargetPort}  Art-Net U{u.Number}",
         };
     }
@@ -279,6 +331,7 @@ sealed class UniversePage : Panel
     {
         var p = _show.Patch.Universes[_index];
         _sacnRow.Visible = _output.Selected == OutputMode.Sacn;
+        _usbRow.Visible = _output.Selected == OutputMode.Usb;
         _where.Text = Where() + (_show.Dmx.Universes[_index].Connected || p.Output == OutputMode.Usb ? "" : "  (not connected)");
 
         // Built again when the patch changes, or a fixture's profile has been edited.
@@ -313,6 +366,19 @@ sealed class UniversePage : Panel
     }
 
     /// <summary>
+    /// Looks for USB DMX interfaces again.
+    /// </summary>
+    public void RescanUsb()
+    {
+        _usbDevices = Usb()?.ListDevices() ?? [];
+        Status?.Invoke(
+            Usb() is not { Available: true } ? "USB DMX needs FTDI's D2XX driver."
+            : _usbDevices.Count == 0 ? "No USB DMX interfaces found."
+            : $"Found {_usbDevices.Count} USB DMX interface{(_usbDevices.Count == 1 ? "" : "s")}."
+        );
+    }
+
+    /// <summary>
     /// Shows the patch's settings again, after another show's loaded.
     /// </summary>
     public void Reload()
@@ -324,6 +390,8 @@ sealed class UniversePage : Panel
         _output.Selected = p.Output;
         _priority.Value = p.SacnPriority;
         _sacnIp.Text = p.SacnIp;
+        _usbDevice.Selected = p.UsbSerial;
+        _usbMode.Selected = Math.Clamp(p.UsbMode, 0, UsbDmx.ModeNames.Length - 1);
         _shown = [];
         _rows.Children.Clear();
     }
@@ -348,6 +416,11 @@ sealed class PatchTab : Region
     /// Asks for a fixture definition file to import (Windows' Open dialog in the app); null if none's chosen.
     /// </summary>
     public Func<string?> AskForFixtureFile { get; set; } = () => null;
+
+    /// <summary>
+    /// The USB DMX interfaces, for universes sent to one (null: none offered).
+    /// </summary>
+    public UsbDmx? Usb { get; set; }
 
     public PatchTab(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
     {
@@ -383,7 +456,7 @@ sealed class PatchTab : Region
             _universes.Clear();
             for (var i = 0; i < count; i++)
             {
-                var page = new UniversePage(_fonts, _menu, _dialogs, _show, _profiles, i);
+                var page = new UniversePage(_fonts, _menu, _dialogs, _show, _profiles, i) { Usb = () => Usb };
                 page.Status += s => Status?.Invoke(s);
                 page.ProfilesChanged += () => _pages.ForEach(pg => pg.RefreshProfile());
                 page.AskForFixtureFile = () => AskForFixtureFile();
