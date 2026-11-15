@@ -456,7 +456,7 @@ minute ago" without touching your cue list.
 | **Ctrl+S / Shift+Ctrl+S** | Save the show / save it as |
 | **Ctrl+Shift+N / Ctrl+Shift+R** | Add a universe / remove the current one |
 | **Ctrl+Z / Ctrl+Y** | Undo / redo, in the 3D Visualizer and DJ Edit Mode |
-| **Alt+F / Alt+E / Alt+M**, **F10** | Open the File, Edit or Mode menu (F10: File). In a menu, **↑ ↓** pick an item (or type its first letter), **Enter** chooses it, **← →** go to the menu beside it, **Esc** closes it. The arrows and Enter work in dropdowns and right-click menus too |
+| **Alt+F / Alt+E / Alt+M**, **F10** | Open the File, Edit or Mode menu (F10: File; hold Alt to see the letters underlined). In a menu, **↑ ↓** pick an item (or type its first letter), **Enter** chooses it, **← →** go to the menu beside it, **Esc** closes it. The arrows and Enter work in dropdowns and right-click menus too |
 
 DJ Edit Mode's timeline shortcuts are listed in Step 10.
 

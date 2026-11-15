@@ -239,6 +239,37 @@ public sealed class ConsoleTests : ConsoleHarness
     }
 
     [Fact]
+    public void The_access_letters_are_underlined_while_Alt_is_held()
+    {
+        var bar = Screen.MenuBar;
+        Assert.Equal(['F', 'E', 'M'], bar.AccessKeys);
+        Assert.False(bar.ShowsAccessLetters);
+
+        // Alt on its own shows them; with Ctrl (AltGr, say) or let go, it doesn't.
+        Ui.ModifiersHeld(Modifiers.Alt);
+        Assert.True(bar.ShowsAccessLetters);
+        Ui.ModifiersHeld(Modifiers.Alt | Modifiers.Control);
+        Assert.False(bar.ShowsAccessLetters);
+        Ui.ModifiersHeld(Modifiers.None);
+        Assert.False(bar.ShowsAccessLetters);
+
+        // They stay while a menu the keys opened is open, along to the next one, until it's put away.
+        Ui.ModifiersHeld(Modifiers.Alt);
+        Press(Key.E, Modifiers.Alt);
+        Ui.ModifiersHeld(Modifiers.None);
+        Assert.True(bar.ShowsAccessLetters);
+        Press(Key.Right);
+        Assert.Equal("Mode", bar.OpenTitle);
+        Assert.True(bar.ShowsAccessLetters);
+        Press(Key.Escape);
+        Assert.False(bar.ShowsAccessLetters);
+
+        // Not for one the mouse opened.
+        Click(MenuTitle("File"));
+        Assert.False(bar.ShowsAccessLetters);
+    }
+
+    [Fact]
     public void A_dropdown_opens_on_its_choice()
     {
         var runMode = Find<Dropdown<RunMode>>(_ => true);
