@@ -58,7 +58,7 @@ sealed class MainScreen : Panel
     {
         Background = Theme.Background;
         Dialogs = dialogs;
-        TitleBar = Add(new TitleBar(fonts.Body, fonts.Bold, images));
+        TitleBar = Add(new TitleBar(fonts.Body, fonts.Bold, images.Logo, images.Cog, ("Cue", Theme.Accent), ("deck", Theme.Text)));
         TopBar = Add(new TopBar(fonts, menu, show));
         Console = Add(new ConsoleView(fonts, images.Fixture, menu, dialogs, show, profiles));
         if (djEdit is not null)
