@@ -61,6 +61,9 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 - `UI/NumberBox.cs` (slice 6b): `Submitted`, raised on Enter.
 - `Rendering/Barriers.cs` (slice 6d): `TransitionImage` takes a range of array layers too.
 - `Rendering/GpuResources.cs` (slice 7b): `GpuImage` can be multisampled.
+- `Rendering/GpuContext.cs`, `Swapchain.cs` and `Renderer.cs` (slice 7c): a renderer for another window, on a
+  surface of its own (`GpuContext.CreateSurface`).
+- `UI/TabView.cs` (slice 7c): `SetPage` and `IndexOf`, to swap a tab's page.
 
 ## Adapted
 

@@ -32,6 +32,22 @@ readonly record struct SpotLight(
 )
 {
     /// <summary>
+    /// The light's view of the room, for its shadow map: from it, along it, its cone (and a little more) square, out
+    /// to its range. Row vectors; depth 0 to 1, Y up.
+    /// </summary>
+    public Matrix4x4 ShadowViewProjection
+    {
+        get
+        {
+            var up = Math.Abs(Direction.Y) > 0.99f ? Vector3.UnitZ : Vector3.UnitY;
+            var view = Matrix4x4.CreateLookAt(Position, Position + Direction, up);
+            var half = MathF.Acos(Math.Clamp(CosCone, -1, 1));
+            var fov = Math.Clamp(2 * half * 1.1f, 0.05f, MathF.PI * 0.95f);
+            return view * Matrix4x4.CreatePerspectiveFieldOfView(fov, 1, 0.1f, Range);
+        }
+    }
+
+    /// <summary>
     /// sLight's <c>spot_range</c>, metres.
     /// </summary>
     public const float RANGE = 28;
@@ -73,6 +89,17 @@ sealed class SceneFrame
     /// The fixtures' heads that are lit, each a spotlight.
     /// </summary>
     public List<SpotLight> Lights { get; } = [];
+
+    /// <summary>
+    /// The most lights that cast shadows at once (each a shadow map).
+    /// </summary>
+    public const int MAX_SHADOWS = 8;
+
+    /// <summary>
+    /// With Shadows on, the lights (by their index in <see cref="Lights"/>) that cast them: the brightest, up to
+    /// <see cref="MAX_SHADOWS"/>.
+    /// </summary>
+    public List<int> ShadowCasters { get; } = [];
 
     /// <summary>
     /// The beams, drawn added over everything: open cones from the lit heads that throw one, their colour (linear,
@@ -173,6 +200,10 @@ sealed class SceneFrame
             if (ReferenceEquals(fx, selected))
                 f.Items.Add(new DrawItem(MeshKind.Ring, Matrix4x4.CreateTranslation(0, -0.02f, 0) * FixtureRig.Placement(fx.Position, fx.Rotation), Selected, 1));
         }
+        if (scene.Shadows)
+            f.ShadowCasters.AddRange(
+                Enumerable.Range(0, f.Lights.Count).OrderByDescending(i => f.Lights[i].Colour.X + f.Lights[i].Colour.Y + f.Lights[i].Colour.Z).Take(MAX_SHADOWS)
+            );
         return f;
     }
 

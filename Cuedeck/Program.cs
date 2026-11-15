@@ -10,6 +10,7 @@ using Cuedeck.UI;
 using Cuedeck.UI.Console;
 using Cuedeck.UI.DjEdit;
 using Cuedeck.UI.DjPerform;
+using Cuedeck.UI.Visualizer;
 using Cuedeck.UI.Timeline;
 using Cuedeck.Audio;
 using Cuedeck.Music;
@@ -182,6 +183,9 @@ static void Run(string[] args)
     ui.Add(picker);
     ui.Add(menu);
     using var input = new GlfwUiInput(window, ui);
+    // The 3D Visualizer can go to a window of its own, and be put back; it's where it was last time.
+    using var popOut = new VizPopOut(gpu, atlas, fonts, screen.Console, renderer, ui, menu, prompt, screen.Log, VizWindowState.DefaultPath);
+    popOut.Restore();
     var shell = new AppShell(session, screen, confirm, () => OperatingSystem.IsWindows() ? WindowChrome.Handle : 0);
     screen.Console.Visualizer.AskForModel = () =>
         WindowsShell.AskForFile(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Load glTF Model (set piece / stage element)", ("glTF model", "*.glb;*.gltf"));
@@ -322,6 +326,8 @@ static void Run(string[] args)
             lastAutosave = now;
         }
 
+        popOut.Frame();
+
         var size = window.FramebufferSize;
         if (window.IsIconified || size.X == 0 || size.Y == 0)
             continue;
@@ -337,6 +343,7 @@ static void Run(string[] args)
             window.Visible = windowShown = true;
     }
 
+    popOut.SaveState();
     performer.Stop();
     timelines.Flush(); // the open song's timelines
     shell.End();

@@ -50,6 +50,9 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
     readonly Stopwatch _clock = Stopwatch.StartNew();
     readonly Dictionary<PatchedFixture, FixtureRig> _rigs = [];
     readonly Button _record;
+    readonly Button _popOut;
+    NamePrompt _prompt;
+    bool _floating;
     readonly Label _recLabel;
     readonly Queue<int> _grabs = new();
     bool _shotWanted;
@@ -66,6 +69,7 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
 
     public VisualizerView(Fonts fonts, ContextMenu menu, NamePrompt prompt, LightingShow show)
     {
+        _prompt = prompt;
         _show = show;
         _surface = Add(new Surface(this));
 
@@ -77,7 +81,7 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
         _haze.Changed += s => Scene.Haze = s.Value;
         _workLight = look.Add(new Checkbox(fonts.Body, "Work light"));
         _workLight.Changed += c => Scene.WorkLight = c.Checked;
-        _shadows = look.Add(new Checkbox(fonts.Body, "Shadows") { Tooltip = "Shadows come in a later phase" });
+        _shadows = look.Add(new Checkbox(fonts.Body, "Shadows") { Tooltip = "The brightest lights (up to eight) cast shadows" });
         _shadows.Changed += c => Scene.Shadows = c.Checked;
         look.Add(new Label(fonts.Body, "Room") { Color = Theme.Text });
         _room = look.Add(
@@ -104,7 +108,7 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
         _view.Chosen += Scene.ApplyView;
         var saveAs = camera.Add(new Button(fonts.Body, "Save as…") { Padding = 4 });
         saveAs.Clicked += _ =>
-            prompt.Show(
+            _prompt.Show(
                 "Save Camera View",
                 $"View {Scene.Views.Count + 1}",
                 name => name.Trim() == "" ? "Give the view a name." : null,
@@ -160,6 +164,14 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
         shot.Clicked += _ => _shotWanted = true;
         _record = scene.Add(new Button(fonts.Body, "Record") { Padding = 4, Tooltip = "Record the 3D view to an MP4, with what the computer's playing" });
         _record.Clicked += _ => ToggleRecording();
+        _popOut = scene.Add(new Button(fonts.Body, "Pop Out") { Padding = 4, Tooltip = "The visualizer in a window of its own (another screen, say); close it to bring it back" });
+        _popOut.Clicked += _ =>
+        {
+            if (Floating)
+                DockRequested?.Invoke();
+            else
+                PopOutRequested?.Invoke();
+        };
         _recLabel = scene.Add(new Label(fonts.Body, "") { Color = Theme.Muted });
 
         // ---- the selected item's properties.
@@ -240,6 +252,38 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
     public Func<Action<float[]>, (IDisposable Capture, int Rate, int Channels)?> StartAudio { get; set; } = _ => null;
 
     public bool IsRecording => _rec is not null;
+
+    /// <summary>
+    /// Pop Out was pressed: the visualizer wants a window of its own.
+    /// </summary>
+    public event Action? PopOutRequested;
+
+    /// <summary>
+    /// Dock to Main was pressed: back into its tab.
+    /// </summary>
+    public event Action? DockRequested;
+
+    /// <summary>
+    /// Whether it's in a window of its own (its button then docks it).
+    /// </summary>
+    public bool Floating
+    {
+        get => _floating;
+        set
+        {
+            _floating = value;
+            _popOut.Text = value ? "Dock to Main" : "Pop Out";
+        }
+    }
+
+    /// <summary>
+    /// The menu and name prompt its dropdowns and Save as… use: the window's it's in.
+    /// </summary>
+    public void UseDialogs(ContextMenu menu, NamePrompt prompt)
+    {
+        _room.Menu = _view.Menu = menu;
+        _prompt = prompt;
+    }
 
     /// <summary>
     /// Asks for a glTF model file to place; null when none's chosen.

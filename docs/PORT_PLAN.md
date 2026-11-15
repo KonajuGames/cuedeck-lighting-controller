@@ -342,10 +342,18 @@ sLight has no tests of its own for these, so each slice's are new, written from 
 |---|---|---|
 | 7a | MVR (My Virtual Rig) import and export (`Fixtures/Mvr`): a rig's fixtures read from its scene description with their GDTFs, addresses and places, its trusses as the visualizer's; and the patch written out as a scene description with a GDTF made for each profile; from the visualizer's toolbar | ✅ |
 | 7b | The visualizer's picture: anti-aliasing (4× MSAA), Screenshot (a PNG of the 3D view), and Record (the view to an MP4, H.264 with what the computer's playing as AAC, through Media Foundation's sink writer) | ✅ |
-| 7c | The visualizer's pop-out window, and shadows for the beams | next |
-| 7d | USB DMX: Enttec Open DMX and DMX USB Pro (FTDI's D2XX, P/Invoked), a universe's USB output | |
+| 7c | The visualizer's pop-out window (`VizPopOut`: a window of its own on the same GPU, its tab saying where it's gone, docked again by closing it or Dock to Main, where it was kept in `ui_state.json`), and shadows: the brightest eight lights each casting one from a shadow map, their edges filtered | ✅ |
+| 7d | USB DMX: Enttec Open DMX and DMX USB Pro (FTDI's D2XX, P/Invoked), a universe's USB output | next |
 | 7e | Remembered folders for every file dialog (sLight's `RecentDirs`), and what else the feature check turns up | |
 | 7f | The README and user guide rewritten for Cuedeck, with new screenshots (a capture tool), and sLight's feature list ticked off | |
+
+**Where slice 7c differs from sLight:** the visualizer pops out with a Pop Out button, and goes back with Dock to Main
+or by closing its window, where sLight tore it off by dragging its tab away and docked it by dragging the window's
+title onto the tab bar. Shadows are cast by the brightest eight lights, each from a 1024-pixel map compared with
+four-texel filtering, where Godot gave every light its own; beams aren't cut by them, as sLight's cones weren't. Tried
+in the app: a cube under a par shadowing part of its pool with Shadows on and not with them off; the visualizer
+popped out into a window of its own, drawing there with its tab saying where it had gone, and docked again by
+closing that window.
 
 **Where slice 7b differs from sLight:** a recording's sound is whatever the computer's playing (WASAPI loopback on
 the default output: DJ Edit Mode's song, or the DJ software's in DJ Perform Mode), where sLight mixed its own output

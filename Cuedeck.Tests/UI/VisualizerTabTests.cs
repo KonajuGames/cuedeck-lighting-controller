@@ -1,5 +1,6 @@
 using System.Numerics;
 using Brutal.Numerics;
+using Cuedeck.Common;
 using Cuedeck.Input;
 using Cuedeck.Show;
 using Cuedeck.UI;
@@ -179,5 +180,43 @@ public sealed class VisualizerTabTests : ConsoleHarness
         var rec = Assert.Single(Directory.GetFiles(_viz.RenderFolder, "rec_*.mp4"));
         Assert.True(new FileInfo(rec).Length > 1000);
         Assert.Matches(@"^Saved rec_.*\.mp4 \(\d+ frames", Screen.StatusText);
+    }
+
+    [Fact]
+    public void Popping_out_and_docking()
+    {
+        var asked = new List<string>();
+        _viz.PopOutRequested += () => asked.Add("out");
+        _viz.DockRequested += () => asked.Add("dock");
+        Click(Find<Button>(b => b.Text == "Pop Out"));
+        Assert.Equal(["out"], asked);
+
+        // Gone to its own window: its tab says so; Dock to Main asks to come back.
+        Screen.Console.DetachVisualizer(MainScreenTests.TestFonts.Body);
+        _viz.Floating = true;
+        Frame();
+        Assert.Contains(All(Screen.Console).OfType<Label>(), l => l.Text.StartsWith("The 3D Visualizer is in a window of its own"));
+        Assert.DoesNotContain(_viz, All(Screen.Console));
+        Assert.Equal("Dock to Main", All(_viz).OfType<Button>().Single(b => b.Text is "Dock to Main" or "Pop Out").Text);
+        Screen.Console.AttachVisualizer();
+        _viz.Floating = false;
+        Frame();
+        Assert.Contains(_viz, All(Screen.Console)); // back in its tab, showing
+        Assert.True(_viz.IsShown());
+    }
+
+    [Fact]
+    public void Where_the_visualizer_was_is_kept_between_runs()
+    {
+        var path = Dir.File("ui_state.json");
+        Assert.Equal(new VizWindowState(), VizWindowState.Load(path)); // nothing kept: docked, controls shown
+        new VizWindowState(true, (100, 200, 1000, 620), false).Save(path);
+        Assert.Equal(new VizWindowState(true, (100, 200, 1000, 620), false), VizWindowState.Load(path));
+        // sLight's form.
+        var d = Cuedeck.Common.Json.Parse(File.ReadAllText(path));
+        Assert.Equal([100, 200, 1000, 620], d.Arr("rect").Select(n => Cuedeck.Common.Json.AsInt(n)));
+        Assert.True(Cuedeck.Common.Json.AsBool(d.Get("floating")));
+        new VizWindowState(false, (1, 2, 3, 4), true).Save(path);
+        Assert.Null(VizWindowState.Load(path).Rect); // docked: no window to remember
     }
 }

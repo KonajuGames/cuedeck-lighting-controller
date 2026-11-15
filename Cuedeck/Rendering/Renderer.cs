@@ -7,7 +7,8 @@ using Cuedeck.UI;
 namespace Cuedeck.Rendering;
 
 /// <summary>
-/// Clears the window and draws the UI over it, using dynamic rendering and keeping two frames in flight.
+/// Clears a window and draws the UI over it, using dynamic rendering and keeping two frames in flight: the main
+/// window's, or another's (the visualizer popped out) on a surface of its own.
 /// </summary>
 sealed unsafe class Renderer : IDisposable
 {
@@ -44,13 +45,20 @@ sealed unsafe class Renderer : IDisposable
     readonly Frame[] _frames = new Frame[FRAMES_IN_FLIGHT];
     int _frameIndex;
 
-    public Renderer(GpuContext gpu, GlfwWindow window, FontAtlas fonts)
+    readonly VkSurfaceKHR _surface;
+    readonly bool _ownSurface;
+
+    /// <param name="surface">Another window's surface, made for it (<see cref="GpuContext.CreateSurface"/>), which
+    /// the renderer then owns; null for the main window's.</param>
+    public Renderer(GpuContext gpu, GlfwWindow window, FontAtlas fonts, VkSurfaceKHR? surface = null)
     {
         _gpu = gpu;
         _window = window;
         _device = gpu.Device;
+        _surface = surface ?? gpu.Surface;
+        _ownSurface = surface is not null;
 
-        _swapchain = new Swapchain(gpu, window.FramebufferSize, null);
+        _swapchain = new Swapchain(gpu, _surface, window.FramebufferSize, null);
         _ui = new OverlayRenderer(gpu, fonts, _swapchain.Format, FRAMES_IN_FLIGHT);
         _scene = new Scene3D(gpu, FRAMES_IN_FLIGHT);
 
@@ -83,13 +91,13 @@ sealed unsafe class Renderer : IDisposable
     /// </summary>
     bool TryRecreateSwapchain()
     {
-        var surfaceExtent = _gpu.PhysicalDevice.GetSurfaceCapabilitiesKHR(_gpu.Surface).CurrentExtent;
+        var surfaceExtent = _gpu.PhysicalDevice.GetSurfaceCapabilitiesKHR(_surface).CurrentExtent;
         if (surfaceExtent.Width == 0 || surfaceExtent.Height == 0)
             return false;
 
         _device.WaitIdle();
         var old = _swapchain;
-        _swapchain = new Swapchain(_gpu, _window.FramebufferSize, old);
+        _swapchain = new Swapchain(_gpu, _surface, _window.FramebufferSize, old);
         old.Dispose();
         _swapchainStale = false;
         return true;
@@ -246,5 +254,7 @@ sealed unsafe class Renderer : IDisposable
         _scene.Dispose();
         _ui.Dispose();
         _swapchain.Dispose();
+        if (_ownSurface)
+            _gpu.DestroySurface(_surface);
     }
 }

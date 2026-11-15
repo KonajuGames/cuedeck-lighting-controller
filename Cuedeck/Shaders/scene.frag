@@ -21,6 +21,7 @@ struct Light
     vec4 colour;    // rgb: colour times energy; w: its decay with distance
     vec4 extra;     // x: how soft the cone's edge is
     vec4 right;     // xyz, the light's right (turned with its gobo); w: its gobo's layer, or -1 for none
+    mat4 shadow;    // its view of the room, for its shadow map (extra.y: the map's layer, or -1 for none)
 };
 
 layout(std430, set = 0, binding = 1) readonly buffer Lights
@@ -29,6 +30,7 @@ layout(std430, set = 0, binding = 1) readonly buffer Lights
 };
 
 layout(set = 0, binding = 2) uniform sampler2DArray gobos;
+layout(set = 0, binding = 3) uniform sampler2DArrayShadow shadows;
 
 layout(location = 0) in vec3 worldPos;
 layout(location = 1) in vec3 normal;
@@ -84,6 +86,13 @@ void main()
         // Faded from 24 m to 34 m away from the camera (sLight's distance fade).
         att *= 1.0 - clamp((distance(pc.cameraPos.xyz, l.position.xyz) - 24.0) / 10.0, 0.0, 1.0);
         // Godot scales a spot's energy by pi, which its Lambert's 1 / pi takes back out.
+        // In its shadow, if it casts one: compared against its map, the edges filtered.
+        if (l.extra.y >= 0.0 && att > 0.0)
+        {
+            vec4 c = l.shadow * vec4(worldPos, 1.0);
+            vec3 m = c.xyz / c.w;
+            att *= texture(shadows, vec4(m.xy * 0.5 + 0.5, l.extra.y, m.z));
+        }
         light += l.colour.rgb * tint * att * max(dot(n, dir), 0.0);
     }
     vec3 lit = colour.rgb * light + colour.rgb * glow;

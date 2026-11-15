@@ -163,4 +163,38 @@ public sealed class SceneFrameTests : IDisposable
         light = Assert.Single(SceneFrame.Build(_show.Visualizer, _show.Patch, rigs, new Dictionary<string, float4>(), 1.5f).Lights);
         Assert.Equal(Math.Cos(rig.GoboRoll), Vector3.Dot(light.Right, right0), 4); // turned that far
     }
+
+    [Fact]
+    public void With_shadows_on_the_brightest_lights_cast_them()
+    {
+        var profile = Profiles.Simple("par", "Par", ("Dimmer", "DIMMER"));
+        var rigs = new Dictionary<PatchedFixture, FixtureRig>();
+        var output = new byte[512];
+        for (var i = 0; i < 10; i++)
+        {
+            var f = _show.Patch.Add(0, profile, i, position: new Vector3(i, 4, -2));
+            var rig = new FixtureRig(profile, 0);
+            output[i] = (byte)(20 * (i + 1)); // each brighter than the last
+            rig.Update(DmxRender.Evaluate(profile, 0, output, i), 0.1);
+            rigs[f] = rig;
+        }
+        SceneFrame Build() => SceneFrame.Build(_show.Visualizer, _show.Patch, rigs, new Dictionary<string, float4>(), 1.5f);
+        Assert.Empty(Build().ShadowCasters); // off: none
+        _show.Visualizer.Shadows = true;
+        var f2 = Build();
+        Assert.Equal(SceneFrame.MAX_SHADOWS, f2.ShadowCasters.Count);
+        Assert.DoesNotContain(f2.ShadowCasters, i => f2.Lights[i].Position.X < 1.5f); // the two dimmest left out
+
+        // A light's view: straight ahead is the middle of its map, and further is deeper.
+        var light = f2.Lights[f2.ShadowCasters[0]];
+        Vector3 Ndc(Vector3 p)
+        {
+            var c = Vector4.Transform(new Vector4(p, 1), light.ShadowViewProjection);
+            return new Vector3(c.X, c.Y, c.Z) / c.W;
+        }
+        var near = Ndc(light.Position + light.Direction * 2);
+        var far = Ndc(light.Position + light.Direction * 4);
+        Assert.True(Math.Abs(near.X) < 1e-4f && Math.Abs(near.Y) < 1e-4f, $"{near}");
+        Assert.True(far.Z > near.Z && near.Z > 0 && far.Z < 1);
+    }
 }

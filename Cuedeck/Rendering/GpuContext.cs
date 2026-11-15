@@ -191,6 +191,25 @@ sealed unsafe class GpuContext : IDisposable
         return buffer;
     }
 
+    /// <summary>
+    /// A surface for another window (the visualizer popped out), drawn by the same device; null if its queue can't
+    /// present to it. Destroy it with <see cref="DestroySurface"/> once its swapchain's gone.
+    /// </summary>
+    public VkSurfaceKHR? CreateSurface(GlfwWindow window)
+    {
+        if (Glfw.CreateWindowSurface(Instance.VkHandle, window, out var handle) != (int)VkResult.Success)
+            return null;
+        var surface = new VkSurfaceKHR((nint)handle);
+        if (!PhysicalDevice.GetSurfaceSupportKHR(QueueFamily, surface))
+        {
+            Instance.DestroySurfaceKHR(surface, null);
+            return null;
+        }
+        return surface;
+    }
+
+    public void DestroySurface(VkSurfaceKHR surface) => Instance.DestroySurfaceKHR(surface, null);
+
     public void Dispose()
     {
         // Reverse creation order: everything made from the device has already been destroyed by its owner.

@@ -90,6 +90,23 @@ sealed class TabView : Region
 
     public void SetTitle(int index, string title) => _tabs[index].Tab.Text = title;
 
+    /// <summary>
+    /// Puts <paramref name="page"/> behind tab <paramref name="index"/> in place of its page.
+    /// </summary>
+    public void SetPage(int index, Element page)
+    {
+        var old = _tabs[index].Page;
+        var at = _pageFrame.Children.IndexOf(old);
+        _pageFrame.Children[at] = page;
+        page.Visible = index == _selected;
+        _tabs[index] = (_tabs[index].Tab, page);
+    }
+
+    /// <summary>
+    /// The tab whose page is <paramref name="page"/>, or -1.
+    /// </summary>
+    public int IndexOf(Element page) => _tabs.FindIndex(t => t.Page == page);
+
     protected override void MeasureContent()
     {
         for (var i = 0; i < _tabs.Count; i++)

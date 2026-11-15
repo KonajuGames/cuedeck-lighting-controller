@@ -75,6 +75,30 @@ sealed class ConsoleView : Region
         };
     }
 
+    Placeholder? _vizAway;
+
+    /// <summary>
+    /// The visualizer's gone to a window of its own: its tab says so (and takes it back with
+    /// <see cref="AttachVisualizer"/>).
+    /// </summary>
+    public void DetachVisualizer(Font font)
+    {
+        var i = _right.IndexOf(Visualizer);
+        if (i < 0)
+            return;
+        _vizAway ??= new Placeholder(font, "The 3D Visualizer is in a window of its own: close it, or press Dock to Main, to bring it back.");
+        _right.SetPage(i, _vizAway);
+        Visualizer.Visible = true;
+    }
+
+    public void AttachVisualizer()
+    {
+        if (_vizAway is null || _right.IndexOf(_vizAway) is var i && i < 0)
+            return;
+        _right.SetPage(i, Visualizer);
+        _right.Selected = i;
+    }
+
     public void Update()
     {
         _dialogs.Library.Update();

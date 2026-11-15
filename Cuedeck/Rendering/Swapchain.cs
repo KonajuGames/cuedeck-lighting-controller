@@ -24,11 +24,11 @@ sealed class Swapchain : IDisposable
 
     readonly Device _device;
 
-    public Swapchain(GpuContext gpu, int2 framebufferSize, Swapchain? previous)
+    public Swapchain(GpuContext gpu, VkSurfaceKHR surface, int2 framebufferSize, Swapchain? previous)
     {
         _device = gpu.Device;
         var physicalDevice = gpu.PhysicalDevice;
-        var capabilities = physicalDevice.GetSurfaceCapabilitiesKHR(gpu.Surface);
+        var capabilities = physicalDevice.GetSurfaceCapabilitiesKHR(surface);
 
         // CurrentExtent is 0xFFFFFFFF (-1 as an int) when the surface lets the swapchain pick its size.
         var extent = capabilities.CurrentExtent;
@@ -53,13 +53,13 @@ sealed class Swapchain : IDisposable
         ];
         var compositeAlpha = alphaModes.First(mode => (capabilities.SupportedCompositeAlpha & mode) != 0);
 
-        var surfaceFormat = PickSurfaceFormat(physicalDevice, gpu.Surface);
+        var surfaceFormat = PickSurfaceFormat(physicalDevice, surface);
         Format = surfaceFormat.Format;
 
         Handle = _device.CreateSwapchainKHR(
             new VkSwapchainCreateInfoKHR
             {
-                Surface = gpu.Surface,
+                Surface = surface,
                 MinImageCount = imageCount,
                 ImageFormat = surfaceFormat.Format,
                 ImageColorSpace = surfaceFormat.ColorSpace,

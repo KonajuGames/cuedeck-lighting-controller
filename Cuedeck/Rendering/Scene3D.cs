@@ -12,7 +12,8 @@ namespace Cuedeck.Rendering;
 /// buffer), which the UI then shows as texture <see cref="TEXTURE"/> (<see cref="UI.Batch.AddTexture"/>). One lit,
 /// opaque pipeline: every shape a mesh made once, placed by its instance's matrices from a storage buffer, and lit by
 /// the fixtures' spotlights from another, looped over in the fragment shader, projecting their gobos
-/// (<see cref="GoboArray"/>). Then the beams, added over it without writing depth.
+/// (<see cref="GoboArray"/>) and, with Shadows on, the brightest casting shadows (<see cref="ShadowMaps"/>, drawn
+/// from each first). Then the beams, added over it without writing depth.
 /// </summary>
 sealed unsafe class Scene3D : IDisposable
 {
@@ -53,6 +54,7 @@ sealed unsafe class Scene3D : IDisposable
         public Vector4 Colour;
         public Vector4 Extra;
         public Vector4 Right;
+        public Matrix4x4 Shadow;
     }
 
     struct MeshVertex
@@ -83,6 +85,8 @@ sealed unsafe class Scene3D : IDisposable
     readonly VkPipelineLayout _pipelineLayout;
     readonly VkPipeline _pipeline;
     readonly VkPipeline _beamPipeline;
+    readonly VkPipeline _shadowPipeline;
+    readonly ShadowMaps _shadows;
     readonly GoboArray _gobos;
     readonly GpuBuffer _vertices;
     readonly GpuBuffer _indices;
@@ -126,12 +130,19 @@ sealed unsafe class Scene3D : IDisposable
                 DescriptorCount = 1,
                 StageFlags = VkShaderStageFlags.FragmentBit,
             },
+            new()
+            {
+                Binding = 3,
+                DescriptorType = VkDescriptorType.CombinedImageSampler,
+                DescriptorCount = 1,
+                StageFlags = VkShaderStageFlags.FragmentBit,
+            },
         };
-        _setLayout = _device.CreateDescriptorSetLayout(new VkDescriptorSetLayoutCreateInfo { BindingCount = 3, Bindings = bindings }, null);
+        _setLayout = _device.CreateDescriptorSetLayout(new VkDescriptorSetLayoutCreateInfo { BindingCount = 4, Bindings = bindings }, null);
         var poolSizes = stackalloc VkDescriptorPoolSize[]
         {
             new() { Type = VkDescriptorType.StorageBuffer, DescriptorCount = 2 * framesInFlight },
-            new() { Type = VkDescriptorType.CombinedImageSampler, DescriptorCount = framesInFlight },
+            new() { Type = VkDescriptorType.CombinedImageSampler, DescriptorCount = 2 * framesInFlight },
         };
         _pool = _device.CreateDescriptorPool(new VkDescriptorPoolCreateInfo { MaxSets = framesInFlight, PoolSizeCount = 2, PoolSizes = poolSizes }, null);
         _gobos = new GoboArray(gpu);
@@ -139,6 +150,13 @@ sealed unsafe class Scene3D : IDisposable
         {
             Sampler = _gobos.Sampler,
             ImageView = _gobos.View,
+            ImageLayout = VkImageLayout.ShaderReadOnlyOptimal,
+        };
+        _shadows = new ShadowMaps(gpu);
+        var shadowInfo = new VkDescriptorImageInfo
+        {
+            Sampler = _shadows.Sampler,
+            ImageView = _shadows.ArrayView,
             ImageLayout = VkImageLayout.ShaderReadOnlyOptimal,
         };
         _frames = new FrameInstances[framesInFlight];
@@ -166,6 +184,14 @@ sealed unsafe class Scene3D : IDisposable
                         DescriptorType = VkDescriptorType.CombinedImageSampler,
                         ImageInfo = &goboInfo,
                     },
+                    new VkWriteDescriptorSet
+                    {
+                        DstSet = sets[0],
+                        DstBinding = 3,
+                        DescriptorCount = 1,
+                        DescriptorType = VkDescriptorType.CombinedImageSampler,
+                        ImageInfo = &shadowInfo,
+                    },
                 ],
                 []
             );
@@ -178,6 +204,7 @@ sealed unsafe class Scene3D : IDisposable
         );
         _pipeline = CreatePipeline("scene.frag", beams: false);
         _beamPipeline = CreatePipeline("beam.frag", beams: true);
+        _shadowPipeline = CreateShadowPipeline();
 
         // Every shape in one vertex and one index buffer.
         var vertices = new List<MeshVertex>();
@@ -247,6 +274,145 @@ sealed unsafe class Scene3D : IDisposable
                 Layout = _pipelineLayout,
             },
             null
+        );
+    }
+
+    /// <summary>
+    /// Depth alone, from a light (the scene's vertex shader, given the light's view as its camera), biased against
+    /// the shadow's own surface speckling.
+    /// </summary>
+    VkPipeline CreateShadowPipeline()
+    {
+        using var stages = ShaderLoader.Load(_device, "scene.vert", "shadow.frag");
+        var vertexInput = new VertexInput(1, 2)
+            .AddBinding(0, ByteSize.Of<MeshVertex>(), VkVertexInputRate.Vertex)
+            .AddAttribute(0, 0, VkFormat.R32G32B32SFloat, ByteSize.Zero)
+            .AddAttribute(1, 0, VkFormat.R32G32B32SFloat, ByteSize.Of<Vector3>());
+        var viewportState = new VkPipelineViewportStateCreateInfo { ViewportCount = 1, ScissorCount = 1 };
+        var dynamicStates = stackalloc VkDynamicState[] { VkDynamicState.Viewport, VkDynamicState.Scissor };
+        var dynamicState = new VkPipelineDynamicStateCreateInfo { DynamicStateCount = 2, DynamicStates = dynamicStates };
+        var raster = new VkPipelineRasterizationStateCreateInfo
+        {
+            PolygonMode = VkPolygonMode.Fill,
+            CullMode = VkCullModeFlags.None,
+            FrontFace = VkFrontFace.CounterClockwise,
+            LineWidth = 1,
+            DepthBiasEnable = true,
+            DepthBiasConstantFactor = 1.5f,
+            DepthBiasSlopeFactor = 2.0f,
+        };
+        var noColour = new VkPipelineColorBlendStateCreateInfo { AttachmentCount = 0 };
+        var rendering = new VkPipelineRenderingCreateInfo { ColorAttachmentCount = 0, DepthAttachmentFormat = ShadowMaps.FORMAT };
+        return _device.CreateGraphicsPipeline(
+            VkPipelineCache.NullHandle,
+            new VkGraphicsPipelineCreateInfo
+            {
+                Next = &rendering,
+                StageCount = stages.Count,
+                Stages = stages,
+                VertexInputState = vertexInput,
+                InputAssemblyState = Presets.InputAssembly.TriangleList,
+                ViewportState = &viewportState,
+                RasterizationState = &raster,
+                MultisampleState = Presets.Multisample.None,
+                DepthStencilState = Presets.DepthStencil.DepthTestWrite,
+                ColorBlendState = &noColour,
+                DynamicState = &dynamicState,
+                Layout = _pipelineLayout,
+            },
+            null
+        );
+    }
+
+    /// <summary>
+    /// The opaque shapes (not the beams), each from its instance: the shared shapes, or a model's own mesh.
+    /// </summary>
+    void DrawOpaque(CommandBuffer cmd, SceneFrame frame)
+    {
+        cmd.BindVertexBuffers(0, [_vertices.Buffer], [new ByteSize64(0)]);
+        cmd.BindIndexBuffer(_indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
+        var shared = true;
+        for (var i = 0; i < frame.Items.Count; i++)
+        {
+            var item = frame.Items[i];
+            if (item.Custom is { } custom)
+            {
+                if (ModelMesh(custom) is not { } m)
+                    continue;
+                cmd.BindVertexBuffers(0, [m.Vertices.Buffer], [new ByteSize64(0)]);
+                cmd.BindIndexBuffer(m.Indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
+                cmd.DrawIndexed(m.Count, 1, 0, 0, i);
+                shared = false;
+                continue;
+            }
+            if (!shared)
+            {
+                cmd.BindVertexBuffers(0, [_vertices.Buffer], [new ByteSize64(0)]);
+                cmd.BindIndexBuffer(_indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
+                shared = true;
+            }
+            var (first, n, offset) = _meshes[item.Mesh];
+            cmd.DrawIndexed(n, 1, first, offset, i);
+        }
+        if (!shared)
+        {
+            cmd.BindVertexBuffers(0, [_vertices.Buffer], [new ByteSize64(0)]);
+            cmd.BindIndexBuffer(_indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
+        }
+    }
+
+    /// <summary>
+    /// Draws each shadow caster's map: the opaque shapes' depth, seen from it.
+    /// </summary>
+    void DrawShadows(CommandBuffer cmd, SceneFrame frame, VkDescriptorSet set)
+    {
+        cmd.TransitionImage(
+            _shadows.Image,
+            VkImageAspectFlags.DepthBit,
+            VkImageLayout.Undefined,
+            VkImageLayout.DepthAttachmentOptimal,
+            VkPipelineStageFlags.FragmentShaderBit,
+            VkAccessFlags.None,
+            VkPipelineStageFlags.EarlyFragmentTestsBit | VkPipelineStageFlags.LateFragmentTestsBit,
+            VkAccessFlags.DepthStencilAttachmentWriteBit | VkAccessFlags.DepthStencilAttachmentReadBit,
+            layerCount: SceneFrame.MAX_SHADOWS
+        );
+        var size = new VkExtent2D(ShadowMaps.SIZE, ShadowMaps.SIZE);
+        for (var k = 0; k < frame.ShadowCasters.Count; k++)
+        {
+            var depth = new VkRenderingAttachmentInfo
+            {
+                ImageView = _shadows.Layer(k),
+                ImageLayout = VkImageLayout.DepthAttachmentOptimal,
+                LoadOp = VkAttachmentLoadOp.Clear,
+                StoreOp = VkAttachmentStoreOp.Store,
+                ClearValue = new VkClearValue { DepthStencil = new VkClearDepthStencilValue { Depth = 1 } },
+            };
+            cmd.BeginRendering(new VkRenderingInfo { RenderArea = new VkRect2D(size), LayerCount = 1, DepthAttachment = &depth });
+            // Unflipped: the map's rows run with the light's view's Y, as the shader reads them.
+            cmd.SetViewport(0, [new VkViewport { Width = ShadowMaps.SIZE, Height = ShadowMaps.SIZE, MaxDepth = 1 }]);
+            cmd.SetScissor(0, [new VkRect2D(size)]);
+            cmd.BindPipeline(VkPipelineBindPoint.Graphics, _shadowPipeline);
+            cmd.BindDescriptorSets(VkPipelineBindPoint.Graphics, _pipelineLayout, 0, [set], []);
+            cmd.PushConstants(
+                _pipelineLayout,
+                VkShaderStageFlags.VertexBit | VkShaderStageFlags.FragmentBit,
+                ByteSize.Zero,
+                new Push { ViewProj = frame.Lights[frame.ShadowCasters[k]].ShadowViewProjection }
+            );
+            DrawOpaque(cmd, frame);
+            cmd.EndRendering();
+        }
+        cmd.TransitionImage(
+            _shadows.Image,
+            VkImageAspectFlags.DepthBit,
+            VkImageLayout.DepthAttachmentOptimal,
+            VkImageLayout.ShaderReadOnlyOptimal,
+            VkPipelineStageFlags.LateFragmentTestsBit,
+            VkAccessFlags.DepthStencilAttachmentWriteBit,
+            VkPipelineStageFlags.FragmentShaderBit,
+            VkAccessFlags.ShaderReadBit,
+            layerCount: SceneFrame.MAX_SHADOWS
         );
     }
 
@@ -343,10 +509,16 @@ sealed unsafe class Scene3D : IDisposable
                 Extra = new Vector4(l.EdgeSoftness, 0, 0, 0),
                 // w: the gobo's layer, or -1 for none.
                 Right = new Vector4(l.Right, _gobos.LayerOf(l.Gobo)),
+                Shadow = l.ShadowViewProjection,
             };
+            // Extra.y: its shadow map's layer, or -1.
+            lights[i].Extra.Y = frame.ShadowCasters.IndexOf(i);
         }
         if (lightCount > 0)
             _gpu.Allocator.FlushAllocation(instances.Lights.Allocation, ByteSize.Zero, ByteSize.Of<Light>() * lightCount);
+
+        if (frame.ShadowCasters.Count > 0)
+            DrawShadows(cmd, frame, instances.Set);
 
         // The UI may still be reading last frame's picture: wait for that, then draw over it.
         cmd.TransitionImage(
@@ -440,36 +612,7 @@ sealed unsafe class Scene3D : IDisposable
                 WorkColour = new Vector4(frame.WorkLight.X, frame.WorkLight.Y, frame.WorkLight.Z, 0),
             }
         );
-        cmd.BindVertexBuffers(0, [_vertices.Buffer], [new ByteSize64(0)]);
-        cmd.BindIndexBuffer(_indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
-        var shared = true;
-        for (var i = 0; i < count; i++)
-        {
-            var item = frame.Items[i];
-            if (item.Custom is { } custom)
-            {
-                if (ModelMesh(custom) is not { } m)
-                    continue;
-                cmd.BindVertexBuffers(0, [m.Vertices.Buffer], [new ByteSize64(0)]);
-                cmd.BindIndexBuffer(m.Indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
-                cmd.DrawIndexed(m.Count, 1, 0, 0, i);
-                shared = false;
-                continue;
-            }
-            if (!shared)
-            {
-                cmd.BindVertexBuffers(0, [_vertices.Buffer], [new ByteSize64(0)]);
-                cmd.BindIndexBuffer(_indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
-                shared = true;
-            }
-            var (first, n, offset) = _meshes[item.Mesh];
-            cmd.DrawIndexed(n, 1, first, offset, i);
-        }
-        if (!shared)
-        {
-            cmd.BindVertexBuffers(0, [_vertices.Buffer], [new ByteSize64(0)]);
-            cmd.BindIndexBuffer(_indices.Buffer, new ByteSize64(0), VkIndexType.UInt32);
-        }
+        DrawOpaque(cmd, frame);
         if (frame.Beams.Count > 0)
         {
             cmd.BindPipeline(VkPipelineBindPoint.Graphics, _beamPipeline);
@@ -621,6 +764,8 @@ sealed unsafe class Scene3D : IDisposable
         }
         _device.DestroyPipeline(_pipeline, null);
         _device.DestroyPipeline(_beamPipeline, null);
+        _device.DestroyPipeline(_shadowPipeline, null);
+        _shadows.Dispose();
         _gobos.Dispose();
         _device.DestroyPipelineLayout(_pipelineLayout, null);
         _device.DestroyDescriptorPool(_pool, null);
