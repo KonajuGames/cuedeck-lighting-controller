@@ -73,6 +73,17 @@ public sealed class ConsoleTests : ConsoleHarness
         Click(Find<Button>(b => b.Text == "Home"));
         Assert.Equal((128, 128, 0), (Show.Dmx.Universes[0].GetChannel(0), Show.Dmx.Universes[0].GetChannel(1), Show.Dmx.Universes[0].GetChannel(2)));
 
+        // The wheel nudges it a step: tilt, then pan with Shift (which turns the wheel sideways).
+        Ui.MouseMove(padArea.ScreenPosition + padArea.Size / 2);
+        Ui.MouseWheel(1);
+        Frame();
+        Assert.Equal((128, 129), (Show.Dmx.Universes[0].GetChannel(0), Show.Dmx.Universes[0].GetChannel(1)));
+        Ui.MouseWheel(new float2(-1, 0));
+        Ui.MouseWheel(new float2(-1, 0));
+        Frame();
+        // As in sLight, the first lands on the grid line the channel's 128 rounds back to.
+        Assert.Equal((127, 129), (Show.Dmx.Universes[0].GetChannel(0), Show.Dmx.Universes[0].GetChannel(1)));
+
         // The category group buttons.
         Click(Find<Button>(b => b.Tooltip == "Category group 3"));
         Assert.Equal(3, f.CategoryGroup);

@@ -344,8 +344,16 @@ sLight has no tests of its own for these, so each slice's are new, written from 
 | 7b | The visualizer's picture: anti-aliasing (4× MSAA), Screenshot (a PNG of the 3D view), and Record (the view to an MP4, H.264 with what the computer's playing as AAC, through Media Foundation's sink writer) | ✅ |
 | 7c | The visualizer's pop-out window (`VizPopOut`: a window of its own on the same GPU, its tab saying where it's gone, docked again by closing it or Dock to Main, where it was kept in `ui_state.json`), and shadows: the brightest eight lights each casting one from a shadow map, their edges filtered | ✅ |
 | 7d | USB DMX (`Dmx/UsbDmx`): Enttec Open DMX and DMX USB Pro (FTDI's D2XX, P/Invoked), a universe's USB output with its interface and kind chosen on the universe's page | ✅ |
-| 7e | Remembered folders for every file dialog (sLight's `RecentDirs`), and what else the feature check turns up | next |
-| 7f | The README and user guide rewritten for Cuedeck, with new screenshots (a capture tool), and sLight's feature list ticked off | |
+| 7e | Remembered folders for every file dialog (`RecentFolders`, sLight's `RecentDirs`: the show, fixture import, glTF model and MVR dialogs each start where they were last used); and what the feature check against sLight's README turned up: a universe whose USB interface won't open goes back to Art-Net, and the pan / tilt pad's wheel nudge | ✅ |
+| 7f | The README and user guide rewritten for Cuedeck, with new screenshots (a capture tool), and sLight's feature list ticked off | next |
+
+**Where slice 7e differs from sLight:** none in what's remembered: each dialog's folder is kept by the same keys
+in `recent_dirs.json` in the app's folder. The show dialogs start in the current show's folder when they've no
+folder of their own yet. The feature check went through the README's console, playback, triggers, palettes, faders,
+profiles, visualizer and output sections. Two gaps were fixed. A USB interface that won't open now leaves its
+universe on Art-Net with no interface named, as sLight did. The pan / tilt pad's wheel now nudges a step (Shift for
+pan). Differences kept on purpose: the Groups tab's checklist follows the patch by itself, so there's no Sync to
+Patch button, and the window's smallest size is 1024 × 640 (sLight's was 720 × 480), as the console's tabs need the room.
 
 **Where slice 7d differs from sLight:** only FTDI interfaces through D2XX: Open DMX (the computer makes the break and
 mark, at 250 kbaud 8N2) and the DMX USB Pro and its look-alikes (a framed "Send DMX Packet" message), each streamed

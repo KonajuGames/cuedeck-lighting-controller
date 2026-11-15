@@ -13,12 +13,17 @@ sealed class FakeFtdi : IFtdi
     public List<byte[]> Writes { get; } = [];
     public uint WriteStatus { get; set; }
 
+    /// <summary>
+    /// Whether opening fails even for an interface that's listed (held by another program, say).
+    /// </summary>
+    public bool OpenFails { get; set; }
+
     public IReadOnlyList<(string Serial, string Description)> Devices() => Attached;
 
     public nint Open(string serial)
     {
         Calls.Add("open " + serial);
-        return Attached.Any(d => d.Serial == serial) ? 42 : 0;
+        return !OpenFails && Attached.Any(d => d.Serial == serial) ? 42 : 0;
     }
 
     public void Close(nint handle) => Calls.Add("close");
@@ -180,6 +185,32 @@ public sealed class UsbDmxTests
             p.Output = OutputMode.ArtNet;
             show.Patch.ApplyConnection(0);
             Assert.False(usb.IsSending("EN123")); // let go
+        }
+    }
+
+    [Fact]
+    public void A_universe_whose_interface_cant_be_opened_sends_Art_Net_instead()
+    {
+        var (usb, ftdi) = WithInterfaces(("EN123", "DMX USB PRO"));
+        using (usb)
+        using (var show = new LightingShow())
+        {
+            show.Dmx.RouteUsb = usb.Route;
+            var p = show.Patch.Universes[0];
+            (p.Output, p.UsbSerial) = (OutputMode.Usb, "GONE");
+            Assert.False(show.Patch.ApplyConnection(0));
+            // As sLight: Art-Net, and no interface named (so it's saved that way).
+            Assert.Equal((OutputMode.ArtNet, ""), (p.Output, p.UsbSerial));
+            Assert.Equal(OutputMode.ArtNet, show.Dmx.Universes[0].Mode);
+
+            // A show saved with an interface that isn't plugged in this time.
+            (p.Output, p.UsbSerial) = (OutputMode.Usb, "EN123");
+            Assert.True(show.Patch.ApplyConnection(0));
+            var saved = show.Patch.PatchToJson(0);
+            ftdi.Attached.Clear();
+            usb.Unroute("EN123");
+            show.Patch.ApplyPatch(0, saved, usbAvailable: true);
+            Assert.Equal(OutputMode.ArtNet, show.Patch.Universes[0].Output);
         }
     }
 }

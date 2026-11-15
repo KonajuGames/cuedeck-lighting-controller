@@ -55,6 +55,18 @@ public sealed class UsbPatchTests : ConsoleHarness
     }
 
     [Fact]
+    public void An_interface_that_wont_open_leaves_the_universe_on_Art_Net()
+    {
+        _ftdi.OpenFails = true;
+        Click(ButtonCalled("Universe 1"));
+        Choose(Find<Dropdown<OutputMode>>(_ => true), "USB");
+        Assert.Equal(OutputMode.ArtNet, Show.Patch.Universes[0].Output);
+        Assert.Equal("USB DMX: could not open EN123 — sending Art-Net.", Screen.StatusText);
+        Assert.Equal(OutputMode.ArtNet, Find<Dropdown<OutputMode>>(_ => true).Selected);
+        Assert.DoesNotContain(All(Screen.Console).OfType<Button>(), b => b.Text == "Rescan");
+    }
+
+    [Fact]
     public void Without_the_driver_USB_isnt_offered()
     {
         Screen.Console.Patch.Usb = new UsbDmx(null);

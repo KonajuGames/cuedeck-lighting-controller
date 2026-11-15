@@ -103,12 +103,18 @@ sealed class AppShell
         return true;
     }
 
+    /// <summary>
+    /// The show dialogs' last folder ("show"), kept between runs by the app.
+    /// </summary>
+    public RecentFolders Recent { get; set; } = new(null);
+
     public bool SaveAs()
     {
-        var folder = _session.Path != "" ? Path.GetDirectoryName(_session.Path) : null;
+        var folder = Recent.For("show") ?? (_session.Path != "" ? Path.GetDirectoryName(_session.Path) : null);
         var name = _session.Path != "" ? Path.GetFileName(_session.Path) : "Show." + ShowFile.Extension;
         if (WindowsShell.AskWhereToSave(_owner(), "Save Show As", [("sLight show", "*." + ShowFile.Extension)], name, folder) is not { } chosen)
             return false;
+        Recent.Remember("show", chosen.Path);
         if (_session.Save(chosen.Path) is { } error)
         {
             _screen.Log("Show save failed: " + error);
@@ -123,8 +129,8 @@ sealed class AppShell
             "opening another show",
             () =>
             {
-                var folder = _session.Path != "" ? Path.GetDirectoryName(_session.Path) : null;
-                if (WindowsShell.AskForFile(_owner(), "Load Show", ("sLight show", "*." + ShowFile.Extension + ";*.json"), folder) is not { } path)
+                var current = _session.Path != "" ? Path.GetDirectoryName(_session.Path) : null;
+                if (Recent.Ask("show", folder => WindowsShell.AskForFile(_owner(), "Load Show", ("sLight show", "*." + ShowFile.Extension + ";*.json"), folder), current) is not { } path)
                     return;
                 LoadFrom(path);
             }

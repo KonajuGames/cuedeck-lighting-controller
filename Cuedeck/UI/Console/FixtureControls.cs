@@ -301,6 +301,24 @@ sealed class PanTiltPad : ControlColumn, IFixtureControl
 
         public override void PointerDrag(float2 point) => MoveTo(point);
 
+        /// <summary>
+        /// One wheel step, in the point's units: an 8-bit channel's step, or a 16-bit one's coarse byte.
+        /// </summary>
+        const double WHEEL_STEP = 1.0 / 256.0;
+
+        /// <summary>
+        /// The wheel nudges the point onto the next step for fine work: up and down move tilt, Shift+wheel (or a
+        /// sideways wheel) pan. sLight's <c>XYPad._nudge</c>.
+        /// </summary>
+        public override bool Wheel(float2 notches)
+        {
+            static float Nudge(float v, float notches) =>
+                notches == 0 ? v : (float)Math.Clamp(Math.Floor((v + Math.Sign(notches) * WHEEL_STEP) / WHEEL_STEP + 0.5) * WHEEL_STEP, 0, 1);
+            Point = new float2(Nudge(Point.X, notches.X), Nudge(Point.Y, notches.Y));
+            Moved?.Invoke(Point);
+            return true;
+        }
+
         public override void Draw(Batch batch)
         {
             batch.AddRect(ScreenPosition, Size, Theme.Well);

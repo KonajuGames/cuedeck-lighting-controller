@@ -159,9 +159,10 @@ sealed class Patch
     }
 
     /// <summary>
-    /// Sends universe <paramref name="index"/> where its patch says.
+    /// Sends universe <paramref name="index"/> where its patch says. A USB interface that can't be opened (or none
+    /// named) leaves it on Art-Net, with no interface named, as sLight did; then it returns false.
     /// </summary>
-    public void ApplyConnection(int index)
+    public bool ApplyConnection(int index)
     {
         var p = _universes[index];
         var u = _dmx.Universes[index];
@@ -174,8 +175,14 @@ sealed class Patch
         u.UsbMode = p.UsbMode;
         u.SetTarget(p.Ip, p.Port);
         u.SetOutputMode(p.Output);
-        if (p.Output == OutputMode.Usb && p.UsbSerial != "")
-            _dmx.RouteUsb?.Invoke(p.UsbSerial, p.UsbMode);
+        if (p.Output == OutputMode.Usb && (p.UsbSerial == "" || _dmx.RouteUsb?.Invoke(p.UsbSerial, p.UsbMode) != true))
+        {
+            p.Output = OutputMode.ArtNet;
+            p.UsbSerial = u.UsbSerial = "";
+            u.SetOutputMode(OutputMode.ArtNet);
+            return false;
+        }
+        return true;
     }
 
     /// <summary>

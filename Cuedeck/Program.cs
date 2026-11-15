@@ -192,24 +192,34 @@ static void Run(string[] args)
     // The 3D Visualizer can go to a window of its own, and be put back; it's where it was last time.
     using var popOut = new VizPopOut(gpu, atlas, fonts, screen.Console, renderer, ui, menu, prompt, screen.Log, VizWindowState.DefaultPath);
     popOut.Restore();
-    var shell = new AppShell(session, screen, confirm, () => OperatingSystem.IsWindows() ? WindowChrome.Handle : 0);
+    // Each file dialog starts where it was last used.
+    var recent = new RecentFolders(RecentFolders.DefaultPath);
+    var shell = new AppShell(session, screen, confirm, () => OperatingSystem.IsWindows() ? WindowChrome.Handle : 0) { Recent = recent };
     screen.Console.Visualizer.AskForModel = () =>
-        WindowsShell.AskForFile(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Load glTF Model (set piece / stage element)", ("glTF model", "*.glb;*.gltf"));
+        recent.Ask(
+            "gltf_model",
+            folder => WindowsShell.AskForFile(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Load glTF Model (set piece / stage element)", ("glTF model", "*.glb;*.gltf"), folder)
+        );
     // MVR import and export, from the visualizer's toolbar (they change the patch and keep profiles).
     screen.Console.Visualizer.ImportMvr = () =>
-        WindowsShell.AskForFile(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Import MVR (My Virtual Rig)", ("My Virtual Rig", "*.mvr")) is { } mvr
+        recent.Ask("mvr", folder => WindowsShell.AskForFile(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Import MVR (My Virtual Rig)", ("My Virtual Rig", "*.mvr"), folder)) is { } mvr
             ? Mvr.Apply(Mvr.Import(mvr), show, profiles, Path.GetFileName(mvr))
             : "";
     screen.Console.Visualizer.ExportMvr = () =>
-        WindowsShell.AskWhereToSave(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Export MVR (My Virtual Rig)", [("My Virtual Rig", "*.mvr")], "rig.mvr") is { } where
-            ? Mvr.Export(where.Path, show)
+        recent.Ask("mvr", folder => WindowsShell.AskWhereToSave(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Export MVR (My Virtual Rig)", [("My Virtual Rig", "*.mvr")], "rig.mvr", folder)?.Path) is { } where
+            ? Mvr.Export(where, show)
             : "";
     screen.Console.Patch.Usb = usb;
     screen.Console.Patch.AskForFixtureFile = () =>
-        WindowsShell.AskForFile(
-            OperatingSystem.IsWindows() ? WindowChrome.Handle : 0,
-            "Import Fixture Definition (GDTF / Open Fixture Library)",
-            ("GDTF or Open Fixture Library fixture", "*.gdtf;*.json")
+        recent.Ask(
+            "fixture_import",
+            folder =>
+                WindowsShell.AskForFile(
+                    OperatingSystem.IsWindows() ? WindowChrome.Handle : 0,
+                    "Import Fixture Definition (GDTF / Open Fixture Library)",
+                    ("GDTF or Open Fixture Library fixture", "*.gdtf;*.json"),
+                    folder
+                )
         );
 
     // The window's own buttons, and dragging it by the title bar, which Windows does once told where it is. Closing

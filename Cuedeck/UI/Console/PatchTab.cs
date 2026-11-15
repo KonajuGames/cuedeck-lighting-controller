@@ -275,10 +275,17 @@ sealed class UniversePage : Panel
         if (p.UsbSerial == "" && _usbDevices.Count > 0)
             p.UsbSerial = _usbDevice.Selected = _usbDevices[0].Serial;
         p.UsbMode = _usbMode.Selected;
-        _show.Patch.ApplyConnection(_index);
+        var serial = p.UsbSerial;
+        if (!_show.Patch.ApplyConnection(_index))
+        {
+            // As sLight: the interface wouldn't open, so the universe stays on Art-Net.
+            _output.Selected = OutputMode.ArtNet;
+            Status?.Invoke(serial == "" ? "USB DMX: no interface found (plug one in and press Rescan) — sending Art-Net." : $"USB DMX: {Usb()?.Status(serial) ?? "no driver"} — sending Art-Net.");
+            return;
+        }
         if (p.Output == OutputMode.Usb)
         {
-            Status?.Invoke(p.UsbSerial == "" ? "No USB DMX interface found: plug one in and press Rescan." : $"Universe {_index + 1} now sends to USB DMX {p.UsbSerial}.");
+            Status?.Invoke($"Universe {_index + 1} now sends to USB DMX {p.UsbSerial}.");
             return;
         }
         var u = _show.Dmx.Universes[_index];
