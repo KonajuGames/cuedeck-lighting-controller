@@ -109,16 +109,22 @@ sealed class TitleBar : Panel
     public event Action? MaximizeClicked;
     public event Action? CloseClicked;
 
+    readonly Picture _logo;
+    readonly Panel _name;
+    readonly Font _body;
+    readonly Font _bold;
+
     public TitleBar(Font body, Font bold, Images images)
     {
+        (_body, _bold) = (body, bold);
         Background = Theme.Panel;
 
         _left = Add(new Panel { Direction = Direction.Horizontal, Spacing = 10 });
-        _left.Add(new Picture(images.Logo));
+        _logo = _left.Add(new Picture(images.Logo));
         // The wordmark: "Cue" in the accent, "deck" in the text's colour, as one word.
-        var name = _left.Add(new Panel { Direction = Direction.Horizontal, Spacing = 0 });
-        name.Add(new Label(bold, "Cue") { Color = Theme.Accent });
-        name.Add(new Label(bold, "deck") { Color = Theme.Text });
+        _name = _left.Add(new Panel { Direction = Direction.Horizontal, Spacing = 0 });
+        _name.Add(new Label(bold, "Cue") { Color = Theme.Accent });
+        _name.Add(new Label(bold, "deck") { Color = Theme.Text });
         _title = _left.Add(new Label(body) { Color = Theme.Muted });
 
         Centre = Add(new Panel { Direction = Direction.Horizontal, Spacing = 8 });
@@ -173,6 +179,11 @@ sealed class TitleBar : Panel
         AlignMiddle(_left);
         AlignMiddle(Centre);
         AlignMiddle(_right);
+        // The name and the show's capitals centred on the logo: centring their lines would drop them, as a line keeps
+        // room below for descenders.
+        var middle = _logo.ScreenPosition.Y + _logo.Size.Y / 2;
+        foreach (var (text, font) in new (Element, Font)[] { (_name, _bold), (_title, _body) })
+            text.Arrange(new float2(text.ScreenPosition.X, MathF.Round(middle - font.Ascender + font.CapHeight / 2)));
     }
 
     /// <summary>

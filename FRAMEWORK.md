@@ -48,6 +48,7 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
   rather than read from a PNG.
 - `UI/ListView.cs` (slice 4h): `SelectItems`, to select several rows from code.
 - `UI/FontAtlas.cs` (slice 4h): the up and down arrows baked too.
+- `UI/FontAtlas.cs`: `Font.CapHeight`, so the title bar can centre its wordmark's capitals on the logo.
 - `UI/MainScreen.cs` and `UI/Console/TopBar.cs` (slice 4g): the View dropdown and DJ Edit Mode in place of the
   console.
 - `UI/MainScreen.cs` and `UI/Console/TopBar.cs` (slice 5c): DJ Perform Mode in the View dropdown too.

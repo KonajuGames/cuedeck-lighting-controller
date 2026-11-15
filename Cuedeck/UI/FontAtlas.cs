@@ -42,6 +42,11 @@ sealed class Font
 
     public float PixelSize { get; }
 
+    /// <summary>
+    /// How tall its capitals stand above the baseline (an H's).
+    /// </summary>
+    public float CapHeight => GetGlyph('H').Bearing.Y;
+
     internal readonly Dictionary<int, Glyph> Glyphs = [];
     internal Glyph Fallback;
 
