@@ -5,8 +5,8 @@ using Cuedeck.Show;
 namespace Cuedeck.UI.Console;
 
 /// <summary>
-/// The console's top bar: the grand master, run mode, tap tempo, Sending, Blackout All and the universes. The show's
-/// file commands and the views are in the menu bar above it.
+/// The console's top bar: the grand master, run mode, tap tempo, Sending and Blackout All. The show's file commands,
+/// adding and removing universes, and the views are in the menu bar above it.
 /// </summary>
 sealed class TopBar : Panel
 {
@@ -17,7 +17,6 @@ sealed class TopBar : Panel
     readonly Label _tempo;
     readonly Button _tempoStop;
     readonly Button _sending;
-    readonly Button _removeUniverse;
     readonly Flow _top;
 
     /// <summary>
@@ -31,8 +30,6 @@ sealed class TopBar : Panel
     }
 
     public event Action? BlackoutAll;
-    public event Action? AddUniverse;
-    public event Action? RemoveUniverse;
     public event Action<string>? Status;
 
     public float Width
@@ -75,10 +72,6 @@ sealed class TopBar : Panel
         _sending.Clicked += _ => Sending = !Sending;
         var blackout = _top.Add(new Button(fonts.Body, "Blackout All"));
         blackout.Clicked += _ => BlackoutAll?.Invoke();
-        var add = _top.Add(new Button(fonts.Body, "Add Universe") { Tooltip = "Ctrl+Shift+N" });
-        add.Clicked += _ => AddUniverse?.Invoke();
-        _removeUniverse = _top.Add(new Button(fonts.Body, "Remove Universe") { Tooltip = "Ctrl+Shift+R" });
-        _removeUniverse.Clicked += _ => RemoveUniverse?.Invoke();
     }
 
     /// <summary>
@@ -103,7 +96,6 @@ sealed class TopBar : Panel
         _tempoStop.Visible = _show.Tempo.Running;
         _sending.Lit = Sending;
         _sending.Text = Sending ? "Sending" : "Not sending";
-        _removeUniverse.Enabled = _show.Patch.Universes.Count > 1;
     }
 
     public override void Draw(Batch batch)

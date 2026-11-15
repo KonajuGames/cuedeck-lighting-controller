@@ -22,7 +22,7 @@ The window has three areas:
 - **Menu bar and top bar**: the menus **File** (New, Load and Save Show, Save and Load Preset, Options, Exit),
   **Edit** (Undo, Redo, Cut, Copy and Paste for whatever you're editing, Add/Remove Universe, and **Triggers…** for
   MIDI and OSC) and **Mode** (**Console**, **DJ Edit Mode** or **DJ Perform Mode**, and the run mode); under them the
-  Grand Master fader, **Run Mode**, the tempo clock's **Tap**, **Sending**, **Blackout All** and Add/Remove Universe.
+  Grand Master fader, **Run Mode**, the tempo clock's **Tap**, **Sending** and **Blackout All**.
   These stay visible whatever tab or view you're on.
 - **Left side, the playback tabs**: **Cues**, **Chases**, **Effects**, **Sound** and **Groups**. This is where you
   build and run a show.
@@ -61,7 +61,7 @@ Each universe is one 512-channel DMX universe, with a page of its own on the **P
   press **Rescan** after plugging one in. A uDMX listed as "uDMX?" was found but has no such driver yet.
 
 Then click **Apply Connection**. The line under the settings says where the universe is going. Add more universes with
-**Add Universe** in the top bar (or **Ctrl+Shift+N**) if your rig needs more than 512 channels; **Remove Universe**
+**Edit > Add Universe** (or **Ctrl+Shift+N**) if your rig needs more than 512 channels; **Edit > Remove Universe…**
 (**Ctrl+Shift+R**) asks first, telling you how many fixtures go with it.
 
 ## Step 2: Patch your first fixture

@@ -95,7 +95,8 @@ public sealed class ConsoleTests : ConsoleHarness
     [Fact]
     public void The_top_bar()
     {
-        Click(ButtonCalled("Add Universe"));
+        Assert.DoesNotContain(All(Screen.TopBar).OfType<Button>(), b => b.Text.Contains("Universe")); // in the Edit menu
+        FromMenu("Edit", "Add Universe");
         Assert.Equal(2, Show.Patch.Universes.Count);
         Assert.NotNull(ButtonCalled("Universe 2"));
 
@@ -109,11 +110,13 @@ public sealed class ConsoleTests : ConsoleHarness
         Assert.StartsWith("Blackout", Screen.StatusText);
 
         // Removing a universe asks first.
-        Click(ButtonCalled("Remove Universe"));
+        FromMenu("Edit", "Remove Universe…");
         Assert.Equal(2, Show.Patch.Universes.Count);
         Click(ButtonCalled("Remove"));
         Assert.Single(Show.Patch.Universes);
-        Assert.False(ButtonCalled("Remove Universe").Enabled);
+        Click(MenuTitle("Edit"));
+        Assert.False(MenuItemCalled("Remove Universe…").Enabled);
+        Press(Key.Escape);
 
         Click(ButtonCalled("Tap"));
         Assert.True(Show.Tempo.Running);

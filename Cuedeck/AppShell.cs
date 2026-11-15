@@ -35,8 +35,6 @@ sealed class AppShell
         menus.Exit += RequestClose;
         var top = screen.TopBar;
         top.BlackoutAll += BlackoutAll;
-        top.AddUniverse += AddUniverse;
-        top.RemoveUniverse += ConfirmRemoveUniverse;
         Show.Cues.Status += screen.Log;
         screen.Dialogs.Options.ImportFromSlight += () => ImportFromSlight();
     }
