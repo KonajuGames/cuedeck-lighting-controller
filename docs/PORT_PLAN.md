@@ -106,7 +106,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 | 4 | ✅ **DJ Edit Mode** (done 2026-11-14; see §7.4). Music browser (drives, VirtualDJ lists, Cuepoint library), song analysis, the structure bar, heatmap and timeline editor, timeline generator, timeline store and the position editor. Port `music_*`, `timeline_*`, `structure_detection`, `virtualdj_*`, `cuepoint_library` and `m4a_playback` tests. | Generate → edit → save a song's timelines, and the files load in sLight too. |
 | 5 | 🔶 **DJ Perform Mode** (built 2026-11-14 and tried with Cuepoint; VirtualDJ still to try; see §7.5). OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
 | 6 | ✅ **Visualizer** (done 2026-11-14; see §7.6). §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
-| 7 | 🔶 **Native extras and polish** (in progress; see §7.7). USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
+| 7 | ✅ **Native extras and polish** (done 2026-11-15; see §7.7; USB DMX not yet tried with an interface). USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
 
 ### 7.1 Phase 1 as built
 
@@ -345,7 +345,16 @@ sLight has no tests of its own for these, so each slice's are new, written from 
 | 7c | The visualizer's pop-out window (`VizPopOut`: a window of its own on the same GPU, its tab saying where it's gone, docked again by closing it or Dock to Main, where it was kept in `ui_state.json`), and shadows: the brightest eight lights each casting one from a shadow map, their edges filtered | ✅ |
 | 7d | USB DMX (`Dmx/UsbDmx`): Enttec Open DMX and DMX USB Pro (FTDI's D2XX, P/Invoked), a universe's USB output with its interface and kind chosen on the universe's page | ✅ |
 | 7e | Remembered folders for every file dialog (`RecentFolders`, sLight's `RecentDirs`: the show, fixture import, glTF model and MVR dialogs each start where they were last used); and what the feature check against sLight's README turned up: a universe whose USB interface won't open goes back to Art-Net, and the pan / tilt pad's wheel nudge | ✅ |
-| 7f | The README and user guide rewritten for Cuedeck, with new screenshots (a capture tool), and sLight's feature list ticked off | next |
+| 7f | The README and user guide rewritten for Cuedeck (`README.md`, `docs/USER_GUIDE.md`), with new screenshots taken by the app itself (`--capture`: `ScreenshotTool`, a demo rig and made-up songs, each frame read back from the GPU by `Renderer.CaptureWindow`), and sLight's feature list ticked off (`docs/FEATURES.md`) | ✅ |
+
+**Where slice 7f differs from sLight:** sLight's `tools/capture_screenshots.gd` took eleven of the guide's pictures
+and left DJ Edit Mode's four to be taken by hand with a real song; Cuedeck's tool takes all fifteen and the README's,
+with synthesised songs (`DemoSongs`) in a demo folder and a made-up library standing in for the DJ software's. It runs
+on a scratch app folder (`AppPaths.UseFolder`), so the user's shows, settings and music are never read, and saves the
+window's own frame, never the screen. The guide adds a Palettes picture (07, a number sLight's guide had left
+unused). Two things the screenshots showed were fixed: fader strips of different heights now line up along the top
+(`Flow.AlignTop`), and DJ Edit Mode's open-song row cuts a long title short rather than running past its column. The
+feature check found one gap not recorded before: Godot's bloom on bright beams isn't ported.
 
 **Where slice 7e differs from sLight:** none in what's remembered: each dialog's folder is kept by the same keys
 in `recent_dirs.json` in the app's folder. The show dialogs start in the current show's folder when they've no

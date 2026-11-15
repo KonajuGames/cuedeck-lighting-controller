@@ -64,6 +64,8 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 - `Rendering/GpuContext.cs`, `Swapchain.cs` and `Renderer.cs` (slice 7c): a renderer for another window, on a
   surface of its own (`GpuContext.CreateSurface`).
 - `UI/TabView.cs` (slice 7c): `SetPage` and `IndexOf`, to swap a tab's page.
+- `Rendering/Swapchain.cs` and `Renderer.cs` (slice 7f): the swapchain's images can be copied out where the surface
+  allows, and `Renderer.CaptureWindow` copies a whole frame back for the screenshot tool.
 
 ## Adapted
 

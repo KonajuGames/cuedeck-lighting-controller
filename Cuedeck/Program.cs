@@ -20,6 +20,11 @@ using Cuedeck.Timelines;
 
 WindowsShell.AttachParentConsole();
 
+// The screenshot tool (--capture <folder> [name ...]) runs on a scratch app folder, leaving the user's alone.
+var capture = ScreenshotTool.Parse(args);
+if (capture is not null)
+    ScreenshotTool.UseScratch();
+
 // What goes wrong is written down beside the settings, to look into after a show; even on another thread, where it
 // still ends the app.
 ErrorLog.FilePath = Path.Combine(AppPaths.Folder, "errors.log");
@@ -42,7 +47,7 @@ try
 
     try
     {
-        Run(args);
+        Run(args, capture);
     }
     finally
     {
@@ -59,16 +64,16 @@ catch (Exception e)
 
 return 0;
 
-static void Run(string[] args)
+static void Run(string[] args, (string Folder, string[] Names)? capture)
 {
     Glfw.WindowHint(GlfwWindowHint.ClientApi, Glfw.Constants.GLFW_NO_API);
 
     // Made hidden, and shown once the first frame is drawn, so Windows doesn't show it empty while the app gets going.
     Glfw.WindowHint(GlfwWindowHint.Visible, 0);
-    Glfw.WindowHint(GlfwWindowHint.Maximized, 1);
+    Glfw.WindowHint(GlfwWindowHint.Maximized, capture is null ? 1 : 0);
 
     // Declared first so it's disposed last, after the GPU objects that draw to it.
-    using var window = Glfw.CreateWindow(new GlfwWindow.CreateInfo { Title = "Cuedeck", Size = new int2(1366, 820) });
+    using var window = Glfw.CreateWindow(new GlfwWindow.CreateInfo { Title = "Cuedeck", Size = capture is null ? new int2(1366, 820) : ScreenshotTool.Size });
     window.SetSizeLimits(new int2(1024, 640), new int2(-1, -1));
 
 #if DEBUG
@@ -153,6 +158,11 @@ static void Run(string[] args)
         SongLookup = path => djEdit.Browser.Library.FindSong(path),
         Tempo = show.Tempo,
     };
+    if (capture is not null)
+    {
+        // Screenshots: VirtualDJ's stood in for on this machine only, and nothing's advertised.
+        (performer.Port, performer.BindAddress, performer.Advertise) = (0, "127.0.0.1", false);
+    }
     timelines.TimelineStoreChanged += () =>
     {
         if (performer.IsActive)
@@ -291,7 +301,8 @@ static void Run(string[] args)
     };
 
     // A show file given on the command line (opened with the app) is opened instead of the last one.
-    shell.Start(args.FirstOrDefault(File.Exists));
+    shell.Start(capture is null ? args.FirstOrDefault(File.Exists) : null);
+    var screenshots = capture is { } c ? new ScreenshotTool(new(window, renderer, ui, screen, show, performer, djEdit, session), c.Folder, c.Names) : null;
 
     // Every MIDI input, opened as it's plugged in; what they send goes to the show each frame. Their outputs are left
     // for trigger feedback to open (some drivers let only one program have a port).
@@ -307,7 +318,7 @@ static void Run(string[] args)
     var tickTime = 0.0;
     var lastAutosave = Glfw.Time;
     var windowShown = false;
-    while (!shell.MayClose)
+    while (!shell.MayClose && screenshots?.Done != true)
     {
         // Minimised, there's nothing to draw, but the show still runs, waking often enough to keep its frames
         // steady. Whether it's minimised is asked after handling events, as one of them may be the minimise itself:
@@ -356,6 +367,7 @@ static void Run(string[] args)
         ui.Layout(screen.ScreenSize);
         input.UpdateCursor();
         renderer.DrawFrame(ui);
+        screenshots?.Frame();
         if (!windowShown)
             window.Visible = windowShown = true;
     }

@@ -17,6 +17,11 @@ sealed class Swapchain : IDisposable
     public VkImageView[] ImageViews { get; }
 
     /// <summary>
+    /// Whether its images can be copied out (for <see cref="Renderer.CaptureWindow"/>).
+    /// </summary>
+    public bool CanCopy { get; }
+
+    /// <summary>
     /// One per image rather than per frame in flight: presentation can still be reading the semaphore when the
     /// next frame that uses the same slot starts.
     /// </summary>
@@ -53,6 +58,7 @@ sealed class Swapchain : IDisposable
         ];
         var compositeAlpha = alphaModes.First(mode => (capabilities.SupportedCompositeAlpha & mode) != 0);
 
+        CanCopy = (capabilities.SupportedUsageFlags & VkImageUsageFlags.TransferSrcBit) != 0;
         var surfaceFormat = PickSurfaceFormat(physicalDevice, surface);
         Format = surfaceFormat.Format;
 
@@ -65,7 +71,7 @@ sealed class Swapchain : IDisposable
                 ImageColorSpace = surfaceFormat.ColorSpace,
                 ImageExtent = extent,
                 ImageArrayLayers = 1,
-                ImageUsage = VkImageUsageFlags.ColorAttachmentBit,
+                ImageUsage = VkImageUsageFlags.ColorAttachmentBit | (CanCopy ? VkImageUsageFlags.TransferSrcBit : 0),
                 ImageSharingMode = VkSharingMode.Exclusive,
                 PreTransform = capabilities.CurrentTransform,
                 CompositeAlpha = compositeAlpha,

@@ -2,6 +2,7 @@ using Brutal.GlfwApi;
 using Brutal.Numerics;
 using Brutal.VulkanApi;
 using Brutal.VulkanApi.Abstractions;
+using Brutal.VulkanApi.Vma;
 using Cuedeck.UI;
 
 namespace Cuedeck.Rendering;
@@ -47,6 +48,26 @@ sealed unsafe class Renderer : IDisposable
 
     readonly VkSurfaceKHR _surface;
     readonly bool _ownSurface;
+
+    /// <summary>
+    /// Set to copy the next frame out, whole, for <see cref="TakeWindowCapture"/> (the screenshot tool); it's
+    /// cleared once the frame's drawn. The GPU's finished with the frame before it's read, so it stalls a moment.
+    /// </summary>
+    public bool CaptureWindow { get; set; }
+
+    GpuBuffer? _windowReadback;
+    (int Width, int Height, byte[] Rgba)? _windowShot;
+
+    /// <summary>
+    /// The frame copied out after <see cref="CaptureWindow"/>, as sRGB RGBA rows from the top; null until there is
+    /// one (or if the window can't be copied).
+    /// </summary>
+    public (int Width, int Height, byte[] Rgba)? TakeWindowCapture()
+    {
+        var shot = _windowShot;
+        _windowShot = null;
+        return shot;
+    }
 
     /// <param name="surface">Another window's surface, made for it (<see cref="GpuContext.CreateSurface"/>), which
     /// the renderer then owns; null for the main window's.</param>
@@ -141,7 +162,8 @@ sealed unsafe class Renderer : IDisposable
         var commandBuffer = frame.CommandBuffer;
         commandBuffer.Reset();
         commandBuffer.Begin(VkCommandBufferUsageFlags.OneTimeSubmitBit);
-        Record(commandBuffer, imageIndex, ui);
+        var capture = CaptureWindow && _swapchain.CanCopy;
+        Record(commandBuffer, imageIndex, ui, capture);
         commandBuffer.End();
 
         var renderFinished = _swapchain.RenderFinished[imageIndex];
@@ -174,10 +196,34 @@ sealed unsafe class Renderer : IDisposable
             _swapchainStale = true;
         }
 
+        if (CaptureWindow)
+        {
+            CaptureWindow = false;
+            if (capture)
+                ReadWindow();
+        }
         _frameIndex = (_frameIndex + 1) % FRAMES_IN_FLIGHT;
     }
 
-    void Record(CommandBuffer cmd, int imageIndex, Root ui)
+    /// <summary>
+    /// Reads back the frame just copied out, once the GPU's done with it.
+    /// </summary>
+    void ReadWindow()
+    {
+        _device.WaitIdle();
+        var extent = _swapchain.Extent;
+        var bytes = new byte[extent.Width * extent.Height * 4];
+        _gpu.Allocator.InvalidateAllocation(_windowReadback!.Allocation, ByteSize.Zero, ByteSize.Of<byte>() * bytes.Length);
+        new ReadOnlySpan<byte>((void*)_windowReadback.Info.PMappedData, bytes.Length).CopyTo(bytes);
+        if (_swapchain.Format is VkFormat.B8G8R8A8SRGB or VkFormat.B8G8R8A8UNorm)
+            for (var i = 0; i < bytes.Length; i += 4)
+                (bytes[i], bytes[i + 2]) = (bytes[i + 2], bytes[i]);
+        for (var i = 3; i < bytes.Length; i += 4)
+            bytes[i] = 255;
+        _windowShot = (extent.Width, extent.Height, bytes);
+    }
+
+    void Record(CommandBuffer cmd, int imageIndex, Root ui, bool capture)
     {
         var image = _swapchain.Images[imageIndex];
         var extent = _swapchain.Extent;
@@ -228,6 +274,54 @@ sealed unsafe class Renderer : IDisposable
 
         cmd.EndRendering();
 
+        if (capture)
+        {
+            var bytes = extent.Width * extent.Height * 4;
+            if (_windowReadback is null || (long)_windowReadback.Size < bytes)
+            {
+                _windowReadback?.Dispose();
+                _windowReadback = GpuBuffer.Create(
+                    _gpu.Allocator,
+                    ByteSize.Of<byte>() * bytes,
+                    VkBufferUsageFlags.TransferDstBit,
+                    VmaAllocationCreateFlags.HostAccessRandomBit | VmaAllocationCreateFlags.MappedBit
+                );
+            }
+            cmd.TransitionImage(
+                image,
+                VkImageAspectFlags.ColorBit,
+                VkImageLayout.ColorAttachmentOptimal,
+                VkImageLayout.TransferSrcOptimal,
+                VkPipelineStageFlags.ColorAttachmentOutputBit,
+                VkAccessFlags.ColorAttachmentWriteBit,
+                VkPipelineStageFlags.TransferBit,
+                VkAccessFlags.TransferReadBit
+            );
+            cmd.CopyImageToBuffer(
+                image,
+                VkImageLayout.TransferSrcOptimal,
+                _windowReadback.Buffer,
+                [
+                    new VkBufferImageCopy
+                    {
+                        ImageSubresource = new VkImageSubresourceLayers { AspectMask = VkImageAspectFlags.ColorBit, LayerCount = 1 },
+                        ImageExtent = new VkExtent3D { Width = extent.Width, Height = extent.Height, Depth = 1 },
+                    },
+                ]
+            );
+            cmd.TransitionImage(
+                image,
+                VkImageAspectFlags.ColorBit,
+                VkImageLayout.TransferSrcOptimal,
+                VkImageLayout.PresentSrcKHR,
+                VkPipelineStageFlags.TransferBit,
+                VkAccessFlags.TransferReadBit,
+                VkPipelineStageFlags.BottomOfPipeBit,
+                VkAccessFlags.None
+            );
+            return;
+        }
+
         cmd.TransitionImage(
             image,
             VkImageAspectFlags.ColorBit,
@@ -251,6 +345,7 @@ sealed unsafe class Renderer : IDisposable
         }
         _device.DestroyCommandPool(_commandPool, null);
 
+        _windowReadback?.Dispose();
         _scene.Dispose();
         _ui.Dispose();
         _swapchain.Dispose();

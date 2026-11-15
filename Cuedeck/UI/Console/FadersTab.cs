@@ -142,7 +142,7 @@ sealed class FadersTab : Panel, IWidthAware
             if (show.Faders.Add() is not null && show.Cues.Cues.Count > 0)
                 show.Faders.SetTarget(show.Faders.Faders.Count - 1, FaderKind.Cue, "1");
         };
-        _strips = Add(new Flow(6) { LineSpacing = 10 });
+        _strips = Add(new Flow(6) { LineSpacing = 10, AlignTop = true });
         _hint = Add(
             new Label(
                 fonts.Small,

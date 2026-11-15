@@ -33,6 +33,12 @@ sealed class Flow : Panel
     public float Width { get; set; } = 400;
     public float LineSpacing { get; set; } = 6;
 
+    /// <summary>
+    /// Whether a line's children line up along its top (a bank of fader strips), rather than down its middle (a
+    /// toolbar's mixed controls).
+    /// </summary>
+    public bool AlignTop { get; set; }
+
     public Flow(float spacing = 6)
     {
         Direction = Direction.Horizontal;
@@ -86,7 +92,7 @@ sealed class Flow : Panel
             var x = position.X + Inset;
             foreach (var child in line)
             {
-                child.Arrange(new float2(x, MathF.Round(y + (lineHeight - child.Size.Y) / 2)));
+                child.Arrange(new float2(x, AlignTop ? y : MathF.Round(y + (lineHeight - child.Size.Y) / 2)));
                 x += child.Size.X + Spacing;
             }
             y += lineHeight + LineSpacing;

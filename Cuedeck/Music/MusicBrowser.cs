@@ -150,6 +150,11 @@ sealed class MusicBrowser
     public DjLibrary Library => _library ??= LoadLibrary();
 
     /// <summary>
+    /// How a folder's path reads in its heading (the screenshot tool's demo folder, by name only).
+    /// </summary>
+    public Func<string, string> ShownPath { get; set; } = path => path;
+
+    /// <summary>
     /// Whether the library's been read yet.
     /// </summary>
     public bool IsLoaded => _library is not null;
@@ -192,7 +197,7 @@ sealed class MusicBrowser
     {
         var files = MusicFolders.AudioFiles(path);
         Rows = [.. files.Select((f, i) => Row(i + 1, Gd.PathJoin(path, f), f, null))];
-        SetHeading(path);
+        SetHeading(ShownPath(path));
         SortColumn = MusicColumn.Num;
         SortAscending = true;
         Changed();

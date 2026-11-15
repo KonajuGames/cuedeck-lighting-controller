@@ -239,12 +239,18 @@ sealed class DjEditView : Region
     /// Builds the folder tree (and reads the DJ software's library and lists) if that hasn't happened yet: when the view
     /// is first shown.
     /// </summary>
+    /// <summary>
+    /// The folder tree's top level, by name and path: this machine's drives (the screenshot tool's demo folder
+    /// instead).
+    /// </summary>
+    public Func<IEnumerable<(string Name, string Path)>> Drives { get; set; } = () => MusicFolders.Drives().Select(d => (d.TrimEnd('/'), d));
+
     public void EnsureLoaded()
     {
         if (_treeBuilt)
             return;
         _treeBuilt = true;
-        var roots = MusicFolders.Drives().Select(d => new FolderNode(d.TrimEnd('/')) { Kind = FolderNode.Kinds.Drive, Path = d }).ToList();
+        var roots = Drives().Select(d => new FolderNode(d.Name) { Kind = FolderNode.Kinds.Drive, Path = d.Path }).ToList();
         var library = Browser.Library;
         var lists = new FolderNode($"{library.SoftwareName} Lists") { Kind = FolderNode.Kinds.ListsHeading };
         if (library.Lists.Count == 0)
@@ -424,6 +430,19 @@ sealed class DjEditView : Region
         _confirm.Show("Delete Position", $"Delete the position \"{p.Name}\"?", "Delete", () => Positions.Remove(id));
     }
 
+    /// <summary>
+    /// <paramref name="text"/>, or as much of it as fits in <paramref name="width"/> with an ellipsis.
+    /// </summary>
+    string Fit(string text, float width)
+    {
+        var font = _fonts.Body;
+        if (font.Measure(text).X <= width)
+            return text;
+        while (text.Length > 1 && font.Measure(text + "…").X > width)
+            text = text[..^1];
+        return text.TrimEnd() + "…";
+    }
+
     string ListHeading() =>
         Browser.ListHeading != "" ? Browser.ListHeading : $"Select a folder or a {(Browser.IsLoaded ? Browser.Library.SoftwareName : "DJ software")} list.";
 
@@ -487,7 +506,9 @@ sealed class DjEditView : Region
             Timelines.Update();
         var open = _openRow is not null && Timelines.Path != "";
         var temporary = open && Timelines.Store?.IsTemporary(Timelines.Path) == true;
-        _songRow.Text = open ? _openRow!.SongTitle + (_openRow.Details != "" ? "\n" + _openRow.Details : "") : "No song open";
+        // Each line cut short to fit the column (the full title's in the tooltip).
+        var room = LEFT_WIDTH - _songRow.TextIndent - 2 * _songRow.Padding - 4;
+        _songRow.Text = open ? Fit(_openRow!.SongTitle, room) + (_openRow.Details != "" ? "\n" + Fit(_openRow.Details, room) : "") : "No song open";
         _songRow.Tooltip = open ? _openRow!.Heading : "Double-click a song in the list to open its timeline";
         _songRow.Enabled = open;
         _songRow.Lit = open && Timeline.Visible;

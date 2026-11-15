@@ -9,6 +9,8 @@ are in `docs/PORT_PLAN.md`; what was copied from Cuepoint and changed is in `FRA
 - Build: `dotnet build Cuedeck.slnx`
 - Test: `dotnet test Cuedeck.slnx`
 - Run: `dotnet run --project Cuedeck`
+- Screenshots for the README and user guide: `dotnet run --project Cuedeck -- --capture docs/img [name ...]`, then move
+  `docs/img/screenshot.png` to `docs/`. It runs on a scratch app folder with a demo rig and made-up songs.
 
 ## Conventions
 
