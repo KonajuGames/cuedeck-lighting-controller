@@ -169,4 +169,85 @@ public sealed class ConsoleTests : ConsoleHarness
         Click(ButtonCalled("Don't Save"));
         Assert.Equal("New show (not saved yet).", Screen.StatusText);
     }
+
+    void Press(Key key, Modifiers modifiers = Modifiers.None)
+    {
+        Ui.KeyDown(key, modifiers);
+        Frame();
+    }
+
+    [Fact]
+    public void The_menus_from_the_keyboard()
+    {
+        var bar = Screen.MenuBar;
+        var menu = Ui.Elements.OfType<ContextMenu>().Single();
+
+        // Alt and a title's letter opens it with its first item highlighted, even with a text box focused.
+        Click(Find<TextBox>(t => t.Placeholder == "(optional)"));
+        Press(Key.F, Modifiers.Alt);
+        Assert.Equal("File", bar.OpenTitle);
+        Assert.Equal("New Show", menu.HighlightedText);
+
+        // Up and Down go round the items, skipping the separators.
+        Press(Key.Down);
+        Assert.Equal("Load Show…", menu.HighlightedText);
+        Press(Key.Up);
+        Press(Key.Up);
+        Assert.Equal("Exit", menu.HighlightedText);
+        Press(Key.Down);
+        Assert.Equal("New Show", menu.HighlightedText);
+
+        // Right and Left go to the menus beside it, round the ends; disabled items are skipped.
+        Press(Key.Right);
+        Assert.Equal("Edit", bar.OpenTitle);
+        Assert.Equal("Add Universe", menu.HighlightedText); // nothing to undo
+        Press(Key.Left);
+        Press(Key.Left);
+        Assert.Equal("Mode", bar.OpenTitle);
+
+        // A letter moves to the next item starting with it; Enter chooses it.
+        Press(Key.S);
+        Assert.Equal("Sound Reactive", menu.HighlightedText);
+        Press(Key.Enter);
+        Assert.Equal(RunMode.SoundReactive, Show.RunMode);
+        Assert.Null(bar.OpenTitle);
+        Assert.False(menu.Visible);
+
+        // F10 opens the first menu and closes it again; Escape closes one too.
+        Press(Key.F10);
+        Assert.Equal("File", bar.OpenTitle);
+        Press(Key.F10);
+        Assert.Null(bar.OpenTitle);
+        Press(Key.E, Modifiers.Alt);
+        Press(Key.Escape);
+        Assert.False(menu.Visible);
+
+        // Alt+E, Enter: the first item that can be chosen.
+        Press(Key.E, Modifiers.Alt);
+        Press(Key.Enter);
+        Assert.Equal(2, Show.Patch.Universes.Count);
+
+        // The mouse moves the highlight, and the keys carry on from there.
+        Click(MenuTitle("File"));
+        Assert.Null(menu.HighlightedText);
+        Ui.MouseMove(MenuItemCalled("Save Show").ScreenPosition + new float2(4, 4));
+        Frame();
+        Assert.Equal("Save Show", menu.HighlightedText);
+        Press(Key.Down);
+        Assert.Equal("Save Show As…", menu.HighlightedText);
+        Press(Key.Escape);
+    }
+
+    [Fact]
+    public void A_dropdown_opens_on_its_choice()
+    {
+        var runMode = Find<Dropdown<RunMode>>(_ => true);
+        var menu = Ui.Elements.OfType<ContextMenu>().Single();
+        Click(runMode);
+        Assert.Equal("Cue Mode", menu.HighlightedText);
+        Press(Key.Down);
+        Press(Key.Enter);
+        Assert.Equal(RunMode.SoundReactive, Show.RunMode);
+        Assert.False(menu.Visible);
+    }
 }

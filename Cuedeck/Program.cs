@@ -261,12 +261,6 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
             return;
         if (action != GlfwKeyAction.Press)
             return;
-        // Escape puts away an open menu (from the menu bar, a dropdown or a right-click).
-        if (key == GlfwKey.Escape && menu.Visible)
-        {
-            menu.Close();
-            return;
-        }
         var ctrl = (mods & GlfwModifier.Control) != 0;
         var shift = (mods & GlfwModifier.Shift) != 0;
         // DJ Edit Mode's timeline has first say (Space plays its song there, rather than going the next cue).
