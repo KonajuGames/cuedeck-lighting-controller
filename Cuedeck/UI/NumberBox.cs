@@ -4,26 +4,29 @@ using Brutal.Numerics;
 namespace Cuedeck.UI;
 
 /// <summary>
-/// A number to type, step with − and +, or nudge with the mouse wheel, kept between <see cref="Min"/> and
-/// <see cref="Max"/>: sLight's spin boxes. What's typed takes effect on Enter or when the box loses focus.
+/// A number to type, step with the up and down arrows stacked at its right, or nudge with the mouse wheel, kept
+/// between <see cref="Min"/> and <see cref="Max"/>: sLight's spin boxes. What's typed takes effect on Enter or when the box loses focus.
 /// </summary>
 sealed class NumberBox : Row
 {
     readonly TextBox _box;
+    readonly StepArrow _up;
+    readonly StepArrow _down;
     double _value;
 
     public NumberBox(Font font, double min, double max, double step = 1, int decimals = 0, float width = 70)
-        : base(2)
+        : base(1)
     {
         Min = min;
         Max = max;
         Step = step;
         Decimals = decimals;
-        var down = Add(new Button(font, "−") { Padding = 4, MinSize = new float2(22, 0) });
         _box = Add(new NumberText(font, this) { Width = width });
-        var up = Add(new Button(font, "+") { Padding = 4, MinSize = new float2(22, 0) });
-        down.Clicked += _ => Nudge(-1);
-        up.Clicked += _ => Nudge(1);
+        var arrows = Add(new Panel { Direction = Direction.Vertical });
+        _up = arrows.Add(new StepArrow(true) { Tooltip = "Step up" });
+        _down = arrows.Add(new StepArrow(false) { Tooltip = "Step down" });
+        _up.Clicked += _ => Nudge(1);
+        _down.Clicked += _ => Nudge(-1);
         _box.Submitted += _ =>
         {
             Commit();
@@ -98,6 +101,55 @@ sealed class NumberBox : Row
     {
         Nudge(notches.Y > 0 ? 1 : -1);
         return true;
+    }
+
+    // The arrows share the box's height between them, the top one taking any odd pixel's shortfall.
+    public override float2 Measure()
+    {
+        var height = _box.Measure().Y;
+        _up.Height = MathF.Floor(height / 2);
+        _down.Height = height - _up.Height;
+        return base.Measure();
+    }
+
+    /// <summary>
+    /// One of the two small buttons stacked beside the box: a triangle pointing up or down, that steps the number.
+    /// </summary>
+    sealed class StepArrow(bool up) : Element
+    {
+        const float WIDTH = 16;
+        const int ARROW = 4;
+
+        public float Height { get; set; }
+
+        public override bool IsInteractive => true;
+
+        // Leaves focus in the box, so a click doesn't commit and reshow half-typed text.
+        public override bool KeepsFocusOnClick => true;
+
+        public override float2 Measure() => Size = new float2(WIDTH, Height);
+
+        public override void Draw(Batch batch)
+        {
+            var background =
+                IsPressed && IsHovered ? Colors.Hex(0x1E1E26)
+                : IsHovered || IsPressed ? Colors.Hex(0x3A3A48)
+                : Colors.Hex(0x2A2A35);
+            batch.AddRect(ScreenPosition, Size, background);
+
+            // A line between the two, so they read as two buttons.
+            if (!up)
+                batch.AddRect(ScreenPosition, new float2(Size.X, 1), Colors.Hex(0x1E1E26));
+
+            var color = IsHovered ? Theme.Text : Theme.Muted;
+            var left = MathF.Round(ScreenPosition.X + Size.X / 2 - ARROW + 0.5f);
+            var top = MathF.Round(ScreenPosition.Y + Size.Y / 2 - ARROW / 2f + (up ? 0 : 0.5f));
+            for (var i = 0; i < ARROW; i++)
+            {
+                var row = up ? ARROW - 1 - i : i;
+                batch.AddRect(new float2(left + row, top + i), new float2(2 * (ARROW - row) - 1, 1), color);
+            }
+        }
     }
 
     /// <summary>

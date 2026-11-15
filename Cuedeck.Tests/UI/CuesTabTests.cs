@@ -110,10 +110,10 @@ public sealed class CuesTabTests : ConsoleHarness
 
         // Its times, by the + buttons.
         var fadeUp = Field("Fade up (s)");
-        Click(All(fadeUp).OfType<Button>().Last());
+        Click(All(fadeUp).Single(e => e.Tooltip == "Step up"));
         Assert.Equal(3.1, Show.Cues.Cues[0].FadeUp, 6);
         var delay = Field("Delay (s)");
-        Click(All(delay).OfType<Button>().Last());
+        Click(All(delay).Single(e => e.Tooltip == "Step up"));
         Assert.Equal(0.1, Show.Cues.Cues[0].Delay, 6);
 
         // Follow, and the wait that comes with it.

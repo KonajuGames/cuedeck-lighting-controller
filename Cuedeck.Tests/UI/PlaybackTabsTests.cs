@@ -51,7 +51,7 @@ public sealed class PlaybackTabsTests : ConsoleHarness
         // Its tempo: 60 BPM, a step a second.
         var bpm = Field<NumberBox>("Tempo (BPM)");
         for (var i = 0; i < 60; i++)
-            Click(All(bpm).OfType<Button>().First());
+            Click(All(bpm).Single(e => e.Tooltip == "Step down"));
         Assert.Equal(60, chase.Bpm);
 
         Click(Find<Checkbox>(c => c.Text == "Running"));
