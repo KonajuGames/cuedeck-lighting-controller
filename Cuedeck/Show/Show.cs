@@ -336,6 +336,9 @@ sealed class LightingShow : IDisposable
             case TriggerAction.CueHalt:
                 Cues.Halt();
                 break;
+            case TriggerAction.CueClear:
+                Cues.Clear();
+                break;
             case TriggerAction.CueGoTo:
                 Cues.GoTo(Json.IsValidInt(target.Trim()) ? int.Parse(target.Trim(), System.Globalization.CultureInfo.InvariantCulture) : 1);
                 break;

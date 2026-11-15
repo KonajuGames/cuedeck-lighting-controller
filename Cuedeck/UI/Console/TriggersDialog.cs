@@ -199,7 +199,7 @@ sealed class TriggersDialog : Panel
         };
 
         var actions = _editor.Add(new FieldGrid(fonts.Body, 110).Init());
-        _action = new Dropdown<TriggerAction>(fonts.Body) { Menu = menu, Width = 220, Items = () => Enum.GetValues<TriggerAction>(), Text = a => Trigger.Actions[(int)a] };
+        _action = new Dropdown<TriggerAction>(fonts.Body) { Menu = menu, Width = 220, Items = () => Trigger.MenuOrder, Text = a => Trigger.Actions[(int)a] };
         actions.Field("Action", _action);
         _action.Chosen += a => Edit(t => t.Action = a);
         _target = new TextBox(fonts.Body) { Width = 140 };

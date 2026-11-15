@@ -409,8 +409,8 @@ toggle chases and effects, tap the tempo, flash, or black out.
 ![The MIDI/OSC Triggers dialog with a note and a pitch-bend binding](img/10-triggers-dialog.png)
 
 Turn on **MIDI input** or **OSC input**, click **Add**, then **Learn** and play the pad, move the fader or send the
-message you want; the match fields fill in from it. Pick an **Action** (Cue GO, a chase or effect toggle, Blackout
-All, a flash…). If you plug a controller in after starting Cuedeck, click **Rescan** so it's listened to.
+message you want; the match fields fill in from it. Pick an **Action** (Cue GO or Clear, a chase or effect toggle,
+Blackout All, a flash…). If you plug a controller in after starting Cuedeck, click **Rescan** so it's listened to.
 
 A MIDI binding can be a **Note**, a **Control Change**, a **Program Change** or a **Pitch Bend**. A pitch bend (which
 some controllers' faders send) has no number, just its channel: it counts as pressed once it's three-quarters of the

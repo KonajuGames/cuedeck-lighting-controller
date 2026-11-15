@@ -56,6 +56,7 @@ did; ➕ is there but works differently, as noted; ❌ isn't ported. Where a sli
 
 - ✅ MIDI (note, CC, program change, pitch bend, channel or any) and OSC bindings, Learn, every action sLight had,
   held flashes, the last message shown, Rescan
+- ➕ A Cue — Clear action, like the Cues tab's Clear button (saved as a new action number, which sLight doesn't know)
 - ✅ Feedback to pads: following the action, the beat, Sending, anything running, the run mode; OSC feedback
 - ➕ MIDI feedback goes straight to a Windows MIDI output, with no native extension needed; with none chosen it still
   goes to sLight's UDP bridge script, which isn't in this repository

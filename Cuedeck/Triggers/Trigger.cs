@@ -20,7 +20,8 @@ enum TriggerMidiKind
 }
 
 /// <summary>
-/// What a trigger does. The numbers are sLight's and are saved in shows, so ones added later go on the end.
+/// What a trigger does. The numbers are sLight's and are saved in shows, so ones added later go on the end
+/// (<see cref="CueClear"/> is Cuedeck's own).
 /// </summary>
 enum TriggerAction
 {
@@ -37,6 +38,7 @@ enum TriggerAction
     FlashStrobe,
     FlashWhite,
     FlashColour,
+    CueClear,
 }
 
 /// <summary>
@@ -58,7 +60,7 @@ enum FeedbackWatch
 sealed record Learned(TriggerSource Source, TriggerMidiKind Kind = TriggerMidiKind.Note, int Channel = -1, int Number = 0, string Address = "");
 
 /// <summary>
-/// One binding: an incoming MIDI message or OSC address fires one console action (a cue GO, Back, Halt or Go To, a
+/// One binding: an incoming MIDI message or OSC address fires one console action (a cue GO, Back, Halt, Clear or Go To, a
 /// chase or effect toggled, Blackout, Tap tempo, or a live flash held). It can also light its pad to follow some
 /// state. Kept in <see cref="TriggersEngine.Triggers"/>, edited in the Triggers dialog, saved in the show. sLight's
 /// <c>Trigger</c>.
@@ -83,6 +85,29 @@ sealed class Trigger
         "Flash — Strobe",
         "Flash — White",
         "Flash — Colour",
+        "Cue — Clear",
+    ];
+
+    /// <summary>
+    /// The actions in the order the Triggers dialog lists them: Clear with the other cue actions, though it's saved
+    /// as the newest number.
+    /// </summary>
+    public static readonly TriggerAction[] MenuOrder =
+    [
+        TriggerAction.CueGo,
+        TriggerAction.CueBack,
+        TriggerAction.CueHalt,
+        TriggerAction.CueClear,
+        TriggerAction.CueGoTo,
+        TriggerAction.ChaseToggle,
+        TriggerAction.EffectToggle,
+        TriggerAction.Blackout,
+        TriggerAction.None,
+        TriggerAction.TapTempo,
+        TriggerAction.FlashBlackout,
+        TriggerAction.FlashStrobe,
+        TriggerAction.FlashWhite,
+        TriggerAction.FlashColour,
     ];
 
     public static readonly string[] FeedbackWatches =

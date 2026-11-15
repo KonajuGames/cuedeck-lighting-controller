@@ -21,7 +21,9 @@ are in `docs/PORT_PLAN.md`; what was copied from Cuepoint and changed is in `FRA
   override `IsInteractive` and the pointer/key methods; `Root` routes input.
 - Port sLight's GDScript tests (in `tests/*.gd`) to xUnit **before** the code they cover, and treat sLight's
   behaviour and README as the spec.
-- Show files, profiles and timelines must stay readable by sLight (JSON; Godot writes every number as a float).
+- Cuedeck must read sLight's show files, profiles and timelines (JSON; Godot writes every number as a float).
+  Compatibility is one-way: files Cuedeck writes needn't open in sLight, so new keys and values are fine, but
+  existing saved numbers and keys must keep their meaning (add enum values on the end, never reorder).
 - App data goes under `AppPaths.Folder` (`%LOCALAPPDATA%\Cuedeck`), never next to the executable.
 - Tests must run without a window, GPU, sound card or network.
 - Port GDScript arithmetic exactly: `Gd.Round`/`Gd.RoundToInt` (halves away from zero, unlike C#'s default) for

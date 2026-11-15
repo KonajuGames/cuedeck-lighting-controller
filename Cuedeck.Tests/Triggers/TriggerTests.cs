@@ -21,7 +21,9 @@ public class TriggerTests
         Assert.True(t.IsFlash);
         Assert.Equal(FlashKind.Strobe, t.Flash);
         Assert.True(t.CanFeedback);
-        Assert.Equal((int)TriggerAction.FlashColour + 1, Trigger.Actions.Length); // every action named
+        Assert.Equal(Enum.GetValues<TriggerAction>().Length, Trigger.Actions.Length); // every action named
+        Assert.Equal(Enum.GetValues<TriggerAction>().Order(), Trigger.MenuOrder.Order()); // and listed once
+        Assert.Equal(13, (int)TriggerAction.CueClear); // after sLight's, so its shows' numbers still mean the same
 
         t.MidiNumber = 40;
         var on = MidiMessage.NoteOn(0, 40, 100);
@@ -196,6 +198,10 @@ public class TriggerTests
         Assert.Equal(2, show.Cues.Current);
         show.RunTrigger(TriggerAction.CueBack, "");
         Assert.Equal(1, show.Cues.Current);
+        show.RunTrigger(TriggerAction.CueClear, "");
+        Assert.Equal(-1, show.Cues.Current); // no cue live
+        Assert.Equal(TriggerAction.CueClear, Trigger.FromJson(new Trigger { Action = TriggerAction.CueClear }.ToJson()).Action);
+        show.Cues.GoTo(2); // back where it was
 
         var chase = new Chase { Name = "Swirl" };
         show.Effects.Chases.Add(chase);
