@@ -75,6 +75,8 @@ sealed class CuesTab : Region
         back.Clicked += _ => Cues.GoBack();
         var halt = transport.Add(new Button(fonts.Body, "Halt") { Tooltip = "Stop the fade, and anything waiting" });
         halt.Clicked += _ => Cues.Halt();
+        var clear = transport.Add(new Button(fonts.Body, "Clear") { Tooltip = "Fade the live cue out, leaving no cue live: GO starts again from cue 1" });
+        clear.Clicked += _ => Cues.Clear();
         var progressRow = _top.Add(new Row(8));
         _progress = progressRow.Add(new ProgressBar(200));
         _progressText = progressRow.Add(new Label(fonts.Small) { Color = Theme.Muted });

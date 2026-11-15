@@ -34,7 +34,7 @@ did; ➕ is there but works differently, as noted; ❌ isn't ported. Where a sli
 ## Playback
 
 - ✅ Cue Mode and Sound Reactive run modes (an old Auto Show mode opens as Cue Mode)
-- ✅ Cue list: Record Cue, GO (Space), Back, Halt, split fade up and down, delay, follow with a wait, the progress bar,
+- ✅ Cue list: Record Cue, GO (Space), Back, Halt, Clear (fades the live cue out, leaving none live; new in Cuedeck), split fade up and down, delay, follow with a wait, the progress bar,
   inline editing, Update, Duplicate, Delete, Load to Patch
 - ✅ Tracking and block cues, ripples down the list, `[T]` and `[B]`, older shows' cues as blocks
 - ✅ Chases: steps recorded, updated, loaded and deleted; tempo, crossfade, forward, backward and bounce; several at

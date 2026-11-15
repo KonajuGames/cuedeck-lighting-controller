@@ -108,7 +108,9 @@ straight away (30 times a second, while **Sending** is on); there's no separate 
 
 When you've set a look you like, go to the **Cues** tab and click **Record Cue**. It captures what every universe is
 sending as a new cue. Repeat for a few different looks, then step through them with **GO** (or the spacebar): the
-whole rig crossfades to the next cue's look over its fade time.
+whole rig crossfades to the next cue's look over its fade time. **Back** goes to the cue before, **Halt** stops a fade
+where it is, and **Clear** fades the live cue out over its fade down time and leaves no cue live, so the next GO starts
+again from cue 1.
 
 ![The Cues tab with three recorded cues](img/03-cues-tab.png)
 

@@ -83,6 +83,13 @@ public sealed class CuesTabTests : ConsoleHarness
         Click(ButtonCalled("Back"));
         Run(3.5);
         Assert.Equal((255, 0), (Level(0), Level(1)));
+
+        Click(ButtonCalled("Clear"));
+        Assert.Equal(-1, Show.Cues.Current);
+        Run(3.5);
+        Assert.Equal((0, 0), (Level(0), Level(1)));
+        Assert.DoesNotContain(Tab.List.Items, c => Tab.List.Columns[0].Text(c) == "►"); // none marked live
+        Assert.Contains(All(Tab).OfType<Label>(), l => l.Text.StartsWith("Next: cue 1", StringComparison.Ordinal));
     }
 
     [Fact]

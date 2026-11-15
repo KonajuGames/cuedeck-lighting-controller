@@ -11,7 +11,8 @@ namespace Cuedeck.Show;
 /// Playback folds cues 1 to n together (blocks wipe first, tracking cues merge on top), so a fade's target is always
 /// the complete look at that point in the list. A cue's delay holds its fade back after GO; with follow on, once its
 /// fade finishes (and its wait after that) the next cue GOes by itself. GO, Back or a Go-to while one's waiting takes
-/// over from it; <see cref="Halt"/> stops the fade and anything waiting.
+/// over from it; <see cref="Halt"/> stops the fade and anything waiting, and <see cref="Clear"/> fades the live cue
+/// out and leaves none live.
 /// </para>
 /// </summary>
 sealed class CueList
@@ -25,6 +26,7 @@ sealed class CueList
     double _delayLeft = -1;
     double _followLeft = -1;
     int _fading = -1;
+    bool _clearing;
 
     public CueList(DmxOutput dmx, PaletteLibrary palettes, Patch patch)
     {
@@ -246,11 +248,33 @@ sealed class CueList
         Status?.Invoke("Halted.");
     }
 
+    /// <summary>
+    /// Fades every universe out over the live cue's fade down time and leaves no cue live, so the next GO starts the
+    /// list from cue 1. Anything waiting (a delay, a follow) is dropped. Not in sLight, which had no way back to no cue.
+    /// </summary>
+    public void Clear()
+    {
+        if (_current < 0 || _current >= Cues.Count)
+        {
+            _current = -1;
+            _next = 0;
+            return;
+        }
+        var fade = Cues[_current].FadeDown;
+        CancelTimers();
+        _current = -1;
+        _next = 0;
+        _clearing = true;
+        Status?.Invoke($"Clear — fading out over {fade:F1}s.");
+        _dmx.StartFade([.. Enumerable.Range(0, _dmx.UniverseCount).Select(_ => new byte[512])], fade, fade);
+    }
+
     void CancelTimers()
     {
         _delayLeft = -1;
         _followLeft = -1;
         _fading = -1;
+        _clearing = false;
     }
 
     void Fire(int index)
@@ -258,9 +282,10 @@ sealed class CueList
         if (index < 0 || index >= Cues.Count)
             return;
         var cue = Cues[index];
-        // This GO takes over from anything waiting.
+        // This GO takes over from anything waiting, and from a Clear's fade.
         _followLeft = -1;
         _delayLeft = -1;
+        _clearing = false;
         _current = index;
         _next = Math.Min(index + 1, Cues.Count - 1);
         var times = $"{cue.FadeUp:F1}s / {cue.FadeDown:F1}s";
@@ -287,6 +312,12 @@ sealed class CueList
 
     void OnFadeFinished()
     {
+        if (_clearing)
+        {
+            _clearing = false;
+            Status?.Invoke("Cleared.");
+            return;
+        }
         if (_fading < 0 || _fading != _current || _current >= Cues.Count)
             return;
         _fading = -1;
@@ -347,6 +378,11 @@ sealed class CueList
             {
                 var d = Cues[_current].Delay;
                 return (d > 0 ? 1 - _delayLeft / d : 1, $"Delay {Math.Max(_delayLeft, 0):F1}s");
+            }
+            if (_clearing && _dmx.IsFading)
+            {
+                var value = _dmx.FadeProgress;
+                return (value, $"Clear  {Gd.RoundToInt(value * 100)}%  {_dmx.FadeRemaining:F1}s");
             }
             if (_fading >= 0 && _dmx.IsFading)
             {

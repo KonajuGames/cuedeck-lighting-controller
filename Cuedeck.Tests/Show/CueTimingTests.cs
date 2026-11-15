@@ -129,6 +129,41 @@ public sealed class CueTimingTests : IDisposable
     }
 
     [Fact]
+    public void Clear_fades_the_live_cue_out_and_leaves_none_live()
+    {
+        var c = MakeCue(200, 0.5, 0, true, 5.0);
+        c.FadeDown = 2.0;
+        Reset(c, MakeCue(100, 0));
+        Cues.Go();
+        Step(0.6);
+        Assert.Equal(200, Level);
+        Assert.True(Cues.IsWaiting); // its follow waits
+
+        Cues.Clear();
+        Assert.Equal(-1, Cues.Current);
+        Assert.Equal(0, Cues.CurrentNumber);
+        Assert.Equal(0, Cues.Next); // GO starts the list again
+        Assert.False(Cues.IsWaiting); // the follow's dropped
+        Step(1.0);
+        Assert.InRange(Level, 95, 105); // fading out over the cue's fade down time
+        Assert.Contains("Clear", Cues.Progress.Text);
+        Step(1.1);
+        Assert.Equal(0, Level);
+        Assert.Equal((0.0, ""), Cues.Progress);
+        Step(6.0);
+        Assert.Equal(-1, Cues.Current); // and nothing follows on
+
+        Cues.Go();
+        Assert.Equal(1, Cues.CurrentNumber);
+
+        // With nothing live there's nothing to fade.
+        Reset(MakeCue(200, 0));
+        Cues.Clear();
+        Assert.Equal(-1, Cues.Current);
+        Assert.Equal(0, Level);
+    }
+
+    [Fact]
     public void Go_halt_and_loading_take_over()
     {
         Reset(MakeCue(100, 0.5, 0, true, 5.0), MakeCue(200, 0), MakeCue(30, 0));

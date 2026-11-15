@@ -27,7 +27,7 @@ lists what it does.
   account), GDTF and Open Fixture Library files, or profiles made and edited by hand: several modes, 16-bit channels,
   named slots for gobo and colour wheels, multi-head fixtures. Each fixture gets controls made for it: colour pickers,
   a pan/tilt pad, slot dropdowns and sliders, a virtual dimmer when it has none of its own, Flash and Home.
-- **Cues**: GO, Back and Halt, split fade up and down times, delays, follows, tracking or block cues, Load to Patch,
+- **Cues**: GO, Back, Halt and Clear, split fade up and down times, delays, follows, tracking or block cues, Load to Patch,
   Update, and palettes referred to rather than copied.
 - **Chases**: captured steps cycled at a tempo, with crossfade and direction, or stepped on the beat.
 - **Effects**: sine, triangle, sawtooth, square and random waves on one kind of channel, fanned across fixtures,
