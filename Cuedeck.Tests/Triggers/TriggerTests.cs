@@ -24,6 +24,8 @@ public class TriggerTests
         Assert.Equal(Enum.GetValues<TriggerAction>().Length, Trigger.Actions.Length); // every action named
         Assert.Equal(Enum.GetValues<TriggerAction>().Order(), Trigger.MenuOrder.Order()); // and listed once
         Assert.Equal(13, (int)TriggerAction.CueClear); // after sLight's, so its shows' numbers still mean the same
+        foreach (var unknown in new[] { 99.0, -1.0 })
+            Assert.Equal(TriggerAction.None, Trigger.FromJson(new JsonObject { ["action"] = unknown }).Action); // does nothing, not something drastic
 
         t.MidiNumber = 40;
         var on = MidiMessage.NoteOn(0, 40, 100);

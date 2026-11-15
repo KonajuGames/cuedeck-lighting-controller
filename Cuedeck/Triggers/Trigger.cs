@@ -370,7 +370,7 @@ sealed class Trigger
             MidiChannel = Math.Clamp(d.Int("midi_channel", -1), -1, 15),
             MidiNumber = Math.Clamp(d.Int("midi_number", 60), 0, 127),
             OscAddress = d.Str("osc_address", "/go"),
-            Action = (TriggerAction)Math.Clamp(d.Int("action", 0), 0, Actions.Length - 1),
+            Action = d.Int("action", 0) is var a && Enum.IsDefined((TriggerAction)a) ? (TriggerAction)a : TriggerAction.None, // an unknown one does nothing
             Target = d.Str("target", ""),
             FeedbackEnabled = d.Bool("fb_enabled", false),
             FeedbackOn = Math.Clamp(d.Int("fb_on", 127), 0, 127),

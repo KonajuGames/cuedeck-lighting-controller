@@ -28,6 +28,12 @@ sealed class CueList
     int _fading = -1;
     bool _clearing;
 
+    /// <summary>
+    /// The fade down time of the last cue put up, while its look may still be on stage (even once that cue's been
+    /// deleted); null once it's cleared, or when no cue was put up.
+    /// </summary>
+    double? _shownFadeDown;
+
     public CueList(DmxOutput dmx, PaletteLibrary palettes, Patch patch)
     {
         _dmx = dmx;
@@ -249,24 +255,52 @@ sealed class CueList
     }
 
     /// <summary>
-    /// Fades every universe out over the live cue's fade down time and leaves no cue live, so the next GO starts the
-    /// list from cue 1. Anything waiting (a delay, a follow) is dropped. Not in sLight, which had no way back to no cue.
+    /// Fades the light out over the live cue's fade down time and leaves no cue live, so the next GO starts the list
+    /// from cue 1. Anything waiting (a delay, a follow) is dropped. Only intensity goes (<see cref="DarkLook"/>), so
+    /// movers don't swing as they dim. A deleted live cue's look still fades out; with no cue put up, nothing changes.
+    /// Not in sLight, which had no way back to no cue.
     /// </summary>
     public void Clear()
     {
-        if (_current < 0 || _current >= Cues.Count)
-        {
-            _current = -1;
-            _next = 0;
-            return;
-        }
-        var fade = Cues[_current].FadeDown;
+        var fade = _current >= 0 && _current < Cues.Count ? Cues[_current].FadeDown : _shownFadeDown;
         CancelTimers();
         _current = -1;
         _next = 0;
+        _shownFadeDown = null;
+        if (fade is not { } time)
+        {
+            Status?.Invoke("No cue to clear.");
+            return;
+        }
         _clearing = true;
-        Status?.Invoke($"Clear — fading out over {fade:F1}s.");
-        _dmx.StartFade([.. Enumerable.Range(0, _dmx.UniverseCount).Select(_ => new byte[512])], fade, fade);
+        Status?.Invoke($"Clear — fading out over {time:F1}s.");
+        _dmx.StartFade(DarkLook(), time, time);
+    }
+
+    /// <summary>
+    /// What's on stage with the light taken out: every patched fixture's intensity channels (its dimmer, or its
+    /// colours without one) at 0, and every channel no fixture is patched on, which could be anything; position,
+    /// colour on a dimmed fixture, gobos and the rest hold where they are.
+    /// </summary>
+    List<byte[]> DarkLook()
+    {
+        var n = _dmx.UniverseCount;
+        var intensity = _patch.IntensityChannels(n);
+        var patched = Enumerable.Range(0, n).Select(_ => new HashSet<int>()).ToList();
+        foreach (var f in _patch.All)
+            if (f.Universe >= 0 && f.Universe < n)
+                for (var k = 0; k < f.Channels.Count; k++)
+                    patched[f.Universe].Add(f.Start + k);
+        var output = new List<byte[]>(n);
+        for (var u = 0; u < n; u++)
+        {
+            var buffer = (byte[])_dmx.Universes[u].Data.Clone();
+            for (var c = 0; c < buffer.Length; c++)
+                if (intensity[u].Contains(c) || !patched[u].Contains(c))
+                    buffer[c] = 0;
+            output.Add(buffer);
+        }
+        return output;
     }
 
     void CancelTimers()
@@ -288,6 +322,7 @@ sealed class CueList
         _clearing = false;
         _current = index;
         _next = Math.Min(index + 1, Cues.Count - 1);
+        _shownFadeDown = cue.FadeDown;
         var times = $"{cue.FadeUp:F1}s / {cue.FadeDown:F1}s";
         if (cue.Delay > 0)
             times = $"delay {cue.Delay:F1}s, " + times;
@@ -339,6 +374,9 @@ sealed class CueList
     /// </summary>
     public void Advance(double delta)
     {
+        // Something else (Load to Patch, loading a show) can stop a Clear's fade before it finishes.
+        if (_clearing && !_dmx.IsFading)
+            _clearing = false;
         if (_delayLeft >= 0)
         {
             _delayLeft -= delta;
@@ -546,6 +584,7 @@ sealed class CueList
                 Cues.Add(Cue.FromJson(e));
         _current = Math.Clamp(d.Int("current", -1), -1, Cues.Count - 1);
         _next = Math.Clamp(d.Int("next", 0), 0, Math.Max(Cues.Count - 1, 0));
+        _shownFadeDown = null;
         CancelTimers();
         TrackingEnabled = d.Bool("tracking", true);
         CuesChanged?.Invoke();

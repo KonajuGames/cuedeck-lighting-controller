@@ -156,11 +156,51 @@ public sealed class CueTimingTests : IDisposable
         Cues.Go();
         Assert.Equal(1, Cues.CurrentNumber);
 
-        // With nothing live there's nothing to fade.
+        // With no cue put up there's nothing to fade: levels dialled by hand stay.
         Reset(MakeCue(200, 0));
+        _show.Dmx.Universes[0].SetChannel(0, 50);
         Cues.Clear();
+        Step(0.2);
         Assert.Equal(-1, Cues.Current);
+        Assert.Equal(50, Level);
+    }
+
+    [Fact]
+    public void Clear_fades_out_a_deleted_live_cues_look()
+    {
+        var c = MakeCue(200, 0);
+        c.FadeDown = 1.0;
+        Reset(c, MakeCue(100, 0));
+        Cues.Go();
+        Step(0.1);
+        Cues.Delete(0); // its look stays up, with no cue live
+        Assert.Equal((-1, 200), (Cues.Current, Level));
+
+        Cues.Clear();
+        Step(0.5);
+        Assert.InRange(Level, 95, 105); // over the deleted cue's fade down
+        Step(0.6);
         Assert.Equal(0, Level);
+    }
+
+    [Fact]
+    public void Clear_takes_the_light_out_but_leaves_position_and_colour()
+    {
+        _show.Patch.Add(0, Profiles.Simple("mover", "Mover", ("Dimmer", "DIMMER"), ("Pan", "PAN"), ("Red", "RED")), 0);
+        _show.Patch.Add(0, Profiles.Rgb(), 10); // no dimmer: its colours are its light
+        var cue = new Cue("Look", 0, 0);
+        cue.SetLevels([new Dictionary<int, int> { [0] = 200, [1] = 128, [2] = 90, [10] = 255, [11] = 40, [20] = 100 }]);
+        Reset(cue);
+        Cues.Go();
+        Step(0.1);
+
+        Cues.Clear();
+        Step(0.1);
+        int Ch(int c) => _show.Dmx.Universes[0].GetChannel(c);
+        Assert.Equal(0, Ch(0)); // the mover's dimmer
+        Assert.Equal((128, 90), (Ch(1), Ch(2))); // its pan and colour hold
+        Assert.Equal((0, 0), (Ch(10), Ch(11))); // the RGB fixture's colours
+        Assert.Equal(0, Ch(20)); // an unpatched channel, which might be anything
     }
 
     [Fact]
