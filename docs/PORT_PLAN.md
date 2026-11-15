@@ -341,10 +341,21 @@ sLight has no tests of its own for these, so each slice's are new, written from 
 | Slice | What | State |
 |---|---|---|
 | 7a | MVR (My Virtual Rig) import and export (`Fixtures/Mvr`): a rig's fixtures read from its scene description with their GDTFs, addresses and places, its trusses as the visualizer's; and the patch written out as a scene description with a GDTF made for each profile; from the visualizer's toolbar | ✅ |
-| 7b | The visualizer's extras: anti-aliasing, Screenshot, recording to MP4 (Media Foundation's sink writer), the pop-out window, and shadows for the beams | next |
-| 7c | USB DMX: Enttec Open DMX and DMX USB Pro (FTDI's D2XX, P/Invoked), a universe's USB output | |
-| 7d | Remembered folders for every file dialog (sLight's `RecentDirs`), and what else the feature check turns up | |
-| 7e | The README and user guide rewritten for Cuedeck, with new screenshots (a capture tool), and sLight's feature list ticked off | |
+| 7b | The visualizer's picture: anti-aliasing (4× MSAA), Screenshot (a PNG of the 3D view), and Record (the view to an MP4, H.264 with what the computer's playing as AAC, through Media Foundation's sink writer) | ✅ |
+| 7c | The visualizer's pop-out window, and shadows for the beams | next |
+| 7d | USB DMX: Enttec Open DMX and DMX USB Pro (FTDI's D2XX, P/Invoked), a universe's USB output | |
+| 7e | Remembered folders for every file dialog (sLight's `RecentDirs`), and what else the feature check turns up | |
+| 7f | The README and user guide rewritten for Cuedeck, with new screenshots (a capture tool), and sLight's feature list ticked off | |
+
+**Where slice 7b differs from sLight:** a recording's sound is whatever the computer's playing (WASAPI loopback on
+the default output: DJ Edit Mode's song, or the DJ software's in DJ Perform Mode), where sLight mixed its own output
+with the line-in; it's AAC rather than MP3, and the MP4 is written by Windows' Media Foundation (its COM objects called
+through their vtables) rather than sLight's native encoder, so there's no PNG-sequence fallback. Frames are copied
+back from the GPU a frame or two after they're drawn, and a frame missed while the screen's slow is written again so
+the video keeps time; a silence (the loopback says nothing) is filled with silence for the same reason. Tried in the
+app: the edges smooth with 4× MSAA; a screenshot saved as a PNG of the whole view; a four-second recording at 30 frames
+a second with its video and sound tracks. The render folder is opened in Explorer after each, as sLight's was, but it
+wasn't seen to open in that try.
 
 **Where slice 7a differs from sLight:** none in what's read and written. A fixture's GDTF is read straight from the
 archive rather than through a temporary file, and a GDTF reader for streams (`FixtureImport.FromGdtf`) came with it.

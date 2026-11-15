@@ -167,6 +167,10 @@ static void Run(string[] args)
     renderer.Scene = screen.Console.Visualizer;
     screen.Console.Visualizer.Root = ui;
     screen.Console.Visualizer.ModelsFolder = profiles.ModelsFolder;
+    // Screenshots and recordings: what's playing as the sound; the render folder shown when one's saved.
+    if (OperatingSystem.IsWindows())
+        screen.Console.Visualizer.StartAudio = LoopbackAudio.Start;
+    screen.Console.Visualizer.OpenFolder = folder => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
     ui.PointerHooks.Add(screen.Console.Visualizer);
     editPlayback.IsShown = () => screen.View == AppView.DjEdit && djEdit.IsTimelineShown;
     ui.Add(editor);

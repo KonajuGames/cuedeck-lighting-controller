@@ -65,7 +65,8 @@ sealed class GpuImage : IDisposable
         VkExtent2D extent,
         int mipLevels,
         VkImageUsageFlags usage,
-        VkImageAspectFlags aspect
+        VkImageAspectFlags aspect,
+        VkSampleCountFlags samples = VkSampleCountFlags._1Bit
     )
     {
         _device = gpu.Device;
@@ -82,7 +83,7 @@ sealed class GpuImage : IDisposable
                 Extent = new VkExtent3D { Width = extent.Width, Height = extent.Height, Depth = 1 },
                 MipLevels = mipLevels,
                 ArrayLayers = 1,
-                Samples = VkSampleCountFlags._1Bit,
+                Samples = samples,
                 Tiling = VkImageTiling.Optimal,
                 Usage = usage,
                 SharingMode = VkSharingMode.Exclusive,

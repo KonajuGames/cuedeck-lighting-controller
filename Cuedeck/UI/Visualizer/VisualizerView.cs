@@ -49,6 +49,16 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
     readonly NumberBox _itemHeading;
     readonly Stopwatch _clock = Stopwatch.StartNew();
     readonly Dictionary<PatchedFixture, FixtureRig> _rigs = [];
+    readonly Button _record;
+    readonly Label _recLabel;
+    readonly Queue<int> _grabs = new();
+    bool _shotWanted;
+    bool _shotPending;
+    Mp4Writer? _rec;
+    FramePacer? _pacer;
+    int _due;
+    string _recFile = "";
+    IDisposable? _audioTap;
     double _lastTick;
     bool _uiVisible = true;
     bool _panning;
@@ -146,6 +156,11 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
             if (ExportMvr is { } export)
                 Status?.Invoke(export());
         };
+        var shot = scene.Add(new Button(fonts.Body, "Screenshot") { Padding = 4, Tooltip = "Save the 3D view as a PNG" });
+        shot.Clicked += _ => _shotWanted = true;
+        _record = scene.Add(new Button(fonts.Body, "Record") { Padding = 4, Tooltip = "Record the 3D view to an MP4, with what the computer's playing" });
+        _record.Clicked += _ => ToggleRecording();
+        _recLabel = scene.Add(new Label(fonts.Body, "") { Color = Theme.Muted });
 
         // ---- the selected item's properties.
         _props = Add(new Panel { Padding = 8, Spacing = 6, Background = OverlayBackground });
@@ -207,6 +222,24 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
     /// Something for the status line.
     /// </summary>
     public event Action<string>? Status;
+
+    /// <summary>
+    /// Where screenshots and recordings go (<c>render</c> in the app's folder).
+    /// </summary>
+    public string RenderFolder { get; set; } = Path.Combine(AppPaths.Folder, "render");
+
+    /// <summary>
+    /// Shows a folder (Explorer), as sLight opened its render folder after a screenshot or recording.
+    /// </summary>
+    public Action<string> OpenFolder { get; set; } = _ => { };
+
+    /// <summary>
+    /// Starts capturing what the computer's playing for a recording, calling back with interleaved samples on its own
+    /// thread; returns the capture (to stop) and its rate and channels, or null for a silent recording.
+    /// </summary>
+    public Func<Action<float[]>, (IDisposable Capture, int Rate, int Channels)?> StartAudio { get; set; } = _ => null;
+
+    public bool IsRecording => _rec is not null;
 
     /// <summary>
     /// Asks for a glTF model file to place; null when none's chosen.
@@ -273,6 +306,11 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
         var delta = Math.Clamp(now - _lastTick, 0, 0.25);
         _lastTick = now;
         UpdateRigs(delta);
+        if (_rec is { } rec && _pacer is { } pacer)
+        {
+            _due += pacer.Due(delta);
+            _recLabel.Text = $"REC  {rec.FrameCount}";
+        }
 
         _haze.Value = (float)Scene.Haze;
         _workLight.Checked = Scene.WorkLight;
@@ -322,6 +360,111 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
     }
 
     // ------------------------------------------------------------ 3D source --
+
+    // ------------------------------------------------- screenshot and record --
+
+    bool IScene3DSource.CaptureThisFrame()
+    {
+        var shot = _shotWanted;
+        _shotWanted = false;
+        if (!shot && _due == 0)
+            return false;
+        _shotPending |= shot;
+        _grabs.Enqueue(_due);
+        _due = 0;
+        return true;
+    }
+
+    void IScene3DSource.Captured(int width, int height, byte[] rgba)
+    {
+        var repeats = _grabs.Count > 0 ? _grabs.Dequeue() : 0;
+        if (_shotPending)
+        {
+            _shotPending = false;
+            SaveShot(width, height, rgba);
+        }
+        if (_rec is { } rec && repeats > 0)
+        {
+            var bgra = Pictures.ToBgra(rgba, width, height, rec.Width, rec.Height);
+            for (var i = 0; i < repeats; i++)
+                rec.PushFrame(bgra);
+            // The loopback says nothing in a silence: fill it, so the sound keeps time with the picture.
+            if (rec.Audio is { } a && rec.AudioSeconds < rec.VideoSeconds - 0.25)
+                rec.PushAudio(new short[(int)((rec.VideoSeconds - rec.AudioSeconds) * a.Rate) * a.Channels]);
+        }
+    }
+
+    /// <summary>
+    /// Saves a picture of the 3D view as a PNG in the render folder.
+    /// </summary>
+    void SaveShot(int width, int height, byte[] rgba)
+    {
+        try
+        {
+            Directory.CreateDirectory(RenderFolder);
+            var name = Pictures.Stamped("shot", "png", DateTime.Now);
+            File.WriteAllBytes(Path.Combine(RenderFolder, name), Png.Encode(new Png.Image(width, height, rgba)));
+            _recLabel.Text = "Saved " + name;
+            Status?.Invoke("Saved " + name);
+            OpenFolder(RenderFolder);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Status?.Invoke("Screenshot failed: " + e.Message);
+        }
+    }
+
+    /// <summary>
+    /// Record: starts an MP4 of the view (and what's playing) in the render folder; again, finishes it.
+    /// </summary>
+    public void ToggleRecording()
+    {
+        if (_rec is { } rec)
+        {
+            _audioTap?.Dispose();
+            _audioTap = null;
+            var said = rec.Finish(_recFile);
+            rec.Dispose();
+            _rec = null;
+            _pacer = null;
+            _due = 0;
+            _record.Text = "Record";
+            _recLabel.Text = said;
+            Status?.Invoke(said);
+            OpenFolder(RenderFolder);
+            return;
+        }
+        var (w, h) = Pictures.VideoSize((int)_surface.Size.X, (int)_surface.Size.Y);
+        if (w < 16 || h < 16)
+        {
+            _recLabel.Text = "no picture to record";
+            return;
+        }
+        Directory.CreateDirectory(RenderFolder);
+        _recFile = Pictures.Stamped("rec", "mp4", DateTime.Now);
+        Mp4Writer? writer = null;
+        // What's playing, if it can be heard: a recording starts its sound with its picture.
+        (IDisposable Capture, int Rate, int Channels)? audio = null;
+        audio = StartAudio(samples => writer?.PushAudio(Pictures.ToPcm16(samples)));
+        var format = audio is { Rate: 44100 or 48000, Channels: 1 or 2 } a ? (a.Rate, a.Channels) : ((int, int)?)null;
+        if (format is null)
+            audio?.Capture.Dispose();
+        var (started, error) = Mp4Writer.Start(Path.Combine(RenderFolder, _recFile), w, h, FramePacer.FPS, 12000, format);
+        if (started is null)
+        {
+            audio?.Capture.Dispose();
+            _recLabel.Text = "recorder failed to start";
+            Status?.Invoke("Recording failed to start: " + error);
+            return;
+        }
+        writer = started;
+        _rec = started;
+        _audioTap = format is null ? null : audio?.Capture;
+        _pacer = new FramePacer();
+        _due = 1; // the first frame now
+        _record.Text = "Stop";
+        _recLabel.Text = "REC → " + _recFile + (format is null ? "  (no sound)" : "");
+    }
 
     float2? IScene3DSource.SceneSize => IsShown() && _surface.Size.X >= 1 && _surface.Size.Y >= 1 ? _surface.Size : null;
 

@@ -175,11 +175,14 @@ sealed unsafe class Renderer : IDisposable
         var extent = _swapchain.Extent;
 
         // The 3D view's picture first, for the UI to show.
+        // A picture copied out last time this slot was used is ready now its frame's done.
+        if (_scene.TakeCaptured(_frameIndex) is { } shot)
+            Scene?.Captured(shot.Width, shot.Height, shot.Rgba);
         if (Scene?.SceneSize is { } size)
         {
             if (_scene.EnsureSize(new VkExtent2D((int)size.X, (int)size.Y)))
                 _ui.SetTexture(Scene3D.TEXTURE, _scene.View!.Value);
-            _scene.Record(cmd, _frameIndex, Scene.BuildScene());
+            _scene.Record(cmd, _frameIndex, Scene.BuildScene(), Scene.CaptureThisFrame());
         }
 
         // Previous contents are discarded (Undefined) since the image is cleared.

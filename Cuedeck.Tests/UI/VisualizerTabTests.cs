@@ -141,4 +141,43 @@ public sealed class VisualizerTabTests : ConsoleHarness
         Assert.False(_viz.IsShown());
         Assert.Null(((Cuedeck.Rendering.IScene3DSource)_viz).SceneSize);
     }
+
+    [Fact]
+    public void Screenshot_and_record()
+    {
+        var source = (Cuedeck.Rendering.IScene3DSource)_viz;
+        var opened = new List<string>();
+        _viz.RenderFolder = Dir.File("render");
+        _viz.OpenFolder = opened.Add;
+        Assert.False(source.CaptureThisFrame()); // nothing wanted
+
+        // Screenshot: the next frame's picture, saved as a PNG in the render folder, which is shown.
+        Click(Find<Button>(b => b.Text == "Screenshot"));
+        Assert.True(source.CaptureThisFrame());
+        Assert.False(source.CaptureThisFrame()); // just the one
+        var size = _viz.Surface3D.Size;
+        var (w, h) = ((int)size.X, (int)size.Y);
+        source.Captured(w, h, new byte[w * h * 4]);
+        var shot = Assert.Single(Directory.GetFiles(_viz.RenderFolder, "shot_*.png"));
+        Assert.Equal(w, Cuedeck.UI.Png.Decode(File.ReadAllBytes(shot)).Width);
+        Assert.StartsWith("Saved shot_", Screen.StatusText);
+        Assert.Equal([_viz.RenderFolder], opened);
+
+        // Record: frames as they're due, then Stop finishes the MP4 (silent here: no sound to capture).
+        Click(Find<Button>(b => b.Text == "Record"));
+        Assert.True(_viz.IsRecording);
+        Assert.Equal("Stop", Find<Button>(b => b.Text is "Stop").Text);
+        for (var i = 0; i < 10; i++)
+        {
+            Thread.Sleep(40); // over a thirtieth of a second
+            Frame();
+            if (source.CaptureThisFrame())
+                source.Captured(w, h, new byte[w * h * 4]);
+        }
+        Click(Find<Button>(b => b.Text == "Stop"));
+        Assert.False(_viz.IsRecording);
+        var rec = Assert.Single(Directory.GetFiles(_viz.RenderFolder, "rec_*.mp4"));
+        Assert.True(new FileInfo(rec).Length > 1000);
+        Assert.Matches(@"^Saved rec_.*\.mp4 \(\d+ frames", Screen.StatusText);
+    }
 }

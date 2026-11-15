@@ -24,6 +24,11 @@ sealed unsafe class Scene3D : IDisposable
     const VkFormat COLOR = VkFormat.R8G8B8A8SRGB;
     const VkFormat DEPTH = VkFormat.D32SFloat;
 
+    /// <summary>
+    /// The anti-aliasing: samples per pixel, resolved into the picture the UI shows.
+    /// </summary>
+    const VkSampleCountFlags SAMPLES = VkSampleCountFlags._4Bit;
+
     struct Push
     {
         public Matrix4x4 ViewProj;
@@ -63,6 +68,12 @@ sealed unsafe class Scene3D : IDisposable
         public GpuBuffer? Lights;
         public int LightCapacity;
         public VkDescriptorSet Set;
+
+        /// <summary>
+        /// The picture copied out, and its size, while it waits for this slot's frame to finish.
+        /// </summary>
+        public GpuBuffer? Readback;
+        public VkExtent2D? Captured;
     }
 
     readonly GpuContext _gpu;
@@ -83,6 +94,7 @@ sealed unsafe class Scene3D : IDisposable
     readonly Dictionary<MeshData, (GpuBuffer Vertices, GpuBuffer Indices, int Count)> _models = new(ReferenceEqualityComparer.Instance);
     readonly FrameInstances[] _frames;
     GpuImage? _color;
+    GpuImage? _msaa;
     GpuImage? _depth;
 
     public Scene3D(GpuContext gpu, int framesInFlight)
@@ -210,6 +222,7 @@ sealed unsafe class Scene3D : IDisposable
         var dynamicStates = stackalloc VkDynamicState[] { VkDynamicState.Viewport, VkDynamicState.Scissor };
         var dynamicState = new VkPipelineDynamicStateCreateInfo { DynamicStateCount = 2, DynamicStates = dynamicStates };
         var colorFormat = COLOR;
+        var multisample = new VkPipelineMultisampleStateCreateInfo { RasterizationSamples = SAMPLES };
         var rendering = new VkPipelineRenderingCreateInfo
         {
             ColorAttachmentCount = 1,
@@ -227,7 +240,7 @@ sealed unsafe class Scene3D : IDisposable
                 InputAssemblyState = Presets.InputAssembly.TriangleList,
                 ViewportState = &viewportState,
                 RasterizationState = Presets.Rasterization.Fill.CullNone,
-                MultisampleState = Presets.Multisample.None,
+                MultisampleState = &multisample,
                 DepthStencilState = beams ? Presets.DepthStencil.DepthTestNoWrite : Presets.DepthStencil.DepthTestWrite,
                 ColorBlendState = beams ? Presets.BlendState.BlendAdditive : Presets.BlendState.BlendNone,
                 DynamicState = &dynamicState,
@@ -252,19 +265,46 @@ sealed unsafe class Scene3D : IDisposable
             return false;
         _device.WaitIdle();
         _color?.Dispose();
+        _msaa?.Dispose();
         _depth?.Dispose();
-        _color = new GpuImage(_gpu, COLOR, size, 1, VkImageUsageFlags.ColorAttachmentBit | VkImageUsageFlags.SampledBit, VkImageAspectFlags.ColorBit);
-        _depth = new GpuImage(_gpu, DEPTH, size, 1, VkImageUsageFlags.DepthStencilAttachmentBit, VkImageAspectFlags.DepthBit);
+        // Drawn into the multisampled image, resolved into the one the UI reads (and screenshots are copied from).
+        _color = new GpuImage(
+            _gpu,
+            COLOR,
+            size,
+            1,
+            VkImageUsageFlags.ColorAttachmentBit | VkImageUsageFlags.SampledBit | VkImageUsageFlags.TransferSrcBit,
+            VkImageAspectFlags.ColorBit
+        );
+        _msaa = new GpuImage(_gpu, COLOR, size, 1, VkImageUsageFlags.ColorAttachmentBit | VkImageUsageFlags.TransientAttachmentBit, VkImageAspectFlags.ColorBit, SAMPLES);
+        _depth = new GpuImage(_gpu, DEPTH, size, 1, VkImageUsageFlags.DepthStencilAttachmentBit, VkImageAspectFlags.DepthBit, SAMPLES);
         return true;
     }
 
     /// <summary>
-    /// Draws <paramref name="frame"/> into the image, leaving it ready for the UI to read. Outside any rendering pass;
+    /// The picture copied out the last time <paramref name="frameIndex"/>'s slot was used (with <c>capture</c>), as
+    /// sRGB RGBA rows from the top; null if it wasn't. Call once that frame has finished on the GPU.
+    /// </summary>
+    public (int Width, int Height, byte[] Rgba)? TakeCaptured(int frameIndex)
+    {
+        var slot = _frames[frameIndex];
+        if (slot.Captured is not { } size || slot.Readback is null)
+            return null;
+        slot.Captured = null;
+        var bytes = new byte[size.Width * size.Height * 4];
+        _gpu.Allocator.InvalidateAllocation(slot.Readback.Allocation, ByteSize.Zero, ByteSize.Of<byte>() * bytes.Length);
+        new ReadOnlySpan<byte>((void*)slot.Readback.Info.PMappedData, bytes.Length).CopyTo(bytes);
+        return (size.Width, size.Height, bytes);
+    }
+
+    /// <summary>
+    /// Draws <paramref name="frame"/> into the image, leaving it ready for the UI to read; with
+    /// <paramref name="capture"/>, it's also copied out, for <see cref="TakeCaptured"/>. Outside any rendering pass;
     /// <paramref name="frameIndex"/>'s previous use must have finished on the GPU.
     /// </summary>
-    public void Record(CommandBuffer cmd, int frameIndex, SceneFrame frame)
+    public void Record(CommandBuffer cmd, int frameIndex, SceneFrame frame, bool capture = false)
     {
-        if (_color is null || _depth is null)
+        if (_color is null || _msaa is null || _depth is null)
             return;
         var extent = _color.Extent;
         var instances = _frames[frameIndex];
@@ -320,6 +360,16 @@ sealed unsafe class Scene3D : IDisposable
             VkAccessFlags.ColorAttachmentWriteBit
         );
         cmd.TransitionImage(
+            _msaa.Image,
+            VkImageAspectFlags.ColorBit,
+            VkImageLayout.Undefined,
+            VkImageLayout.ColorAttachmentOptimal,
+            VkPipelineStageFlags.ColorAttachmentOutputBit,
+            VkAccessFlags.None,
+            VkPipelineStageFlags.ColorAttachmentOutputBit,
+            VkAccessFlags.ColorAttachmentWriteBit
+        );
+        cmd.TransitionImage(
             _depth.Image,
             VkImageAspectFlags.DepthBit,
             VkImageLayout.Undefined,
@@ -333,10 +383,13 @@ sealed unsafe class Scene3D : IDisposable
         var bg = Tonemap(frame.Background);
         var colorAttachment = new VkRenderingAttachmentInfo
         {
-            ImageView = _color.View,
+            ImageView = _msaa.View,
             ImageLayout = VkImageLayout.ColorAttachmentOptimal,
+            ResolveMode = VkResolveModeFlags.AverageBit,
+            ResolveImageView = _color.View,
+            ResolveImageLayout = VkImageLayout.ColorAttachmentOptimal,
             LoadOp = VkAttachmentLoadOp.Clear,
-            StoreOp = VkAttachmentStoreOp.Store,
+            StoreOp = VkAttachmentStoreOp.DontCare,
             ClearValue = new VkClearColorValue { Float32 = new float4(bg.X, bg.Y, bg.Z, 1) },
         };
         var depthAttachment = new VkRenderingAttachmentInfo
@@ -428,6 +481,55 @@ sealed unsafe class Scene3D : IDisposable
         }
         cmd.EndRendering();
 
+        if (capture)
+        {
+            // Copied out, then read by the UI.
+            var bytes = extent.Width * extent.Height * 4;
+            if (instances.Readback is null || (long)instances.Readback.Size < bytes)
+            {
+                instances.Readback?.Dispose();
+                instances.Readback = GpuBuffer.Create(
+                    _gpu.Allocator,
+                    ByteSize.Of<byte>() * bytes,
+                    VkBufferUsageFlags.TransferDstBit,
+                    VmaAllocationCreateFlags.HostAccessRandomBit | VmaAllocationCreateFlags.MappedBit
+                );
+            }
+            cmd.TransitionImage(
+                _color.Image,
+                VkImageAspectFlags.ColorBit,
+                VkImageLayout.ColorAttachmentOptimal,
+                VkImageLayout.TransferSrcOptimal,
+                VkPipelineStageFlags.ColorAttachmentOutputBit,
+                VkAccessFlags.ColorAttachmentWriteBit,
+                VkPipelineStageFlags.TransferBit,
+                VkAccessFlags.TransferReadBit
+            );
+            cmd.CopyImageToBuffer(
+                _color.Image,
+                VkImageLayout.TransferSrcOptimal,
+                instances.Readback.Buffer,
+                [
+                    new VkBufferImageCopy
+                    {
+                        ImageSubresource = new VkImageSubresourceLayers { AspectMask = VkImageAspectFlags.ColorBit, LayerCount = 1 },
+                        ImageExtent = new VkExtent3D { Width = extent.Width, Height = extent.Height, Depth = 1 },
+                    },
+                ]
+            );
+            cmd.TransitionImage(
+                _color.Image,
+                VkImageAspectFlags.ColorBit,
+                VkImageLayout.TransferSrcOptimal,
+                VkImageLayout.ShaderReadOnlyOptimal,
+                VkPipelineStageFlags.TransferBit,
+                VkAccessFlags.TransferReadBit,
+                VkPipelineStageFlags.FragmentShaderBit,
+                VkAccessFlags.ShaderReadBit
+            );
+            instances.Captured = extent;
+            return;
+        }
         cmd.TransitionImage(
             _color.Image,
             VkImageAspectFlags.ColorBit,
@@ -505,8 +607,10 @@ sealed unsafe class Scene3D : IDisposable
         {
             f.Buffer?.Dispose();
             f.Lights?.Dispose();
+            f.Readback?.Dispose();
         }
         _color?.Dispose();
+        _msaa?.Dispose();
         _depth?.Dispose();
         _vertices.Dispose();
         _indices.Dispose();

@@ -17,4 +17,15 @@ interface IScene3DSource
     /// The frame to draw, made as it's needed.
     /// </summary>
     SceneFrame BuildScene();
+
+    /// <summary>
+    /// Whether this frame's picture is wanted (a screenshot, a recording's frame); asked once a frame. It comes back
+    /// through <see cref="Captured"/> a frame or two later.
+    /// </summary>
+    bool CaptureThisFrame();
+
+    /// <summary>
+    /// A picture asked for: sRGB RGBA, rows from the top.
+    /// </summary>
+    void Captured(int width, int height, byte[] rgba);
 }

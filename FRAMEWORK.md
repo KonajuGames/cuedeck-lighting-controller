@@ -60,6 +60,7 @@ The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controll
 - `UI/Root.cs` (slice 6b): `Mouse`, where the pointer is.
 - `UI/NumberBox.cs` (slice 6b): `Submitted`, raised on Enter.
 - `Rendering/Barriers.cs` (slice 6d): `TransitionImage` takes a range of array layers too.
+- `Rendering/GpuResources.cs` (slice 7b): `GpuImage` can be multisampled.
 
 ## Adapted
 
