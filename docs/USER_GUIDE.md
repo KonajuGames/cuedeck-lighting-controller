@@ -99,8 +99,9 @@ Every patched fixture gets controls made for it (open one with the arrow at its 
 - A fixture with colour channels but no dimmer of its own gets a **virtual dimmer**, which fades its colour without
   changing it.
 
-**Flash** (hold it) takes the fixture to full white and puts it back exactly as it was when you let go, which is handy
-for finding a fixture in a dark room. **Home** resets every control to its default. The controls send their DMX
+On the right of each fixture's row, **Flash** (the bulb; hold it) takes the fixture to full white and puts it back
+exactly as it was when you let go, which is handy for finding a fixture in a dark room. **Home** (the house) resets
+every control to its default, and **Remove** (the bin) takes the fixture out of the patch. The controls send their DMX
 straight away (30 times a second, while **Sending** is on); there's no separate "apply" step.
 
 ## Step 4: Record your first cues
@@ -293,7 +294,7 @@ structure afresh first (dropping your changes to it), then generate from that.
 Washes carry most of the colour, movers the movement, and multi-cell fixtures play chases and patterns across their
 heads. Primary fixtures drive the show, and secondary ones support them with something calmer. The **1–4** buttons
 split a category into groups that often step together, so a chase can run group by group (left and right, front and
-back). **Leave out** keeps a fixture out of the generated show: Generate clears its timelines instead of filling them,
+back). **Leave out** (the wand struck through) keeps a fixture out of the generated show: Generate clears its timelines instead of filling them,
 and it ignores the master timeline, though anything you draw on its own timelines still plays.
 
 **Each timeline has rows** for what its fixture can do:

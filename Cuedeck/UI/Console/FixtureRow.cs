@@ -13,11 +13,25 @@ namespace Cuedeck.UI.Console;
 sealed class FixtureRow : Panel
 {
     readonly Panel _controls;
+    readonly Ends _header;
     readonly Button _expand;
     readonly List<IFixtureControl> _bound = [];
     readonly List<Button> _groupButtons = [];
 
     public PatchedFixture Fixture { get; }
+
+    /// <summary>
+    /// How wide the row is: the list's width, so its category and buttons line up down the right of it.
+    /// </summary>
+    public float Width
+    {
+        get => MinSize.X;
+        set
+        {
+            MinSize = new float2(value, 0);
+            _header.Width = value - 2 * Inset;
+        }
+    }
 
     /// <summary>
     /// Remove was clicked.
@@ -29,8 +43,11 @@ sealed class FixtureRow : Panel
     /// </summary>
     public event Action? Edited;
 
-    public FixtureRow(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, PatchedFixture fixture)
+    public FixtureRow(Fonts fonts, FixtureIcons icons, ContextMenu menu, Dialogs dialogs, LightingShow show, PatchedFixture fixture)
     {
+        // An icon button, its name in its tooltip, as sLight's.
+        Button IconButton(Panel row, Image icon, string tooltip) =>
+            row.Add(new Button(fonts.Small, "") { Icon = icon, Padding = 4, MinSize = new float2(26, 24), Tooltip = tooltip });
         Fixture = fixture;
         Padding = 8;
         Spacing = 8;
@@ -38,7 +55,9 @@ sealed class FixtureRow : Panel
         BorderColor = Theme.PanelBorder;
         BorderWidth = 1;
 
-        var header = Add(new Row(6));
+        // The fixture on the left; its category and buttons on the right.
+        _header = Add(new Ends());
+        var header = _header.Add(new Row(6));
         _expand = header.Add(new Button(fonts.Small, "►") { Padding = 4, MinSize = new float2(26, 0), Tooltip = "Expand" });
         var chans = fixture.Channels;
         var mode = fixture.Profile.ModeCount > 1 ? $"  [{fixture.Profile.ModeNames[Math.Clamp(fixture.Mode, 0, fixture.Profile.ModeCount - 1)]}]" : "";
@@ -50,7 +69,7 @@ sealed class FixtureRow : Panel
             }
         ).Tooltip = $"{fixture.Profile.FullName}{mode}";
         header.Add(new Label(fonts.Small, fixture.Profile.FullName + mode) { Color = Theme.Muted, MaxWidth = 340 });
-        header.Add(new Spacer(12));
+        header = _header.Add(new Row(6));
 
         var category = header.Add(
             new Dropdown<string>(fonts.Small) { Menu = menu, Width = 160, Items = () => FixtureProfile.ShowCategories, Selected = fixture.Category }
@@ -72,7 +91,7 @@ sealed class FixtureRow : Panel
             };
             _groupButtons.Add(b);
         }
-        var exclude = header.Add(new Button(fonts.Small, "Leave out") { Padding = 4 });
+        var exclude = IconButton(header, icons.LeaveOut, "Leave out of show generation");
         exclude.Clicked += _ =>
         {
             fixture.ExcludeGenerate = !fixture.ExcludeGenerate;
@@ -80,7 +99,8 @@ sealed class FixtureRow : Panel
         };
         header.Add(new Spacer(6));
         // Flash: full white while it's held, then the channels it changed put back exactly as they were.
-        var flash = header.Add(new Button(fonts.Small, "Flash") { Padding = 4, Tooltip = "Full white while held", Enabled = Patch.FlashTargets(fixture.Channels).Count > 0 });
+        var flash = IconButton(header, icons.Flash, "Flash: full white while held");
+        flash.Enabled = Patch.FlashTargets(fixture.Channels).Count > 0;
         Dictionary<int, int>? flashed = null;
         flash.PressStarted += _ => flashed ??= show.Patch.FlashOn(fixture);
         flash.PressEnded += _ =>
@@ -89,9 +109,9 @@ sealed class FixtureRow : Panel
                 show.Patch.FlashOff(fixture, flashed);
             flashed = null;
         };
-        var home = header.Add(new Button(fonts.Small, "Home") { Padding = 4, Tooltip = "Back to its default levels" });
+        var home = IconButton(header, icons.Home, "Home: back to its default levels");
         home.Clicked += _ => show.Patch.Home(fixture);
-        var remove = header.Add(new Button(fonts.Small, "Remove") { Padding = 4 });
+        var remove = IconButton(header, icons.Remove, "Remove from the patch");
         remove.Clicked += _ => RemoveClicked?.Invoke(fixture);
 
         _controls = Add(new Row(14) { Visible = false });

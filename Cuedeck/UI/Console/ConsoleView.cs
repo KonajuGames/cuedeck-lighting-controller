@@ -37,7 +37,7 @@ sealed class ConsoleView : Region
     /// </summary>
     public Visualizer.VisualizerView Visualizer { get; }
 
-    public ConsoleView(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
+    public ConsoleView(Fonts fonts, FixtureIcons icons, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
     {
         _dialogs = dialogs;
         _left = Add(new TabView(fonts.Body));
@@ -56,7 +56,7 @@ sealed class ConsoleView : Region
             say(m => Status?.Invoke(m));
 
         _right = Add(new TabView(fonts.Body));
-        Patch = new PatchTab(fonts, menu, dialogs, show, profiles);
+        Patch = new PatchTab(fonts, icons, menu, dialogs, show, profiles);
         _right.AddTab("Patch", Patch);
         Visualizer = new Visualizer.VisualizerView(fonts, menu, dialogs.Prompt, show);
         Visualizer.IsShown = () => Visible && _right.SelectedPage == Visualizer;

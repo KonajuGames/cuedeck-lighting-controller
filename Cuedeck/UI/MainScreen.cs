@@ -60,7 +60,7 @@ sealed class MainScreen : Panel
         Dialogs = dialogs;
         TitleBar = Add(new TitleBar(fonts.Body, fonts.Bold, images));
         TopBar = Add(new TopBar(fonts, menu, show));
-        Console = Add(new ConsoleView(fonts, menu, dialogs, show, profiles));
+        Console = Add(new ConsoleView(fonts, images.Fixture, menu, dialogs, show, profiles));
         if (djEdit is not null)
         {
             DjEdit = Add(djEdit);

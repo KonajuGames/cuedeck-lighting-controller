@@ -70,7 +70,7 @@ public sealed class ConsoleTests : ConsoleHarness
         Assert.Equal((0, 255), (Show.Dmx.Universes[0].GetChannel(0), Show.Dmx.Universes[0].GetChannel(1))); // pan left, tilt up
 
         // Home puts it back.
-        Click(Find<Button>(b => b.Text == "Home"));
+        Click(Find<Button>(b => b.Tooltip == "Home: back to its default levels"));
         Assert.Equal((128, 128, 0), (Show.Dmx.Universes[0].GetChannel(0), Show.Dmx.Universes[0].GetChannel(1), Show.Dmx.Universes[0].GetChannel(2)));
 
         // The wheel nudges it a step: tilt, then pan with Shift (which turns the wheel sideways).
@@ -89,7 +89,7 @@ public sealed class ConsoleTests : ConsoleHarness
         Assert.Equal(3, f.CategoryGroup);
         Assert.True(Find<Button>(b => b.Tooltip == "Category group 3").Lit);
 
-        Click(Find<Button>(b => b.Text == "Remove"));
+        Click(Find<Button>(b => b.Tooltip == "Remove from the patch"));
         Assert.Empty(Show.Patch.All);
     }
 

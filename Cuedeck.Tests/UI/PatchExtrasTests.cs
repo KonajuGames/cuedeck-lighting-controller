@@ -19,12 +19,32 @@ public sealed class PatchExtrasTests : ConsoleHarness
         Show.Patch.Add(0, Profiles.DimmedRgb(), 0, name: "Par");
         Show.Dmx.Universes[0].SetChannel(1, 30);
         Frame();
-        var flash = ButtonCalled("Flash");
+        var flash = Find<Button>(b => b.Tooltip == "Flash: full white while held");
         Ui.MouseMove(flash.ScreenPosition + flash.Size / 2);
         Ui.MouseButton(MouseButton.Left, down: true);
         Assert.Equal([255, 255, 255, 255], Enumerable.Range(0, 4).Select(Level));
         Ui.MouseButton(MouseButton.Left, down: false);
         Assert.Equal([0, 30, 0, 0], Enumerable.Range(0, 4).Select(Level)); // put back exactly
+    }
+
+    [Fact]
+    public void Fixture_rows_fill_the_list_with_their_buttons_on_the_right()
+    {
+        Show.Patch.Add(0, Profiles.DimmedRgb(), 0, name: "Par");
+        Show.Patch.Add(0, Profiles.Rgb(), 10, name: "A fixture with a much longer name");
+        Frame();
+        var rows = All(Screen.Console).OfType<FixtureRow>().ToList();
+        Assert.Equal(2, rows.Count);
+        var page = All(Screen.Console).OfType<UniversePage>().Single();
+        foreach (var row in rows)
+        {
+            Assert.Equal(page.Width, row.Size.X); // the list's whole width
+            var remove = All(row).OfType<Button>().Single(b => b.Tooltip == "Remove from the patch");
+            Assert.Equal(row.ScreenPosition.X + row.Size.X - 9, remove.ScreenPosition.X + remove.Size.X); // inside its padding and border
+        }
+        // Both rows' categories line up, whatever their names.
+        var categories = rows.Select(r => All(r).OfType<Dropdown<string>>().Single().ScreenPosition.X).ToList();
+        Assert.Equal(categories[0], categories[1]);
     }
 
     [Fact]

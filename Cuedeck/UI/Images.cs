@@ -27,7 +27,8 @@ sealed record Images(
     Image LargeKnob,
     Image Dot,
     Image Pause,
-    Image Timeline
+    Image Timeline,
+    FixtureIcons Fixture
 )
 {
     /// <summary>
@@ -51,7 +52,8 @@ sealed record Images(
             LargeKnob: atlas.AddImage(Read("knob-32.png")),
             Dot: atlas.AddImage(Read("dot-8.png")),
             Pause: atlas.AddImage(Read("pause-14.png")),
-            Timeline: atlas.AddImage(NodeLine())
+            Timeline: atlas.AddImage(NodeLine()),
+            Fixture: FixtureIcons.Load(atlas)
         );
 
     /// <summary>
@@ -114,6 +116,21 @@ sealed record Images(
             ?? throw new FileNotFoundException($"The app is missing its image {name}");
         return Png.Decode(stream);
     }
+}
+
+/// <summary>
+/// A patched fixture's header buttons' icons, sLight's line icons: Flash (a bulb), Home (a house), Remove (a bin) and
+/// Leave out (a magic wand struck through).
+/// </summary>
+sealed record FixtureIcons(Image Flash, Image Home, Image Remove, Image LeaveOut)
+{
+    public static FixtureIcons Load(FontAtlas atlas) =>
+        new(
+            Flash: atlas.AddImage(Images.Read("icon-flash-16.png")),
+            Home: atlas.AddImage(Images.Read("icon-home-16.png")),
+            Remove: atlas.AddImage(Images.Read("icon-remove-16.png")),
+            LeaveOut: atlas.AddImage(Images.Read("icon-leave-out-16.png"))
+        );
 }
 
 /// <summary>

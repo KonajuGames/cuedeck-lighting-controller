@@ -25,6 +25,34 @@ class Row : Panel
 }
 
 /// <summary>
+/// A line with two ends: its first child on the left, its second pushed to the right of <see cref="Width"/> (or just
+/// after the first, where there isn't room). A list row's name on one side and its buttons on the other.
+/// </summary>
+sealed class Ends : Row
+{
+    public Ends(float spacing = 12)
+        : base(spacing) { }
+
+    /// <summary>
+    /// How wide the line is to be, at the least.
+    /// </summary>
+    public float Width { get; set; }
+
+    public override float2 Measure()
+    {
+        var size = base.Measure();
+        return Size = new float2(MathF.Max(Width, size.X), size.Y);
+    }
+
+    public override void Arrange(float2 position)
+    {
+        base.Arrange(position);
+        if (Children.Count == 2 && Children[1] is { Visible: true } right)
+            right.Arrange(new float2(position.X + Size.X - Inset - right.Size.X, right.ScreenPosition.Y));
+    }
+}
+
+/// <summary>
 /// Children in rows that wrap: as many side by side as fit in <see cref="Width"/>, then onto the next line, as
 /// sLight's flow containers did with a toolbar's buttons.
 /// </summary>

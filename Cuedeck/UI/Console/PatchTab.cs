@@ -9,8 +9,20 @@ namespace Cuedeck.UI.Console;
 /// <summary>
 /// One universe's page of the Patch tab: where it's sent, then its fixtures, with a row to patch more.
 /// </summary>
-sealed class UniversePage : Panel
+sealed class UniversePage : Panel, IWidthAware
 {
+    /// <summary>
+    /// The page's width, which each fixture's row fills.
+    /// </summary>
+    public float Width { get; set; } = 400;
+
+    public override float2 Measure()
+    {
+        foreach (var row in _rows.Children.OfType<FixtureRow>())
+            row.Width = Width;
+        return base.Measure();
+    }
+
     readonly LightingShow _show;
     readonly Fonts _fonts;
     readonly ContextMenu _menu;
@@ -56,8 +68,11 @@ sealed class UniversePage : Panel
     /// </summary>
     public Func<UsbDmx?> Usb { get; set; } = () => null;
 
-    public UniversePage(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles, int index)
+    readonly FixtureIcons _icons;
+
+    public UniversePage(Fonts fonts, FixtureIcons icons, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles, int index)
     {
+        _icons = icons;
         _show = show;
         _profiles = profiles;
         _fonts = fonts;
@@ -348,7 +363,7 @@ sealed class UniversePage : Panel
             _rows.Children.Clear();
             foreach (var f in p.Fixtures)
             {
-                var row = _rows.Add(new FixtureRow(_fonts, _menu, _dialogs, _show, f) { Expanded = expanded.Contains(f) });
+                var row = _rows.Add(new FixtureRow(_fonts, _icons, _menu, _dialogs, _show, f) { Expanded = expanded.Contains(f) });
                 row.RemoveClicked += fixture =>
                 {
                     _show.Patch.Remove(fixture);
@@ -411,6 +426,7 @@ sealed class PatchTab : Region
 {
     readonly TabView _universes;
     readonly Fonts _fonts;
+    readonly FixtureIcons _icons;
     readonly ContextMenu _menu;
     readonly Dialogs _dialogs;
     readonly LightingShow _show;
@@ -429,9 +445,10 @@ sealed class PatchTab : Region
     /// </summary>
     public UsbDmx? Usb { get; set; }
 
-    public PatchTab(Fonts fonts, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
+    public PatchTab(Fonts fonts, FixtureIcons icons, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
     {
         _fonts = fonts;
+        _icons = icons;
         _menu = menu;
         _dialogs = dialogs;
         _show = show;
@@ -463,7 +480,7 @@ sealed class PatchTab : Region
             _universes.Clear();
             for (var i = 0; i < count; i++)
             {
-                var page = new UniversePage(_fonts, _menu, _dialogs, _show, _profiles, i) { Usb = () => Usb };
+                var page = new UniversePage(_fonts, _icons, _menu, _dialogs, _show, _profiles, i) { Usb = () => Usb };
                 page.Status += s => Status?.Invoke(s);
                 page.ProfilesChanged += () => _pages.ForEach(pg => pg.RefreshProfile());
                 page.AskForFixtureFile = () => AskForFixtureFile();

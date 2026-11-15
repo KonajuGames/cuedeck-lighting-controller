@@ -1,7 +1,8 @@
 """Draws Cuedeck's icons as PNGs (the logo is made by make_logo.py): the list's small icons, the triangles
 used for arrows (the folder list's, the loop buttons', the nudge pads'), the options button's cog, the headphones
-button, the mixer's knob caps and the dots drawn over them, the search box's clearing cross, and the folder list's
-icons.
+button, the mixer's knob caps and the dots drawn over them, the search box's clearing cross, the folder list's
+icons, and the patched fixtures' Flash, Home, Remove and Leave out icons (sLight's line icons, drawn from their SVG
+paths).
 
 Run with any Python 3; it needs nothing installed. Shapes are distance fields, sampled 8x8 times per pixel so edges
 come out smooth at every size, and written with zlib as straight-alpha RGBA. Small icons are white, for the app to
@@ -297,6 +298,105 @@ LIST = [
 CLOCK = [(union(ring(7, 7, 5.2, 1.3), segment(7, 7, 7, 3.8, 1.3), segment(7, 7, 9.4, 8.4, 1.3)), hex_colour(WHITE))]
 
 # A filter: a funnel.
+def path_points(d, steps=10):
+    """An SVG path's subpaths as lists of points, its curves and arcs cut into `steps` straight pieces each. Knows
+    M, L, H, V, C, A and Z, absolute and relative: enough for line icons."""
+    import re
+
+    tokens = re.findall(r"[MLHVCAZmlhvcaz]|-?(?:\d+\.?\d*|\.\d+)", d)
+    subpaths, points = [], []
+    x = y = sx = sy = 0.0
+    i, command = 0, None
+
+    def number():
+        nonlocal i
+        i += 1
+        return float(tokens[i - 1])
+
+    while i < len(tokens):
+        if tokens[i].isalpha():
+            command = tokens[i]
+            i += 1
+            if command in "Zz":
+                points.append((sx, sy))
+                x, y = sx, sy
+                continue
+        rel = command.islower()
+        c = command.upper()
+        ox, oy = (x, y) if rel else (0.0, 0.0)
+        if c == "M":
+            if len(points) > 1:
+                subpaths.append(points)
+            x, y = ox + number(), oy + number()
+            sx, sy = x, y
+            points = [(x, y)]
+            command = "l" if rel else "L"  # what follows a move draws lines
+        elif c == "L":
+            x, y = ox + number(), oy + number()
+            points.append((x, y))
+        elif c == "H":
+            x = (x if rel else 0.0) + number()
+            points.append((x, y))
+        elif c == "V":
+            y = (y if rel else 0.0) + number()
+            points.append((x, y))
+        elif c == "C":
+            x1, y1, x2, y2, ex, ey = (ox + number(), oy + number(), ox + number(), oy + number(), ox + number(), oy + number())
+            for k in range(1, steps + 1):
+                t = k / steps
+                u = 1 - t
+                points.append((u**3 * x + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t**3 * ex, u**3 * y + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t**3 * ey))
+            x, y = ex, ey
+        elif c == "A":
+            rx, ry, _rotation, large, sweep = number(), number(), number(), number(), number()
+            ex, ey = ox + number(), oy + number()
+            # The centre, from the ends (unrotated arcs only, as icons draw them).
+            mx, my = (x - ex) / 2, (y - ey) / 2
+            scale = max(1.0, math.sqrt(mx * mx / (rx * rx) + my * my / (ry * ry)))
+            rx, ry = rx * scale, ry * scale
+            root = math.sqrt(max(0.0, (rx * rx * ry * ry - rx * rx * my * my - ry * ry * mx * mx) / (rx * rx * my * my + ry * ry * mx * mx)))
+            if large == sweep:
+                root = -root
+            cx, cy = root * rx * my / ry + (x + ex) / 2, -root * ry * mx / rx + (y + ey) / 2
+            a0 = math.atan2((y - cy) / ry, (x - cx) / rx)
+            a1 = math.atan2((ey - cy) / ry, (ex - cx) / rx)
+            delta = a1 - a0
+            if sweep and delta < 0:
+                delta += math.tau
+            elif not sweep and delta > 0:
+                delta -= math.tau
+            for k in range(1, steps + 1):
+                a = a0 + delta * k / steps
+                points.append((cx + rx * math.cos(a), cy + ry * math.sin(a)))
+            x, y = ex, ey
+    if len(points) > 1:
+        subpaths.append(points)
+    return subpaths
+
+
+def stroke(d, width):
+    """An SVG path drawn as a line `width` across, with round ends and joins (sLight's line icons)."""
+    pieces = []
+    for points in path_points(d):
+        for (ax, ay), (bx, by) in zip(points, points[1:]):
+            if (ax, ay) != (bx, by):
+                pieces.append(segment(ax, ay, bx, by, width))
+    return union(*pieces)
+
+
+# The patched fixtures' header buttons: sLight's 16-unit line icons, a little bolder so they hold up small.
+ICON_STROKE = 1.4
+BULB = [(stroke("M5.6 11.6V10.4C4.2 9.4 3.4 8 3.4 6.4a4.6 4.6 0 0 1 9.2 0c0 1.6-.8 3-2.2 4v1.2z M6 13.6h4M6.9 15.2h2.2", ICON_STROKE), hex_colour(WHITE))]
+HOUSE = [(stroke("M1.8 7.6 8 2.2l6.2 5.4 M3.6 6.2V14h8.8V6.2 M6.6 14v-4h2.8v4", ICON_STROKE), hex_colour(WHITE))]
+TRASH = [(stroke("M2.4 4h11.2M6 4V2.2h4V4 M3.8 4l.8 10.2h6.8l.8-10.2 M6.6 6.6v5M9.4 6.6v5", ICON_STROKE), hex_colour(WHITE))]
+# A magic wand with a sparkle, struck through: left out of Generate.
+NO_GENERATE = [
+    (
+        stroke("M1.6 13.2 8.4 6.4l1.2 1.2-6.8 6.8z M11.6 1.4l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z M1.8 1.8l12.4 12.4", ICON_STROKE),
+        hex_colour(WHITE),
+    )
+]
+
 FUNNEL = [(rounded(polygon([(1.6, 2.4), (12.4, 2.4), (8.2, 7.4), (8.2, 11.8), (5.8, 10.6), (5.8, 7.4)]), 0.5), hex_colour(WHITE))]
 
 
@@ -331,6 +431,11 @@ def main():
         ("icon-list-20.png", LIST, 20, 14),
         ("icon-history-20.png", CLOCK, 20, 14),
         ("icon-filter-20.png", FUNNEL, 20, 14),
+        # The patched fixtures' header buttons.
+        ("icon-flash-16.png", BULB, 16, 16),
+        ("icon-home-16.png", HOUSE, 16, 16),
+        ("icon-remove-16.png", TRASH, 16, 16),
+        ("icon-leave-out-16.png", NO_GENERATE, 16, 16),
     ]
     # Previews go over the title bar's colour, since the icons are white.
     previews = [("preview-played.png", PLAYED, 256, 16), ("preview-triangle.png", TRIANGLE_RIGHT, 160, 10), ("preview-cog.png", COG, 256, 16), ("preview-headphones.png", HEADPHONES, 256, 16), ("preview-knob.png", KNOB, 200, 20)]
