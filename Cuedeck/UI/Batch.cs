@@ -268,6 +268,83 @@ sealed class Batch
     }
 
     /// <summary>
+    /// Lines through <paramref name="points"/> in turn, antialiased: one strip, mitred at its corners, with a pixel
+    /// either side fading out, so the edges are smooth and the joins don't overlap. For curves and slopes; straight
+    /// lines on the pixel grid look crisper through <see cref="AddLine"/>.
+    /// </summary>
+    public void AddSmoothPolyline(ReadOnlySpan<float2> points, float width, float4 color)
+    {
+        if (points.Length < 2 || color.W <= 0)
+            return;
+        // The solid core, and the fringe out to half a pixel past the line's edge; a hairline is fainter instead.
+        var core = MathF.Max(0, width / 2 - 0.5f);
+        var edge = core + 1;
+        var faded = color with { W = 0 };
+        if (width < 1)
+            color = color with { W = color.W * width };
+        static float2 Normal(float2 a, float2 b)
+        {
+            var d = b - a;
+            var length = MathF.Sqrt(d.X * d.X + d.Y * d.Y);
+            return length > 0 ? new float2(-d.Y, d.X) / length : float2.Zero;
+        }
+        Span<float2> inner = points.Length <= 256 ? stackalloc float2[points.Length] : new float2[points.Length];
+        Span<float2> outer = points.Length <= 256 ? stackalloc float2[points.Length] : new float2[points.Length];
+        for (var i = 0; i < points.Length; i++)
+        {
+            var before = i > 0 ? Normal(points[i - 1], points[i]) : float2.Zero;
+            var after = i + 1 < points.Length ? Normal(points[i], points[i + 1]) : float2.Zero;
+            var n = before + after;
+            var length = MathF.Sqrt(n.X * n.X + n.Y * n.Y);
+            if (length < 1e-4f)
+                n = after.X != 0 || after.Y != 0 ? after : before;
+            else
+                n /= length;
+            // Mitred: pushed out at a corner so the line keeps its width, within reason at a hairpin.
+            var along = before.X != 0 || before.Y != 0 ? before : after;
+            var cos = n.X * along.X + n.Y * along.Y;
+            var miter = cos > 1f / 3 ? 1 / cos : 3;
+            inner[i] = n * core * miter;
+            outer[i] = n * edge * miter;
+        }
+        for (var i = 0; i + 1 < points.Length; i++)
+        {
+            var (a, b) = (points[i], points[i + 1]);
+            // Fringe, core, fringe.
+            AddTriangle(a + outer[i], b + outer[i + 1], b + inner[i + 1], faded, faded, color);
+            AddTriangle(a + outer[i], b + inner[i + 1], a + inner[i], faded, color, color);
+            if (core > 0)
+            {
+                AddTriangle(a + inner[i], b + inner[i + 1], b - inner[i + 1], color);
+                AddTriangle(a + inner[i], b - inner[i + 1], a - inner[i], color);
+            }
+            AddTriangle(a - inner[i], b - inner[i + 1], b - outer[i + 1], color, color, faded);
+            AddTriangle(a - inner[i], b - outer[i + 1], a - outer[i], color, faded, faded);
+        }
+    }
+
+    /// <summary>
+    /// A filled circle, antialiased: solid to half a pixel inside its edge, fading out to half a pixel beyond it.
+    /// </summary>
+    public void AddSmoothCircle(float2 centre, float radius, float4 color, int segments = 24)
+    {
+        if (color.W <= 0 || radius <= 0)
+            return;
+        var faded = color with { W = 0 };
+        var core = MathF.Max(0, radius - 0.5f);
+        var edge = radius + 0.5f;
+        for (var i = 0; i < segments; i++)
+        {
+            var d0 = new float2(MathF.Cos(MathF.Tau * i / segments), MathF.Sin(MathF.Tau * i / segments));
+            var d1 = new float2(MathF.Cos(MathF.Tau * (i + 1) / segments), MathF.Sin(MathF.Tau * (i + 1) / segments));
+            if (core > 0)
+                AddTriangle(centre, centre + d0 * core, centre + d1 * core, color);
+            AddTriangle(centre + d0 * core, centre + d0 * edge, centre + d1 * edge, color, faded, faded);
+            AddTriangle(centre + d0 * core, centre + d1 * edge, centre + d1 * core, color, faded, color);
+        }
+    }
+
+    /// <summary>
     /// A line in dashes <paramref name="dash"/> pixels long, with gaps as long.
     /// </summary>
     public void AddDashedLine(float2 a, float2 b, float width, float dash, float4 color)

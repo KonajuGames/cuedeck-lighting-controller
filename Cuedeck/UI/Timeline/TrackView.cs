@@ -559,13 +559,13 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
             batch.AddTriangle(p + a, p + new float2(b.X, bottom), p + new float2(a.X, bottom), Fill(a.Y), Fill(bottom), Fill(bottom));
         }
         var pts = line.Select(q => p + q).ToArray();
-        batch.AddPolyline(pts, 1.5f, Theme.TrackLine);
+        batch.AddSmoothPolyline(pts, 1.5f, Theme.TrackLine);
         var (start, length) = View;
         for (var i = 0; i < track.DimmerNodes.Count; i++)
         {
             var n = track.DimmerNodes[i];
             if (n.X >= start && n.X <= start + length)
-                batch.AddCircle(p + new float2((float)TimeToX(n.X), LevelY(ry, rh, n.Y)), i == _hover || i == _drag ? NODE_HOVER_RADIUS : NODE_RADIUS, Theme.TrackLine);
+                batch.AddSmoothCircle(p + new float2((float)TimeToX(n.X), LevelY(ry, rh, n.Y)), i == _hover || i == _drag ? NODE_HOVER_RADIUS : NODE_RADIUS, Theme.TrackLine);
         }
     }
 
