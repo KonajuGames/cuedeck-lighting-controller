@@ -1,6 +1,5 @@
 using Brutal.Numerics;
 using Cuedeck.Audio;
-using Cuedeck.Input;
 using Cuedeck.Timelines;
 
 namespace Cuedeck.UI.Timeline;
@@ -100,8 +99,8 @@ sealed class StructureBar(Font font, SongTimelines timelines, ContextMenu menu) 
         var (w, h) = (Size.X, Size.Y);
         if (Analysis is not { Sections.Count: > 0 } a)
         {
-            batch.AddRect(p, Size, Theme.StructureEmpty);
-            batch.AddText(font, Placeholder, p + new float2(8, (h - font.LineHeight) / 2), Theme.WaveHint);
+            batch.AddRect(p, Size, AppTheme.StructureEmpty);
+            batch.AddText(font, Placeholder, p + new float2(8, (h - font.LineHeight) / 2), AppTheme.WaveHint);
             return;
         }
         batch.PushClip(p, Size);
@@ -112,7 +111,7 @@ sealed class StructureBar(Font font, SongTimelines timelines, ContextMenu menu) 
             var x1 = (float)TimeToX(sec.End);
             if (x1 < 0 || x0 > w)
                 continue;
-            var b = Theme.SectionColours.GetValueOrDefault(sec.Label, new Common.Rgb(0.3f, 0.3f, 0.35f));
+            var b = AppTheme.SectionColours.GetValueOrDefault(sec.Label, new Common.Rgb(0.3f, 0.3f, 0.35f));
             // Lightened by its energy (Godot's lightened(): towards white).
             var e = (float)Math.Clamp(sec.Energy, 0, 1) * 0.35f;
             var col = Colors.FromSrgb(b.R + (1 - b.R) * e, b.G + (1 - b.G) * e, b.B + (1 - b.B) * e);
@@ -121,11 +120,11 @@ sealed class StructureBar(Font font, SongTimelines timelines, ContextMenu menu) 
             batch.AddRect(p + new float2(lx, 0), new float2(Math.Max(rx - lx, 1), h), col);
             var hot = i > 0 && (i - 1 == _dragBorder || i - 1 == _hoverBorder);
             if (x0 >= 0)
-                batch.AddRect(p + new float2(x0 - (hot ? 1 : 0), 0), new float2(hot ? 2 : 1, h), hot ? Theme.SectionBorderHot : Theme.SectionBorder);
+                batch.AddRect(p + new float2(x0 - (hot ? 1 : 0), 0), new float2(hot ? 2 : 1, h), hot ? AppTheme.SectionBorderHot : AppTheme.SectionBorder);
             if (rx - lx > 34)
             {
                 batch.PushClip(p + new float2(lx, 0), new float2(rx - lx - 2, h));
-                batch.AddText(font, sec.Label, p + new float2(lx + 4, (h - font.LineHeight) / 2), Theme.SectionText);
+                batch.AddText(font, sec.Label, p + new float2(lx + 4, (h - font.LineHeight) / 2), AppTheme.SectionText);
                 batch.PopClip();
             }
         }
@@ -137,7 +136,7 @@ sealed class StructureBar(Font font, SongTimelines timelines, ContextMenu menu) 
             {
                 var x = (float)TimeToX(db);
                 if (x >= 0 && x <= w)
-                    batch.AddRect(p + new float2(x, h - 5), new float2(1, 5), Theme.StructureTick);
+                    batch.AddRect(p + new float2(x, h - 5), new float2(1, 5), AppTheme.StructureTick);
             }
         }
         batch.PopClip();

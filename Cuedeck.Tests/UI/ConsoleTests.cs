@@ -1,6 +1,5 @@
 using Brutal.Numerics;
 using Cuedeck.Fixtures;
-using Cuedeck.Input;
 using Cuedeck.Show;
 using Cuedeck.UI;
 using Cuedeck.UI.Console;

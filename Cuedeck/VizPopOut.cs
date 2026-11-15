@@ -1,6 +1,5 @@
 using Brutal.GlfwApi;
 using Brutal.Numerics;
-using Cuedeck.Input;
 using Cuedeck.Rendering;
 using Cuedeck.UI;
 using Cuedeck.UI.Console;
@@ -21,7 +20,7 @@ sealed class VizPopOut : IDisposable
     readonly Fonts _fonts;
     readonly VisualizerView _view;
     readonly ConsoleView _console;
-    readonly Renderer _mainRenderer;
+    readonly ScenePass _mainScene;
     readonly Root _mainUi;
     readonly ContextMenu _mainMenu;
     readonly NamePrompt _mainPrompt;
@@ -31,6 +30,7 @@ sealed class VizPopOut : IDisposable
 
     GlfwWindow? _window;
     Renderer? _renderer;
+    ScenePass? _scene;
     Root? _ui;
     GlfwUiInput? _input;
     ContextMenu? _menu;
@@ -41,7 +41,7 @@ sealed class VizPopOut : IDisposable
         FontAtlas atlas,
         Fonts fonts,
         ConsoleView console,
-        Renderer mainRenderer,
+        ScenePass mainScene,
         Root mainUi,
         ContextMenu mainMenu,
         NamePrompt mainPrompt,
@@ -49,12 +49,12 @@ sealed class VizPopOut : IDisposable
         string statePath
     )
     {
-        (_gpu, _atlas, _fonts, _console, _mainRenderer, _mainUi, _mainMenu, _mainPrompt, _log, _statePath) = (
+        (_gpu, _atlas, _fonts, _console, _mainScene, _mainUi, _mainMenu, _mainPrompt, _log, _statePath) = (
             gpu,
             atlas,
             fonts,
             console,
-            mainRenderer,
+            mainScene,
             mainUi,
             mainMenu,
             mainPrompt,
@@ -106,6 +106,8 @@ sealed class VizPopOut : IDisposable
         }
         _window = window;
         _renderer = new Renderer(_gpu, window, _atlas, surface);
+        _scene = new ScenePass(_gpu);
+        _renderer.PrePass = _scene;
         _ui = new Root { TooltipFont = _fonts.Body };
         _menu = new ContextMenu(_fonts.Body);
         _prompt = new NamePrompt(_ui, _fonts.Body, _fonts.Bold, _fonts.Heading);
@@ -120,8 +122,8 @@ sealed class VizPopOut : IDisposable
         _view.IsShown = () => _window is { IsIconified: false };
         _mainUi.PointerHooks.Remove(_view);
         _ui.PointerHooks.Add(_view);
-        _mainRenderer.Scene = null;
-        _renderer.Scene = _view;
+        _mainScene.Source = null;
+        _scene.Source = _view;
 
         _input = new GlfwUiInput(window, _ui);
         // Its Ctrl+Z / Ctrl+Y.
@@ -144,11 +146,11 @@ sealed class VizPopOut : IDisposable
         SaveState(floating: false);
         _ui!.Elements.Remove(_view);
         _ui.PointerHooks.Remove(_view);
-        _renderer!.Scene = null;
-        _renderer.Dispose();
+        _scene!.Dispose();
+        _renderer!.Dispose();
         _input!.Dispose();
         _window.Dispose();
-        (_window, _renderer, _input, _ui, _menu, _prompt) = (null, null, null, null, null, null);
+        (_window, _renderer, _scene, _input, _ui, _menu, _prompt) = (null, null, null, null, null, null, null);
 
         _view.Root = _mainUi;
         _view.UseDialogs(_mainMenu, _mainPrompt);
@@ -156,7 +158,7 @@ sealed class VizPopOut : IDisposable
         _view.IsShown = _shownDocked;
         _console.AttachVisualizer();
         _mainUi.PointerHooks.Add(_view);
-        _mainRenderer.Scene = _view;
+        _mainScene.Source = _view;
         _log("3D Visualizer docked.");
     }
 
@@ -198,6 +200,7 @@ sealed class VizPopOut : IDisposable
     {
         if (_window is null)
             return;
+        _scene?.Dispose();
         _renderer?.Dispose();
         _input?.Dispose();
         _window.Dispose();

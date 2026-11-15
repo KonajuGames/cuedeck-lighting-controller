@@ -5,7 +5,6 @@ using Brutal.Numerics;
 using Cuedeck.Common;
 using Cuedeck.Dj;
 using Cuedeck.Fixtures;
-using Cuedeck.Input;
 using Cuedeck.Music;
 using Cuedeck.Perform;
 using Cuedeck.Rendering;
@@ -17,6 +16,9 @@ using Cuedeck.UI.Console;
 using Cuedeck.UI.DjEdit;
 
 namespace Cuedeck;
+
+// The show's Cue, not the framework's Cue namespace (a name in the global namespace beats a using's).
+using Cue = Cuedeck.Show.Cue;
 
 /// <summary>
 /// Retakes the user guide's and the README's screenshots from the running app (sLight's

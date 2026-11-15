@@ -4,6 +4,12 @@ A port of sLight (Godot 4 DMX controller, `F:\Git\slight-dmx-controller`, frozen
 C#/.NET 10 + Vulkan UI framework (`F:\Git\cuepoint-dj-controller`, copied from `6f1ee3e`). The plan and phase list
 are in `docs/PORT_PLAN.md`; what was copied from Cuepoint and changed is in `FRAMEWORK.md`. Keep both up to date.
 
+The window, rendering and UI code shared with Cuepoint is the `Cue.Framework` project in the sibling checkout
+`F:\git\cue-framework` (namespaces `Cue.Framework.Window`, `.Rendering`, `.UI`, imported everywhere by the csproj).
+A change there is a change to Cuepoint too: build and test both apps after one. App-only colours go in
+`UI/AppTheme.cs`, not the framework's `Theme`. A file using the show's `Cue` class needs
+`using Cue = Cuedeck.Show.Cue;` after its namespace line, since the framework's `Cue` namespace wins otherwise.
+
 ## Commands
 
 - Build: `dotnet build Cuedeck.slnx`

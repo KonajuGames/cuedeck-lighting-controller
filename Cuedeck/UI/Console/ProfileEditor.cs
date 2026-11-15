@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using Brutal.Numerics;
 using Cuedeck.Fixtures;
-using Cuedeck.Input;
 
 namespace Cuedeck.UI.Console;
 

@@ -22,11 +22,10 @@ Cuepoint is Windows-only (WinMidi, Media Foundation, WASAPI, Win32 window chrome
 ## 2. Project layout
 
 ```
-Cuedeck.slnx
+Cuedeck.slnx             also builds ../cue-framework/Cue.Framework (window, rendering and UI, shared with Cuepoint)
 Cuedeck/                 app (WinExe, net10.0, AssemblyName "Cuedeck")
-  Rendering/             copied from Cuepoint, plus Scene3D/ for the visualizer
-  UI/                    framework widgets copied from Cuepoint, plus new widgets and the panels
-  Input/                 copied from Cuepoint
+  Rendering/             Scene3D and its ScenePass for the visualizer (the renderer itself is the framework's)
+  UI/                    new widgets and the panels (the framework widgets are in cue-framework)
   Dmx/                   universes, Art-Net, sACN, USB DMX, compositing
   Show/                  cues, chases, effects, palettes, positions, groups, show file
   Fixtures/              profiles, library, GDTF/QXF import, MVR
@@ -34,7 +33,7 @@ Cuedeck/                 app (WinExe, net10.0, AssemblyName "Cuedeck")
   Audio/                 decoding and analysis (from Cuepoint), live capture, sound reactors, tempo clock
   Dj/                    OS2L server, DJ performer, VirtualDJ and Cuepoint libraries
   Triggers/              MIDI/OSC triggers and feedback
-  Shaders/               ui.vert/frag (copied) plus scene shaders
+  Shaders/               scene shaders (ui.vert/frag come with the framework)
   Assets/                icons (redrawn with Cuepoint's draw_assets.py approach)
   Fixtures/lib/          the JSON fixture library, copied as content
 Cuedeck.Tests/           xUnit

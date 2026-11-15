@@ -1,7 +1,6 @@
 using Brutal.Numerics;
 using Cuedeck.Audio;
 using Cuedeck.Common;
-using Cuedeck.Input;
 
 namespace Cuedeck.UI.Timeline;
 
@@ -223,13 +222,13 @@ sealed class WaveView : Element
         var (w, h) = (Size.X, Size.Y);
         if (Analysis is not { HasWave: true } a)
         {
-            batch.AddRect(p, Size, BackgroundColor.W > 0 ? BackgroundColor : Theme.WaveEmpty);
+            batch.AddRect(p, Size, BackgroundColor.W > 0 ? BackgroundColor : AppTheme.WaveEmpty);
             if (Progress >= 0)
             {
-                batch.AddRect(p, new float2(w * (float)Math.Clamp(Progress, 0, 1), h), Theme.WaveProgress);
+                batch.AddRect(p, new float2(w * (float)Math.Clamp(Progress, 0, 1), h), AppTheme.WaveProgress);
                 return;
             }
-            batch.AddText(_font, "analyse a song to see its waveform", p + new float2(8, h * 0.5f - _font.LineHeight / 2), Theme.WaveHint);
+            batch.AddText(_font, "analyse a song to see its waveform", p + new float2(8, h * 0.5f - _font.LineHeight / 2), AppTheme.WaveHint);
             return;
         }
         batch.PushClip(p, Size);
@@ -242,18 +241,18 @@ sealed class WaveView : Element
                 continue;
             var x0 = (float)TimeToX(sec.Start);
             var x1 = (float)TimeToX(sec.End);
-            var tint = Theme.SectionColours.TryGetValue(sec.Label, out var c) ? Colors.FromSrgb(c.R, c.G, c.B, 0.16f) : Theme.Fade(Theme.SectionUnknown, 0.16f);
+            var tint = AppTheme.SectionColours.TryGetValue(sec.Label, out var c) ? Colors.FromSrgb(c.R, c.G, c.B, 0.16f) : Theme.Fade(AppTheme.SectionUnknown, 0.16f);
             batch.AddRect(p + new float2(x0, 0), new float2(Math.Max(x1 - x0, 1), h), tint);
         }
         // The grid first, so the wave sits in front of it.
         foreach (var (x, isBar) in GridLines(t0, t1))
-            batch.AddRect(p + new float2((float)x - (isBar ? 1 : 0.5f), 0), new float2(isBar ? 2 : 1, h), isBar ? Theme.TimelineBarLine : Theme.TimelineBeatLine);
+            batch.AddRect(p + new float2((float)x - (isBar ? 1 : 0.5f), 0), new float2(isBar ? 2 : 1, h), isBar ? AppTheme.TimelineBarLine : AppTheme.TimelineBeatLine);
         DrawWave(batch, w, h, t0, t1);
         foreach (var db in a.Downbeats)
         {
             if (db < t0 || db > t1)
                 continue;
-            batch.AddRect(p + new float2((float)TimeToX(db), h - 4), new float2(1, 4), Theme.WaveDownbeat);
+            batch.AddRect(p + new float2((float)TimeToX(db), h - 4), new float2(1, 4), AppTheme.WaveDownbeat);
         }
         if (ShowCursor && SongPos >= t0 && SongPos <= t1)
             batch.AddRect(p + new float2((float)TimeToX(SongPos) - 1, 0), new float2(2, h), CursorColor);
@@ -278,9 +277,9 @@ sealed class WaveView : Element
         var c0 = Math.Clamp((int)Math.Floor(t0 / colDur), 0, n - 1);
         var c1 = Math.Clamp((int)Math.Ceiling(t1 / colDur), c0 + 1, n);
         var midY = h * 0.5f;
-        var bass = Theme.WaveBass;
-        var mids = Theme.WaveMid;
-        var air = Theme.WaveAir;
+        var bass = AppTheme.WaveBass;
+        var mids = AppTheme.WaveMid;
+        var air = AppTheme.WaveAir;
         for (var c = c0; c < c1; c++)
         {
             var x0 = (float)TimeToX(c * colDur);
@@ -290,7 +289,7 @@ sealed class WaveView : Element
             var m = mid[c] * mid[c];
             var ai = hi[c] * hi[c] * 1.3f;
             var sum = l + m + ai;
-            var col = sum > 0.0001f ? (bass * l + mids * m + air * ai) / sum : Theme.WaveNeutral;
+            var col = sum > 0.0001f ? (bass * l + mids * m + air * ai) / sum : AppTheme.WaveNeutral;
             col = col with { W = 1 };
             var half = MathF.Sqrt(Math.Clamp(pk[c], 0, 1)) * (midY - 1);
             var tip = col with { W = 0.6f };

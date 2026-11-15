@@ -163,7 +163,7 @@ sealed class DjEditView : Region
         List.ItemActivated += OpenTrack;
         List.ItemsSecondaryClicked += (rows, at) => _menu.Show(at, TrackMenu(rows));
         List.RowProgress = r => Browser.Progress(r.Path) is { } f ? (float)f : null;
-        List.ProgressColor = Theme.RegenerateProgress;
+        List.ProgressColor = AppTheme.RegenerateProgress;
         Add(timeline);
         timeline.Visible = false;
         Add(editor);
@@ -208,7 +208,7 @@ sealed class DjEditView : Region
 
     void AddColumns()
     {
-        float4? Missing(MusicRow r) => r.Missing ? Theme.MusicMissing : null;
+        float4? Missing(MusicRow r) => r.Missing ? AppTheme.MusicMissing : null;
         void Column(MusicColumn c, string title, float width, Func<MusicRow, string> text, bool right = false)
         {
             var col = new ListColumn<MusicRow>(title, width, text) { AlignRight = right, SortKey = _ => 0, Color = Missing };
@@ -217,7 +217,7 @@ sealed class DjEditView : Region
                 {
                     SortKey = _ => 0,
                     Color = Missing,
-                    Icon = r => (_images.Timeline, Browser.HasTimelinesMark(r.Path) ? Browser.IsTemporaryMark(r.Path) ? Theme.TemporaryMark : Theme.TimelineMark : Colors.Transparent),
+                    Icon = r => (_images.Timeline, Browser.HasTimelinesMark(r.Path) ? Browser.IsTemporaryMark(r.Path) ? AppTheme.TemporaryMark : AppTheme.TimelineMark : Colors.Transparent),
                 };
             _columns[c] = col;
             List.Columns.Add(col);
@@ -465,7 +465,7 @@ sealed class DjEditView : Region
         [
             new("Open Timeline", () => OpenTrack(row), !row.Missing),
             new("Show in File Explorer", () => ShowInExplorer(row.Path), !row.Missing),
-            new("Copy Path", () => UI.Clipboard.SetText(row.Path)),
+            new("Copy Path", () => Clipboard.SetText(row.Path)),
             new($"Regenerate Lighting Timelines{(n > 1 ? $" ({n} songs)" : "")}", () => Browser.Regenerate(regenerable), n > 0 && saved),
             new("Remove Lighting Timelines…", () => ConfirmRemoveTimelines(row), Browser.HasTimelinesMark(row.Path)),
         ];
@@ -513,10 +513,10 @@ sealed class DjEditView : Region
         _songRow.Enabled = open;
         _songRow.Lit = open && Timeline.Visible;
         Editor.Showing = Visible && Editor.Visible;
-        _songMark = temporary ? Theme.TemporaryMark : Theme.TimelineMark;
+        _songMark = temporary ? AppTheme.TemporaryMark : AppTheme.TimelineMark;
     }
 
-    float4 _songMark = Theme.TimelineMark;
+    float4 _songMark = AppTheme.TimelineMark;
 
     // ----------------------------------------------------------------- layout --
 

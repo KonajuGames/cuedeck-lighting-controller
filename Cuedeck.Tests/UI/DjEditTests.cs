@@ -4,7 +4,6 @@ using Cuedeck.Audio;
 using Cuedeck.Common;
 using Cuedeck.Dj;
 using Cuedeck.Fixtures;
-using Cuedeck.Input;
 using Cuedeck.Music;
 using Cuedeck.Show;
 using Cuedeck.Timelines;
@@ -205,7 +204,7 @@ public sealed class DjEditTests : IDisposable
         Assert.False(_browser.HasTimelinesMark(songs + "/d.mp3")); // same size, another song
         var title = _view.List.Columns[1];
         var (img, tint) = title.Icon!(_browser.RowFor(songs + "/a.mp3")!)!.Value;
-        Assert.True(img.Size.X == 16 + Images.TIMELINE_GAP && tint == Theme.TimelineMark); // the node line before its title
+        Assert.True(img.Size.X == 16 + Images.TIMELINE_GAP && tint == AppTheme.TimelineMark); // the node line before its title
         Assert.Equal(Colors.Transparent, title.Icon(_browser.RowFor(songs + "/c.mp3")!)!.Value.Tint); // a blank, so titles line up
         // Saving a song's timelines marks it.
         _tl.Open(songs + "/c.mp3");

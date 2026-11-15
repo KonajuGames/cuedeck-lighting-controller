@@ -104,7 +104,7 @@ public sealed class CuesTabTests : ConsoleHarness
         var label = Find<TextBox>(t => t.Text == "Cue 1");
         Click(label);
         foreach (var _ in "Cue 1")
-            Ui.KeyDown(Cuedeck.Input.Key.Backspace, Cuedeck.Input.Modifiers.None);
+            Ui.KeyDown(Key.Backspace, Modifiers.None);
         Type("Warm wash");
         Assert.Equal("Warm wash", Show.Cues.Cues[0].Label);
 

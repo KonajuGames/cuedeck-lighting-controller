@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="../cue-framework/Cue.Framework/Cue.Framework.csproj" />
   <Project Path="Cuedeck/Cuedeck.csproj" />
   <Project Path="Cuedeck.Tests/Cuedeck.Tests.csproj" />
 </Solution>

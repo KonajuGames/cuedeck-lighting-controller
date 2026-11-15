@@ -1,8 +1,17 @@
 # Where the framework came from
 
 Cuedeck's UI, rendering and window code was copied from [Cuepoint](../cuepoint-dj-controller) at commit
-`6f1ee3e` ("Add Auto-Mix…"), with the namespace `Brutality` renamed to `Cuedeck`. The two apps change
-independently from here on; when a fix lands in one that the other needs, port it across by hand and note it below.
+`6f1ee3e` ("Add Auto-Mix…"), with the namespace `Brutality` renamed to `Cuedeck`.
+
+**Since 2026-11-15 the part both apps share lives in [cue-framework](../cue-framework)** (the `Cue.Framework`
+project, in the namespaces `Cue.Framework.Window`, `.Rendering` and `.UI`), taken from Cuedeck at `04a3cdd`, and
+Cuepoint and Cuedeck both build on it. Change it there, for both apps; its README says what moved and what stayed.
+The lists below are the history up to then: what's marked as changed in `Rendering/*`, `Input/*`, `Shaders/ui.*`,
+the shared `UI/` controls, `WindowChrome`, `WindowsShell` and `ErrorLog` is now the framework's, while
+`UI/TitleBar.cs`, `UI/Images.cs`, `UI/MainScreen.cs` and the Cuedeck-only widgets (`Layout`, `TabView`,
+`NumberBox`, `ColourPicker`) are still Cuedeck's. `UI/Theme.cs` was split: the shared colours are the framework's
+`Theme`, Cuedeck's own are `UI/AppTheme.cs`. The 3D pass moved out of the renderer into `Rendering/ScenePass.cs`,
+given to the framework's `Renderer` as its `PrePass`.
 
 The port's source, sLight, is frozen at commit `406366d` of `slight-dmx-controller`.
 

@@ -1,7 +1,6 @@
 using System.Numerics;
 using Brutal.Numerics;
 using Cuedeck.Common;
-using Cuedeck.Input;
 using Cuedeck.Show;
 using Cuedeck.UI;
 using Cuedeck.UI.Visualizer;
@@ -160,7 +159,7 @@ public sealed class VisualizerTabTests : ConsoleHarness
         var (w, h) = ((int)size.X, (int)size.Y);
         source.Captured(w, h, new byte[w * h * 4]);
         var shot = Assert.Single(Directory.GetFiles(_viz.RenderFolder, "shot_*.png"));
-        Assert.Equal(w, Cuedeck.UI.Png.Decode(File.ReadAllBytes(shot)).Width);
+        Assert.Equal(w, Png.Decode(File.ReadAllBytes(shot)).Width);
         Assert.StartsWith("Saved shot_", Screen.StatusText);
         Assert.Equal([_viz.RenderFolder], opened);
 

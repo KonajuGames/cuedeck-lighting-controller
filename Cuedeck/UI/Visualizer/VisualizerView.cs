@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Numerics;
 using Brutal.Numerics;
 using Cuedeck.Fixtures;
-using Cuedeck.Input;
 using Cuedeck.Rendering;
 using Cuedeck.Show;
 using Cuedeck.UI.Console;

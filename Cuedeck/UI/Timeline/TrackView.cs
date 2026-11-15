@@ -1,6 +1,5 @@
 using System.Numerics;
 using Brutal.Numerics;
-using Cuedeck.Input;
 using Cuedeck.Timelines;
 
 namespace Cuedeck.UI.Timeline;
@@ -85,7 +84,7 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
     /// <summary>
     /// Its fixture's colour on the collapsed bar (as on its name plate).
     /// </summary>
-    public float4 PlateFill { get; set; } = Theme.PlateFill;
+    public float4 PlateFill { get; set; } = AppTheme.PlateFill;
 
     /// <summary>
     /// The screen rectangle it may draw in (the fixtures' scroll panel), or null for anywhere.
@@ -433,8 +432,8 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
         foreach (var row in track.Rows)
         {
             var (ry, rh) = RowRect(row);
-            batch.AddRect(p + new float2(0, ry), new float2(Size.X, rh), i % 2 == 0 ? Theme.TrackRowA : Theme.TrackRowB);
-            batch.AddRect(p + new float2(0, ry), new float2(Size.X, 1), Theme.TrackSeparator);
+            batch.AddRect(p + new float2(0, ry), new float2(Size.X, rh), i % 2 == 0 ? AppTheme.TrackRowA : AppTheme.TrackRowB);
+            batch.AddRect(p + new float2(0, ry), new float2(Size.X, 1), AppTheme.TrackSeparator);
             i++;
         }
         DrawGrid(batch);
@@ -450,7 +449,7 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
                     DrawColour(batch, ry, rh, track.ColourSegments, 0, 1);
                     break;
                 case TimelineRow.Strobe:
-                    DrawStrobe(batch, ry, rh, track.StrobeSegments, 0, Theme.TrackStrobe);
+                    DrawStrobe(batch, ry, rh, track.StrobeSegments, 0, AppTheme.TrackStrobe);
                     break;
                 case TimelineRow.Position:
                     DrawPosition(batch, ry, rh, track.PositionSegments, 0, 1);
@@ -462,7 +461,7 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
             var font = row == TimelineRow.Dimmer ? label : small;
             var band = Math.Min(rh, 14);
             if (font.LineHeight <= rh + 2)
-                batch.AddText(font, TimelineTrack.RowNames[row], p + new float2(4, ry + (band - font.LineHeight) / 2), Theme.TrackRowName);
+                batch.AddText(font, TimelineTrack.RowNames[row], p + new float2(4, ry + (band - font.LineHeight) / 2), AppTheme.TrackRowName);
             if (track.Ghost is not null)
                 DrawGhost(batch, row, ry, rh);
             DrawSelection(batch, row, ry, rh);
@@ -471,7 +470,7 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
         if (x >= 0)
             batch.AddRect(p + new float2((float)x - 1, 0), new float2(2, Size.Y), host.Wave.CursorColor);
         if (track.Silenced)
-            batch.AddRect(p, Size, Theme.TrackSilenced);
+            batch.AddRect(p, Size, AppTheme.TrackSilenced);
         batch.PopClip();
     }
 
@@ -479,13 +478,13 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
     {
         var fill = track.Target == TimelineTarget.Head ? NamePlate.Darken(PlateFill) : PlateFill;
         batch.AddRect(ScreenPosition, Size, fill);
-        batch.AddBorder(ScreenPosition, Size, 1, Theme.PlateBorder);
+        batch.AddBorder(ScreenPosition, Size, 1, AppTheme.PlateBorder);
         foreach (var b in NamePlate.ButtonsFor(track))
             if (CollapsedButtonRect(b) is { } r)
                 NamePlate.DrawButton(batch, small, ScreenPosition + r.Pos, r.Size, b, b == NamePlate.MUTE ? track.Mute : track.Solo);
         var room = (CollapsedButtonRect(NamePlate.MUTE)?.Pos.X ?? Size.X) - 12;
         batch.PushClip(ScreenPosition, new float2(Math.Max(room + 6, 0), Size.Y));
-        batch.AddText(label, CollapsedName, ScreenPosition + new float2(6, (Size.Y - label.LineHeight) / 2), track.Silenced ? Theme.Fade(Theme.PlateText, 0.4f) : Theme.PlateText);
+        batch.AddText(label, CollapsedName, ScreenPosition + new float2(6, (Size.Y - label.LineHeight) / 2), track.Silenced ? Theme.Fade(AppTheme.PlateText, 0.4f) : AppTheme.PlateText);
         batch.PopClip();
     }
 
@@ -498,7 +497,7 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
         // The waveform's lines, at the track's scale.
         var scale = Size.X / Math.Max(w.Size.X > 0 ? w.Size.X : w.Want.X, 1);
         foreach (var (x, isBar) in w.GridLines(start, start + length))
-            batch.AddRect(ScreenPosition + new float2((float)(x * scale), 0), new float2(1, Size.Y), isBar ? Theme.TrackGridBar : Theme.TrackGridBeat);
+            batch.AddRect(ScreenPosition + new float2((float)(x * scale), 0), new float2(1, Size.Y), isBar ? AppTheme.TrackGridBar : AppTheme.TrackGridBeat);
     }
 
     void DrawSelection(Batch batch, TimelineRow row, float ry, float rh)
@@ -510,12 +509,12 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
                 continue;
             var x0 = (float)Math.Clamp(TimeToX(t0), 0, Size.X);
             var x1 = (float)Math.Clamp(TimeToX(t1), 0, Size.X);
-            batch.AddRect(p + new float2(x0, ry), new float2(Math.Max(x1 - x0, 1), rh), Theme.TrackSelectFill);
+            batch.AddRect(p + new float2(x0, ry), new float2(Math.Max(x1 - x0, 1), rh), AppTheme.TrackSelectFill);
             foreach (var t in new[] { t0, t1 })
             {
                 var x = (float)TimeToX(t);
                 if (x >= 0 && x <= Size.X)
-                    batch.AddRect(p + new float2(x, ry), new float2(1, rh), Theme.TrackSelectEdge);
+                    batch.AddRect(p + new float2(x, ry), new float2(1, rh), AppTheme.TrackSelectEdge);
             }
         }
     }
@@ -559,13 +558,13 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
             batch.AddTriangle(p + a, p + new float2(b.X, bottom), p + new float2(a.X, bottom), Fill(a.Y), Fill(bottom), Fill(bottom));
         }
         var pts = line.Select(q => p + q).ToArray();
-        batch.AddSmoothPolyline(pts, 1.5f, Theme.TrackLine);
+        batch.AddSmoothPolyline(pts, 1.5f, AppTheme.TrackLine);
         var (start, length) = View;
         for (var i = 0; i < track.DimmerNodes.Count; i++)
         {
             var n = track.DimmerNodes[i];
             if (n.X >= start && n.X <= start + length)
-                batch.AddSmoothCircle(p + new float2((float)TimeToX(n.X), LevelY(ry, rh, n.Y)), i == _hover || i == _drag ? NODE_HOVER_RADIUS : NODE_RADIUS, Theme.TrackLine);
+                batch.AddSmoothCircle(p + new float2((float)TimeToX(n.X), LevelY(ry, rh, n.Y)), i == _hover || i == _drag ? NODE_HOVER_RADIUS : NODE_RADIUS, AppTheme.TrackLine);
         }
     }
 
@@ -637,7 +636,7 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
             var (a, b) = (sg.T0 + shift, sg.T1 + shift);
             if (b < start || a > start + length)
                 continue;
-            var col = host.PositionColour(sg.Position) ?? Theme.TrackPositionGone;
+            var col = host.PositionColour(sg.Position) ?? AppTheme.TrackPositionGone;
             col = Theme.Fade(col, alpha);
             var faint = Theme.Fade(col, 0.7f);
             var x0 = (float)TimeToX(a);
@@ -659,7 +658,7 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
         var p = ScreenPosition;
         var mid = ry + rh * 0.5f;
         var rad = (rh - 2) * 0.5f;
-        var col = Theme.Fade(Theme.TrackMovement, alpha);
+        var col = Theme.Fade(AppTheme.TrackMovement, alpha);
         var faint = Theme.Fade(col, 0.6f);
         foreach (var sg in segs)
         {
@@ -714,7 +713,7 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
             var x0 = (float)Math.Clamp(TimeToX(ghost.From + part.T0), 0, Size.X);
             var x1 = (float)Math.Clamp(TimeToX(ghost.From + part.T1), 0, Size.X);
             if (x1 > x0)
-                batch.AddRect(p + new float2(x0, ry), new float2(x1 - x0, rh), Theme.TrackGhostDim);
+                batch.AddRect(p + new float2(x0, ry), new float2(x1 - x0, rh), AppTheme.TrackGhostDim);
         }
         foreach (var part in parts)
         {
@@ -728,11 +727,11 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
                 {
                     batch.AddTriangle(line[k], line[k + 1], new float2(line[k + 1].X, bottom), fill);
                     batch.AddTriangle(line[k], new float2(line[k + 1].X, bottom), new float2(line[k].X, bottom), fill);
-                    batch.AddDashedLine(line[k], line[k + 1], 1.5f, 4, Theme.TrackGhostLine);
+                    batch.AddDashedLine(line[k], line[k + 1], 1.5f, 4, AppTheme.TrackGhostLine);
                 }
             }
             if (part.Strobes is { } strobes)
-                DrawStrobe(batch, ry, rh, strobes, start, Theme.TrackGhostLine);
+                DrawStrobe(batch, ry, rh, strobes, start, AppTheme.TrackGhostLine);
             if (part.Positions is { } positions)
                 DrawPosition(batch, ry, rh, positions, start, 0.6f);
             if (part.Movements is { } movements)
@@ -741,7 +740,7 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
                 DrawColour(batch, ry, rh, colours, start, 0.6f);
             var gx0 = (float)TimeToX(start);
             var gx1 = (float)TimeToX(ghost.At + part.T1);
-            batch.AddBorder(p + new float2(gx0, ry), new float2(Math.Max(gx1 - gx0, 1), rh), 1, Theme.TrackGhostLine);
+            batch.AddBorder(p + new float2(gx0, ry), new float2(Math.Max(gx1 - gx0, 1), rh), 1, AppTheme.TrackGhostLine);
         }
     }
 }
@@ -770,7 +769,7 @@ sealed class NamePlate(Font font, Font small, SongTimelines timelines, TimelineT
     /// <summary>
     /// The plate's colour: its fixture's model colour.
     /// </summary>
-    public float4 Fill { get; set; } = Theme.PlateFill;
+    public float4 Fill { get; set; } = AppTheme.PlateFill;
 
     public override bool IsInteractive => true;
 
@@ -862,18 +861,18 @@ sealed class NamePlate(Font font, Font small, SongTimelines timelines, TimelineT
 
     public static void DrawButton(Batch batch, Font font, float2 pos, float2 size, int which, bool on)
     {
-        batch.AddRect(pos, size, on ? which == MUTE ? Theme.PlateMuteOn : Theme.PlateSoloOn : Theme.PlateButtonOff);
-        batch.AddBorder(pos, size, 1, Theme.PlateBorder);
+        batch.AddRect(pos, size, on ? which == MUTE ? AppTheme.PlateMuteOn : AppTheme.PlateSoloOn : AppTheme.PlateButtonOff);
+        batch.AddBorder(pos, size, 1, AppTheme.PlateBorder);
         var letter = which == MUTE ? "M" : "S";
         var m = font.Measure(letter);
-        batch.AddText(font, letter, pos + (size - m) / 2, on ? Theme.PlateButtonTextOn : Theme.PlateText);
+        batch.AddText(font, letter, pos + (size - m) / 2, on ? AppTheme.PlateButtonTextOn : AppTheme.PlateText);
     }
 
     public override void Draw(Batch batch)
     {
         var p = ScreenPosition;
         batch.AddRect(p, Size, track.Target == TimelineTarget.Head ? Darken(Fill) : Fill);
-        batch.AddBorder(p, Size, 1, Theme.PlateBorder);
+        batch.AddBorder(p, Size, 1, AppTheme.PlateBorder);
         foreach (var b in Buttons)
             if (ButtonRect(b) is { } r)
                 DrawButton(batch, small, p + r.Pos, r.Size, b, b == MUTE ? track.Mute : track.Solo);
@@ -884,7 +883,7 @@ sealed class NamePlate(Font font, Font small, SongTimelines timelines, TimelineT
         // further line to the right of the one before; trimmed if it's too long.
         var (ny, nh) = NameRect();
         var room = MathF.Max(nh - 8, 0);
-        var colour = track.Silenced ? Theme.Fade(Theme.PlateText, 0.4f) : Theme.PlateText;
+        var colour = track.Silenced ? Theme.Fade(AppTheme.PlateText, 0.4f) : AppTheme.PlateText;
         var centre = p + new float2(Size.X / 2, ny + nh / 2);
         var x = centre.X - font.LineHeight * lines.Length / 2;
         batch.PushClip(p + new float2(0, ny + 4), new float2(Size.X, room));

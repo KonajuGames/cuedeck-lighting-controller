@@ -161,14 +161,14 @@ sealed class NumberBox : Row
 
         public override bool Wheel(float2 notches) => owner.Wheel(notches);
 
-        public override bool KeyDown(Input.Key key, Input.Modifiers modifiers)
+        public override bool KeyDown(Key key, Modifiers modifiers)
         {
             switch (key)
             {
-                case Input.Key.Up:
+                case Key.Up:
                     owner.Nudge(1);
                     return true;
-                case Input.Key.Down:
+                case Key.Down:
                     owner.Nudge(-1);
                     return true;
                 default:

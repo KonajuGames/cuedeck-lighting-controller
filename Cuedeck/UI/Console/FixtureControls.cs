@@ -3,7 +3,6 @@ using Brutal.Numerics;
 using Cuedeck.Common;
 using Cuedeck.Dmx;
 using Cuedeck.Fixtures;
-using Cuedeck.Input;
 using Cuedeck.Show;
 
 namespace Cuedeck.UI.Console;

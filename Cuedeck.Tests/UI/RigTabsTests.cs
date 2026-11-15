@@ -5,6 +5,9 @@ using Cuedeck.UI.Console;
 
 namespace Cuedeck.Tests.UI;
 
+// The show's Cue, not the framework's Cue namespace (a name in the global namespace beats a using's).
+using Cue = Cuedeck.Show.Cue;
+
 /// <summary>
 /// The Faders, Palettes and DMX Output tabs, clicked through.
 /// </summary>
@@ -31,8 +34,8 @@ public sealed class RigTabsTests : ConsoleHarness
         // Dragging the fader half way up.
         var slider = All(strip).OfType<Slider>().Single();
         Ui.MouseMove(slider.ScreenPosition + slider.Size / 2);
-        Ui.MouseButton(Cuedeck.Input.MouseButton.Left, down: true);
-        Ui.MouseButton(Cuedeck.Input.MouseButton.Left, down: false);
+        Ui.MouseButton(MouseButton.Left, down: true);
+        Ui.MouseButton(MouseButton.Left, down: false);
         Frame();
         Assert.InRange(fader.Level, 0.4, 0.6);
         Show.Dmx.Tick(false);
@@ -97,8 +100,8 @@ public sealed class RigTabsTests : ConsoleHarness
 
         // Right-click forgets.
         Ui.MouseMove(learned.ScreenPosition + learned.Size / 2);
-        Ui.MouseButton(Cuedeck.Input.MouseButton.Right, down: true);
-        Ui.MouseButton(Cuedeck.Input.MouseButton.Right, down: false);
+        Ui.MouseButton(MouseButton.Right, down: true);
+        Ui.MouseButton(MouseButton.Right, down: false);
         Frame();
         Assert.False(Show.Faders.Faders[0].IsMapped);
     }
@@ -132,8 +135,8 @@ public sealed class RigTabsTests : ConsoleHarness
         u.SetChannel(2, 255);
         var b = ButtonCalled("Colour 1");
         Ui.MouseMove(b.ScreenPosition + b.Size / 2);
-        Ui.MouseButton(Cuedeck.Input.MouseButton.Right, down: true);
-        Ui.MouseButton(Cuedeck.Input.MouseButton.Right, down: false);
+        Ui.MouseButton(MouseButton.Right, down: true);
+        Ui.MouseButton(MouseButton.Right, down: false);
         Frame();
         Click(ButtonCalled("Update from Live"));
         Assert.Equal(255, Show.Cues.StandingLook(1)!.Level(0, 2));
@@ -141,8 +144,8 @@ public sealed class RigTabsTests : ConsoleHarness
 
         b = ButtonCalled("Colour 1");
         Ui.MouseMove(b.ScreenPosition + b.Size / 2);
-        Ui.MouseButton(Cuedeck.Input.MouseButton.Right, down: true);
-        Ui.MouseButton(Cuedeck.Input.MouseButton.Right, down: false);
+        Ui.MouseButton(MouseButton.Right, down: true);
+        Ui.MouseButton(MouseButton.Right, down: false);
         Frame();
         Click(ButtonCalled("Delete…"));
         Click(ButtonCalled("Delete"));

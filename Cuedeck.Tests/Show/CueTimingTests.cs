@@ -4,6 +4,9 @@ using Cuedeck.Show;
 
 namespace Cuedeck.Tests.Show;
 
+// The show's Cue, not the framework's Cue namespace (a name in the global namespace beats a using's).
+using Cue = Cuedeck.Show.Cue;
+
 /// <summary>
 /// sLight's cue_timing_test.gd: fades, delays and follows, and what takes over from them. (How the cue list shows
 /// them comes with the Cues tab.)

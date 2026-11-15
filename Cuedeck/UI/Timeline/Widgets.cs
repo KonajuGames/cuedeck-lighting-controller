@@ -1,6 +1,5 @@
 using Brutal.Numerics;
 using Cuedeck.Common;
-using Cuedeck.Input;
 
 namespace Cuedeck.UI.Timeline;
 
@@ -54,10 +53,10 @@ sealed class ViewBox : Element
             return;
         var (x, w) = BoxSpan();
         var p = ScreenPosition;
-        batch.AddRect(p, new float2(x, Size.Y), Theme.ViewBoxDim);
-        batch.AddRect(p + new float2(x + w, 0), new float2(Size.X - x - w, Size.Y), Theme.ViewBoxDim);
-        batch.AddRect(p + new float2(x, 0), new float2(w, Size.Y), Theme.ViewBoxFill);
-        batch.AddBorder(p + new float2(x, 0), new float2(w, Size.Y), 1.5f, Theme.ViewBoxEdge);
+        batch.AddRect(p, new float2(x, Size.Y), AppTheme.ViewBoxDim);
+        batch.AddRect(p + new float2(x + w, 0), new float2(Size.X - x - w, Size.Y), AppTheme.ViewBoxDim);
+        batch.AddRect(p + new float2(x, 0), new float2(w, Size.Y), AppTheme.ViewBoxFill);
+        batch.AddBorder(p + new float2(x, 0), new float2(w, Size.Y), 1.5f, AppTheme.ViewBoxEdge);
     }
 
     public override void PointerDown(float2 point, Modifiers modifiers)
@@ -178,22 +177,22 @@ sealed class BarRuler(Font font, WaveView wave) : Element
     {
         var p = ScreenPosition;
         var h = Size.Y;
-        batch.AddRect(p, Size, Theme.RulerBackground);
+        batch.AddRect(p, Size, AppTheme.RulerBackground);
         if (wave.Analysis is null)
             return;
         batch.PushClip(p, Size);
         foreach (var (x, isBar) in Ticks())
         {
             var top = isBar ? h * 0.6f : h * 0.75f;
-            batch.AddRect(p + new float2((float)x, top), new float2(1, h - top), isBar ? Theme.RulerTick : Theme.RulerBeatTick);
+            batch.AddRect(p + new float2((float)x, top), new float2(1, h - top), isBar ? AppTheme.RulerTick : AppTheme.RulerBeatTick);
         }
         foreach (var (x, n) in BarLabels())
         {
-            batch.AddRect(p + new float2((float)x, h * 0.45f), new float2(1, h * 0.55f), Theme.RulerTick);
-            batch.AddText(font, n.ToString(System.Globalization.CultureInfo.InvariantCulture), p + new float2((float)x + 3, h - 3 - font.LineHeight), Theme.RulerText);
+            batch.AddRect(p + new float2((float)x, h * 0.45f), new float2(1, h * 0.55f), AppTheme.RulerTick);
+            batch.AddText(font, n.ToString(System.Globalization.CultureInfo.InvariantCulture), p + new float2((float)x + 3, h - 3 - font.LineHeight), AppTheme.RulerText);
         }
         foreach (var x in PhraseTicks())
-            batch.AddRect(p + new float2((float)x, h * 0.45f), new float2(1, h * 0.3f), Theme.RulerPhraseTick);
+            batch.AddRect(p + new float2((float)x, h * 0.45f), new float2(1, h * 0.3f), AppTheme.RulerPhraseTick);
         if (wave.ShowCursor && wave.SongPos >= wave.ViewStart && wave.SongPos <= wave.ViewStart + wave.VisibleLength())
         {
             var x = (float)wave.TimeToX(wave.SongPos);

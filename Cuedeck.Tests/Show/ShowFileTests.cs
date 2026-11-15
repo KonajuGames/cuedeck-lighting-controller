@@ -7,6 +7,9 @@ using Cuedeck.Show;
 
 namespace Cuedeck.Tests.Show;
 
+// The show's Cue, not the framework's Cue namespace (a name in the global namespace beats a using's).
+using Cue = Cuedeck.Show.Cue;
+
 /// <summary>
 /// sLight's show_file_test.gd and unsaved_changes_test.gd, through the show and its session rather than the shell:
 /// saving and loading everything, older files, refused files, groups by uid, New Show and unsaved changes. (The parts

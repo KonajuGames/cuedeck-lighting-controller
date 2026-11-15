@@ -5,6 +5,9 @@ using Cuedeck.Show;
 
 namespace Cuedeck.Tests.Golden;
 
+// The show's Cue, not the framework's Cue namespace (a name in the global namespace beats a using's).
+using Cue = Cuedeck.Show.Cue;
+
 /// <summary>
 /// A show and a script of things to do to it, played frame by frame both here and in sLight
 /// (tools/slight_frames.gd), so the two apps' DMX output can be compared byte for byte.

@@ -68,7 +68,9 @@ lists what it does.
 
 ## Running it
 
-You need Windows, the .NET 10 SDK and a GPU with Vulkan 1.3 drivers.
+You need Windows, the .NET 10 SDK and a GPU with Vulkan 1.3 drivers, and
+[cue-framework](https://github.com/KonajuGames/cue-framework) checked out beside this repository (as `..\cue-framework`), for the window,
+rendering and UI code Cuedeck shares with Cuepoint.
 
 ```bash
 dotnet run --project Cuedeck

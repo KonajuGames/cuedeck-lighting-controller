@@ -4,7 +4,6 @@ using Cuedeck.Audio;
 using Cuedeck.Common;
 using Cuedeck.Dj;
 using Cuedeck.Fixtures;
-using Cuedeck.Input;
 using Cuedeck.Show;
 using Cuedeck.Timelines;
 using Cuedeck.UI;
@@ -530,7 +529,7 @@ public sealed class TimelineViewTests : IDisposable
         var w = _view.Wave;
         var (play, reset) = (_view.PlayButton, _view.ResetButton);
         Assert.True(_view.CanPlay && !play.Disabled && !reset.Disabled && play.Glyph == TransportGlyph.Play);
-        Assert.True(w.ShowCursor && w.CursorColor == Theme.TimelinePlayhead && _view.Overview.ShowCursor && w.SongPos == 0);
+        Assert.True(w.ShowCursor && w.CursorColor == AppTheme.TimelinePlayhead && _view.Overview.ShowCursor && w.SongPos == 0);
         Assert.True(w.GridBeats.Length == 80 && Gd.ApproxEqual(w.GridBeats[0], 0.25) && w.BarPhase == 0); // VirtualDJ's grid
         Click(Centre(play));
         Assert.True(_view.IsPlaying && play.Glyph == TransportGlyph.Pause);

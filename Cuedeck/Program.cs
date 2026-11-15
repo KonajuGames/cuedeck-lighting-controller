@@ -2,7 +2,6 @@ using Brutal.GlfwApi;
 using Brutal.Numerics;
 using Brutal.VulkanApi;
 using Cuedeck;
-using Cuedeck.Input;
 using Cuedeck.Dmx;
 using Cuedeck.Fixtures;
 using Cuedeck.Rendering;
@@ -107,6 +106,8 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
 
     using var gpu = new GpuContext(window, ENABLE_VALIDATION);
     using var renderer = new Renderer(gpu, window, atlas);
+    using var scenePass = new ScenePass(gpu);
+    renderer.PrePass = scenePass;
 
     // The show, and the show as a document: its file, unsaved changes, autosave.
     using var show = new LightingShow(OperatingSystem.IsWindows() ? new Cuedeck.Audio.WasapiInput() : new Cuedeck.Audio.NoCapture());
@@ -184,7 +185,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     var djPerform = new DjPerformView(fonts, performer, show.Flash, picker);
     var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), show, profiles, djEdit, djPerform));
     // The 3D Visualizer: drawn by the renderer's 3D pass; the middle button slides its camera.
-    renderer.Scene = screen.Console.Visualizer;
+    scenePass.Source = screen.Console.Visualizer;
     screen.Console.Visualizer.Root = ui;
     screen.Console.Visualizer.ModelsFolder = profiles.ModelsFolder;
     // Screenshots and recordings: what's playing as the sound; the render folder shown when one's saved.
@@ -203,7 +204,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     ui.Add(menu);
     using var input = new GlfwUiInput(window, ui);
     // The 3D Visualizer can go to a window of its own, and be put back; it's where it was last time.
-    using var popOut = new VizPopOut(gpu, atlas, fonts, screen.Console, renderer, ui, menu, prompt, screen.Log, VizWindowState.DefaultPath);
+    using var popOut = new VizPopOut(gpu, atlas, fonts, screen.Console, scenePass, ui, menu, prompt, screen.Log, VizWindowState.DefaultPath);
     popOut.Restore();
     // Each file dialog starts where it was last used.
     var recent = new RecentFolders(RecentFolders.DefaultPath);

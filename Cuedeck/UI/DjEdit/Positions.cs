@@ -1,7 +1,6 @@
 using System.Numerics;
 using Brutal.Numerics;
 using Cuedeck.Fixtures;
-using Cuedeck.Input;
 using Cuedeck.Show;
 
 namespace Cuedeck.UI.DjEdit;

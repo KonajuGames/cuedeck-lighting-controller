@@ -1,7 +1,6 @@
 using System.Globalization;
 using Brutal.Numerics;
 using Cuedeck.Fixtures;
-using Cuedeck.Input;
 
 namespace Cuedeck.UI.Console;
 

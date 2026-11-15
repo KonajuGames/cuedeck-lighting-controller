@@ -1,4 +1,3 @@
-using Cuedeck.Input;
 using Cuedeck.Triggers;
 using Cuedeck.UI;
 using Cuedeck.UI.Console;

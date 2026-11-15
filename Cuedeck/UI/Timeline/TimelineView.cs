@@ -3,7 +3,6 @@ using Brutal.Numerics;
 using Cuedeck.Audio;
 using Cuedeck.Common;
 using Cuedeck.Dj;
-using Cuedeck.Input;
 using Cuedeck.Timelines;
 using StrobeSpeed = Cuedeck.Timelines.StrobeSpeed;
 
@@ -132,7 +131,7 @@ sealed class TimelineView : Region, ITrackHost, IPointerHook
         _wave = new WaveView(fonts.Small)
         {
             Zoomable = true,
-            CursorColor = Theme.TimelinePlayhead,
+            CursorColor = AppTheme.TimelinePlayhead,
             BackgroundColor = Colors.Hex(0x000000),
             Tooltip = "Click or drag: move the playhead · Mouse wheel: zoom · Shift+wheel: scroll",
         };
@@ -173,7 +172,7 @@ sealed class TimelineView : Region, ITrackHost, IPointerHook
         };
         _masterPlate = Add(new NamePlate(fonts.Body, fonts.Small, timelines, timelines.Master));
 
-        _overview = Add(new WaveView(fonts.Small) { CursorColor = Theme.TimelinePlayhead, BackgroundColor = Colors.Hex(0x000000) });
+        _overview = Add(new WaveView(fonts.Small) { CursorColor = AppTheme.TimelinePlayhead, BackgroundColor = Colors.Hex(0x000000) });
         _box = Add(new ViewBox { Tooltip = "Drag to scroll · click to jump" });
         _box.ViewMoved += start => _wave.SetView(start, _wave.VisibleLength());
 
@@ -539,7 +538,7 @@ sealed class TimelineView : Region, ITrackHost, IPointerHook
         _plates.Clear();
         foreach (var tr in Timelines.FixtureTracks)
         {
-            var fill = PlateColour?.Invoke(TimelineTrack.FixtureOf(tr.Key)) ?? Theme.PlateFill;
+            var fill = PlateColour?.Invoke(TimelineTrack.FixtureOf(tr.Key)) ?? AppTheme.PlateFill;
             var view = new TrackView(_fonts.Small, _fonts.Small, this, tr) { PlateFill = fill };
             var plate = new NamePlate(_fonts.Body, _fonts.Small, Timelines, tr) { Fill = fill };
             var row = new Row(GAP);

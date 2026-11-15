@@ -1,5 +1,4 @@
 using Brutal.Numerics;
-using Cuedeck.Input;
 
 namespace Cuedeck.UI.Console;
 

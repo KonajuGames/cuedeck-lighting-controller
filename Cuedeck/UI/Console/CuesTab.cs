@@ -4,6 +4,9 @@ using Cuedeck.Show;
 
 namespace Cuedeck.UI.Console;
 
+// The show's Cue, not the framework's Cue namespace (a name in the global namespace beats a using's).
+using Cue = Cuedeck.Show.Cue;
+
 /// <summary>
 /// A bar that fills from left to right, 0 to 1.
 /// </summary>

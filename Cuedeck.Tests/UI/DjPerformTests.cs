@@ -2,7 +2,6 @@ using System.Text.Json.Nodes;
 using Brutal.Numerics;
 using Cuedeck.Common;
 using Cuedeck.Fixtures;
-using Cuedeck.Input;
 using Cuedeck.Music;
 using Cuedeck.Perform;
 using Cuedeck.Show;

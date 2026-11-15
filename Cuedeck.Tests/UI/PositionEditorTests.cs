@@ -2,7 +2,6 @@ using System.Numerics;
 using Brutal.Numerics;
 using Cuedeck.Common;
 using Cuedeck.Fixtures;
-using Cuedeck.Input;
 using Cuedeck.Music;
 using Cuedeck.Show;
 using Cuedeck.Timelines;

@@ -5,6 +5,9 @@ using Cuedeck.Show;
 
 namespace Cuedeck.Tests.Show;
 
+// The show's Cue, not the framework's Cue namespace (a name in the global namespace beats a using's).
+using Cue = Cuedeck.Show.Cue;
+
 /// <summary>
 /// sLight's faders_test.gd, through the show rather than its Faders tab: cue submasters, chase, group and effect
 /// faders, MIDI Learn on CCs, pitch bends and notes, Blackout All, and the show file.

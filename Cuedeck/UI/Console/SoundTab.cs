@@ -282,13 +282,13 @@ sealed class SoundMeter(Font font, SoundEngine sound) : Element
     public override void Draw(Batch batch)
     {
         var at = ScreenPosition;
-        batch.AddRect(at, Size, Theme.SoundMeter);
+        batch.AddRect(at, Size, AppTheme.SoundMeter);
         (string Name, double Value, float4 Colour)[] bars =
         [
-            ("BASS", sound.Bass, Theme.SoundBass),
-            ("MID", sound.Mid, Theme.SoundMid),
-            ("TREB", sound.Treble, Theme.SoundTreble),
-            ("LEVEL", sound.Level, Theme.SoundLevel),
+            ("BASS", sound.Bass, AppTheme.SoundBass),
+            ("MID", sound.Mid, AppTheme.SoundMid),
+            ("TREB", sound.Treble, AppTheme.SoundTreble),
+            ("LEVEL", sound.Level, AppTheme.SoundLevel),
         ];
         const float GAP = 6;
         var width = (Size.X - GAP * (bars.Length + 1)) / bars.Length;
@@ -345,15 +345,15 @@ sealed class Spectrogram(Font font, SoundEngine sound) : Element
     public static float4 Heat(float v)
     {
         v = MathF.Sqrt(Math.Clamp(v, 0, 1));
-        var f = v * (Theme.Heat.Length - 1);
+        var f = v * (AppTheme.Heat.Length - 1);
         var i = (int)f;
-        return i >= Theme.Heat.Length - 1 ? Theme.Heat[^1] : Theme.Mix(Theme.Heat[i], Theme.Heat[i + 1], f - i);
+        return i >= AppTheme.Heat.Length - 1 ? AppTheme.Heat[^1] : Theme.Mix(AppTheme.Heat[i], AppTheme.Heat[i + 1], f - i);
     }
 
     public override void Draw(Batch batch)
     {
         var at = ScreenPosition;
-        batch.AddRect(at, Size, Theme.Heat[0]);
+        batch.AddRect(at, Size, AppTheme.Heat[0]);
         if (!Lit)
         {
             batch.AddText(font, "no signal", at + new float2(8, (Size.Y - font.LineHeight) / 2), Colors.Hex(0x80808C));
