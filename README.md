@@ -5,7 +5,7 @@
 Cuedeck is a DMX lighting controller for Windows: a console of cues, chases, effects, sound reactions, groups,
 palettes and faders over a patch of real fixtures, a live 3D visualizer of the rig, and light shows built for each
 song in your music library and played live as VirtualDJ or Cuepoint plays them. Each universe goes out over
-**Art-Net**, **sACN (E1.31)** or a **USB DMX interface** (Enttec Open DMX and DMX USB Pro).
+**Art-Net**, **sACN (E1.31)** or a **USB DMX interface** (Enttec Open DMX and DMX USB Pro, or the anyma uDMX).
 
 It's the [sLight](https://github.com/KonajuGames/slight-dmx-controller) lighting controller, a Godot 4 project,
 ported to C# on .NET 10, drawing its own interface with Vulkan through the framework the Cuepoint DJ app is built on.
@@ -44,7 +44,7 @@ lists what it does.
 
 - The patched rig lit live by the console's output: colour, intensity, pan and tilt, zoom, strobe, gobos projected
   and spinning. GDTF fixtures drawn from their own models; the rest by kind.
-- Haze, shadows, a work light, three rooms, saved camera views, trusses and glTF set pieces, fixtures placed by
+- Haze, shadows, bloom on bright beams and lenses, a work light, three rooms, saved camera views, trusses and glTF set pieces, fixtures placed by
   dragging or by numbers, with undo.
 - Screenshots (PNG) and recordings (MP4, with whatever the computer's playing as the sound), a window of its own for a
   second screen, and MVR import and export.
@@ -111,10 +111,13 @@ Each universe's **Output** chooses where its frames go.
   from 0 to 200. The source's identity is kept in the show, so receivers see one steady source.
 - **USB DMX**: an **Enttec DMX USB Pro** or a look-alike (DMXking ultraDMX and other "pro" interfaces: a framed
   message, with the interface doing the DMX timing), or an **Enttec Open DMX USB** (a bare FTDI chip: Cuedeck makes
-  the break itself and streams the frame at 250 kbaud; fine for LED pars, less steady for movers). Both go through
-  FTDI's D2XX driver (`ftd2xx.dll`), which needs to be installed; without it the USB output isn't offered. **Auto**
-  guesses the interface's kind from its name. An interface that can't be opened leaves its universe on Art-Net. The
-  anyma uDMX isn't supported.
+  the break itself and streams the frame at 250 kbaud; fine for LED pars, less steady for movers), or an **anyma
+  uDMX** (sent its channels a frame at a time, at 20 to 25 frames a second). The FTDI ones go through FTDI's D2XX
+  driver (`ftd2xx.dll`) where it's installed. Without it, and for the uDMX, they go through **libusb**
+  (`libusb-1.0.dll`, beside Cuedeck or on the path), with a libusb or WinUSB driver bound to the interface (the
+  uDMX's own installer, or [Zadig](https://zadig.akeo.ie); swapping an FTDI interface's driver that way stops D2XX
+  seeing it). With neither library, the USB output isn't offered. **Auto** guesses the interface's kind from its name.
+  An interface that can't be opened leaves its universe on Art-Net.
 
 ## Screenshots
 

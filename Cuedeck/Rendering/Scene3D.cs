@@ -13,7 +13,8 @@ namespace Cuedeck.Rendering;
 /// opaque pipeline: every shape a mesh made once, placed by its instance's matrices from a storage buffer, and lit by
 /// the fixtures' spotlights from another, looped over in the fragment shader, projecting their gobos
 /// (<see cref="GoboArray"/>) and, with Shadows on, the brightest casting shadows (<see cref="ShadowMaps"/>, drawn
-/// from each first). Then the beams, added over it without writing depth.
+/// from each first). Then the beams, added over it without writing depth. All drawn in HDR (half floats), then
+/// given their glow and tone mapped into the image the UI reads by <see cref="Bloom"/>.
 /// </summary>
 sealed unsafe class Scene3D : IDisposable
 {
@@ -23,6 +24,7 @@ sealed unsafe class Scene3D : IDisposable
     public const int TEXTURE = 1;
 
     const VkFormat COLOR = VkFormat.R8G8B8A8SRGB;
+    const VkFormat HDR = Bloom.FORMAT;
     const VkFormat DEPTH = VkFormat.D32SFloat;
 
     /// <summary>
@@ -88,6 +90,7 @@ sealed unsafe class Scene3D : IDisposable
     readonly VkPipeline _shadowPipeline;
     readonly ShadowMaps _shadows;
     readonly GoboArray _gobos;
+    readonly Bloom _bloom;
     readonly GpuBuffer _vertices;
     readonly GpuBuffer _indices;
     readonly Dictionary<MeshKind, (int FirstIndex, int IndexCount, int VertexOffset)> _meshes = [];
@@ -99,6 +102,7 @@ sealed unsafe class Scene3D : IDisposable
     readonly FrameInstances[] _frames;
     GpuImage? _color;
     GpuImage? _msaa;
+    GpuImage? _hdr;
     GpuImage? _depth;
 
     public Scene3D(GpuContext gpu, int framesInFlight)
@@ -153,6 +157,7 @@ sealed unsafe class Scene3D : IDisposable
             ImageLayout = VkImageLayout.ShaderReadOnlyOptimal,
         };
         _shadows = new ShadowMaps(gpu);
+        _bloom = new Bloom(gpu, COLOR);
         var shadowInfo = new VkDescriptorImageInfo
         {
             Sampler = _shadows.Sampler,
@@ -248,7 +253,7 @@ sealed unsafe class Scene3D : IDisposable
         var viewportState = new VkPipelineViewportStateCreateInfo { ViewportCount = 1, ScissorCount = 1 };
         var dynamicStates = stackalloc VkDynamicState[] { VkDynamicState.Viewport, VkDynamicState.Scissor };
         var dynamicState = new VkPipelineDynamicStateCreateInfo { DynamicStateCount = 2, DynamicStates = dynamicStates };
-        var colorFormat = COLOR;
+        var colorFormat = HDR;
         var multisample = new VkPipelineMultisampleStateCreateInfo { RasterizationSamples = SAMPLES };
         var rendering = new VkPipelineRenderingCreateInfo
         {
@@ -432,8 +437,10 @@ sealed unsafe class Scene3D : IDisposable
         _device.WaitIdle();
         _color?.Dispose();
         _msaa?.Dispose();
+        _hdr?.Dispose();
         _depth?.Dispose();
-        // Drawn into the multisampled image, resolved into the one the UI reads (and screenshots are copied from).
+        // Drawn into the multisampled image, resolved into the HDR one, and that with its glow into the one the UI
+        // reads (and screenshots are copied from).
         _color = new GpuImage(
             _gpu,
             COLOR,
@@ -442,7 +449,9 @@ sealed unsafe class Scene3D : IDisposable
             VkImageUsageFlags.ColorAttachmentBit | VkImageUsageFlags.SampledBit | VkImageUsageFlags.TransferSrcBit,
             VkImageAspectFlags.ColorBit
         );
-        _msaa = new GpuImage(_gpu, COLOR, size, 1, VkImageUsageFlags.ColorAttachmentBit | VkImageUsageFlags.TransientAttachmentBit, VkImageAspectFlags.ColorBit, SAMPLES);
+        _hdr = new GpuImage(_gpu, HDR, size, 1, VkImageUsageFlags.ColorAttachmentBit | VkImageUsageFlags.SampledBit, VkImageAspectFlags.ColorBit);
+        _bloom.Resize(size, _hdr.View);
+        _msaa = new GpuImage(_gpu, HDR, size, 1, VkImageUsageFlags.ColorAttachmentBit | VkImageUsageFlags.TransientAttachmentBit, VkImageAspectFlags.ColorBit, SAMPLES);
         _depth = new GpuImage(_gpu, DEPTH, size, 1, VkImageUsageFlags.DepthStencilAttachmentBit, VkImageAspectFlags.DepthBit, SAMPLES);
         return true;
     }
@@ -470,7 +479,7 @@ sealed unsafe class Scene3D : IDisposable
     /// </summary>
     public void Record(CommandBuffer cmd, int frameIndex, SceneFrame frame, bool capture = false)
     {
-        if (_color is null || _msaa is null || _depth is null)
+        if (_color is null || _msaa is null || _hdr is null || _depth is null)
             return;
         var extent = _color.Extent;
         var instances = _frames[frameIndex];
@@ -532,6 +541,16 @@ sealed unsafe class Scene3D : IDisposable
             VkAccessFlags.ColorAttachmentWriteBit
         );
         cmd.TransitionImage(
+            _hdr.Image,
+            VkImageAspectFlags.ColorBit,
+            VkImageLayout.Undefined,
+            VkImageLayout.ColorAttachmentOptimal,
+            VkPipelineStageFlags.FragmentShaderBit,
+            VkAccessFlags.None,
+            VkPipelineStageFlags.ColorAttachmentOutputBit,
+            VkAccessFlags.ColorAttachmentWriteBit
+        );
+        cmd.TransitionImage(
             _msaa.Image,
             VkImageAspectFlags.ColorBit,
             VkImageLayout.Undefined,
@@ -552,13 +571,13 @@ sealed unsafe class Scene3D : IDisposable
             VkAccessFlags.DepthStencilAttachmentWriteBit | VkAccessFlags.DepthStencilAttachmentReadBit
         );
 
-        var bg = Tonemap(frame.Background);
+        var bg = frame.Background;
         var colorAttachment = new VkRenderingAttachmentInfo
         {
             ImageView = _msaa.View,
             ImageLayout = VkImageLayout.ColorAttachmentOptimal,
             ResolveMode = VkResolveModeFlags.AverageBit,
-            ResolveImageView = _color.View,
+            ResolveImageView = _hdr.View,
             ResolveImageLayout = VkImageLayout.ColorAttachmentOptimal,
             LoadOp = VkAttachmentLoadOp.Clear,
             StoreOp = VkAttachmentStoreOp.DontCare,
@@ -623,6 +642,19 @@ sealed unsafe class Scene3D : IDisposable
             }
         }
         cmd.EndRendering();
+
+        // Its glow, and tone mapped into the picture the UI reads.
+        cmd.TransitionImage(
+            _hdr.Image,
+            VkImageAspectFlags.ColorBit,
+            VkImageLayout.ColorAttachmentOptimal,
+            VkImageLayout.ShaderReadOnlyOptimal,
+            VkPipelineStageFlags.ColorAttachmentOutputBit,
+            VkAccessFlags.ColorAttachmentWriteBit,
+            VkPipelineStageFlags.FragmentShaderBit,
+            VkAccessFlags.ShaderReadBit
+        );
+        _bloom.Record(cmd, _color.View, extent);
 
         if (capture)
         {
@@ -735,15 +767,6 @@ sealed unsafe class Scene3D : IDisposable
         return (buffer, capacity);
     }
 
-    /// <summary>
-    /// The backdrop through the same highlight roll-off as the shapes.
-    /// </summary>
-    static Vector3 Tonemap(float4 c)
-    {
-        static float Roll(float x) => x <= 0.8f ? x : 0.8f + 0.2f * (1 - MathF.Exp(-(x - 0.8f) / 0.2f));
-        return new Vector3(Roll(c.X), Roll(c.Y), Roll(c.Z));
-    }
-
     public void Dispose()
     {
         foreach (var f in _frames)
@@ -754,7 +777,9 @@ sealed unsafe class Scene3D : IDisposable
         }
         _color?.Dispose();
         _msaa?.Dispose();
+        _hdr?.Dispose();
         _depth?.Dispose();
+        _bloom.Dispose();
         _vertices.Dispose();
         _indices.Dispose();
         foreach (var (v, i, _) in _models.Values)

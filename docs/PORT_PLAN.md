@@ -107,6 +107,7 @@ Each phase ends with the app building, the ported tests passing, and the golden 
 | 5 | 🔶 **DJ Perform Mode** (built 2026-11-14 and tried with Cuepoint; VirtualDJ still to try; see §7.5). OS2L server with mDNS advertising, the DJ performer mixing deck timelines, and the perform panel. Port `os2l_server` and `dj_perform` tests, and test against Cuepoint itself as the OS2L client. | Cuepoint and VirtualDJ drive the lights live. |
 | 6 | ✅ **Visualizer** (done 2026-11-14; see §7.6). §5 steps 1–3, then 4. Port the `visualizer_undo` and `fixture_view` tests. | The rig in `docs/img/09-visualizer.png` looks comparable. |
 | 7 | ✅ **Native extras and polish** (done 2026-11-15; see §7.7; USB DMX not yet tried with an interface). USB DMX (FTDI/libusb P/Invoke), MP4 recording, visualizer pop-out window and shadows, MVR import/export, screenshot capture tool, user guide and README rewritten with new screenshots. | Feature parity checklist (from sLight's README) all ticked. |
+| 8 | ✅ **Parity gaps** (done 2026-11-15; see §7.8; libusb not yet tried with an interface). The two ❌ in `docs/FEATURES.md`: bloom on bright beams in the visualizer, and USB DMX through libusb (the anyma uDMX, and FTDI interfaces without the D2XX driver). | `docs/FEATURES.md` has no ❌. |
 
 ### 7.1 Phase 1 as built
 
@@ -394,6 +395,31 @@ wasn't seen to open in that try.
 archive rather than through a temporary file, and a GDTF reader for streams (`FixtureImport.FromGdtf`) came with it.
 Checked: an MVR exported by Cuedeck, read by sLight's own `MvrIO` in headless Godot, gives back both fixtures, their
 universes, channels, modes, places, headings and channel roles.
+
+### 7.8 Phase 8 progress
+
+| Slice | What | State |
+|---|---|---|
+| 8a | Bloom: the visualizer drawn in HDR, its bright parts blurred down a chain of smaller images and added back before the highlight roll-off, with sLight's glow settings (threshold 0.9, intensity 0.5, bloom 0.08) | ✅ |
+| 8b | USB DMX through libusb (`libusb-1.0.dll`, P/Invoked when it's installed): the anyma uDMX (a control transfer per frame) and FTDI interfaces with no D2XX driver (their setup and break as vendor requests, the frame on the bulk endpoint) | ✅ |
+
+**Where slice 8b differs from sLight:** the same devices, requests and bytes as sLight's libusb backend: the uDMX
+(16C0:05DC, told from other devices on that shared ID by its name) gets one "set channel range" request a frame with
+all 512 channels; a single-port FTDI chip (0403:6001 or 6015) is listed through libusb only when D2XX isn't
+installed, set up with FTDI's vendor requests, and given its break by "set data" with the break bit before its frame
+goes to bulk endpoint 2. One without a serial number is routed by where it's plugged in (`udmx:1:5`). Windows only,
+so there's no detaching a kernel driver as sLight did on Linux. `libusb-1.0.dll` is loaded if it's installed (beside
+the app or on the path), as the native extension did; the USB output is offered when either library is. The library's
+stood in for in the tests (`LibusbDmxTests`), which check every request and the bytes sent; not tried with an
+interface, as there's neither one nor libusb on this machine.
+
+**Where slice 8a differs from sLight:** Godot 4.7's glow as sLight set it (threshold 0.9, intensity 0.5, bloom 0.08)
+with Godot's defaults for the rest (an HDR scale of 2, a luminance cap of 12, levels 2, 3 and 4 weighted 0.8, 0.4
+and 0.1, a Screen blend after tone mapping), but blurred by shrinking and enlarging filters rather than Godot's
+Gaussian passes, and tone mapped by Cuedeck's highlight roll-off rather than ACES. The scene is drawn into a
+half-float image (resolved from 4× MSAA) for it. With nothing bright in view it lifts the picture by about 2% (the
+bloom setting), as Godot's does. Tried in the app: the passes line up with the beams, the right way up, with the glow
+turned up for a look; the README and guide's visualizer shots taken again with it.
 
 Phases 1 and 2 are the critical path; 3–5 can then go in any order, and 6 can start alongside them once phase 1's `DmxRender` exists.
 

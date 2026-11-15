@@ -47,9 +47,10 @@ Each universe is one 512-channel DMX universe, with a page of its own on the **P
 - **Art-Net** is the default. Set the target's **IP**, **Port** and **Universe** number; `127.0.0.1:6454` universe
   `0` talks to a monitor running on the same computer.
 - **sACN** (E1.31) multicasts by default; give it an IP to unicast instead, and a priority.
-- **USB** sends straight to an Enttec Open DMX or DMX USB Pro (or a look-alike) plugged into this computer. It's
-  offered when FTDI's D2XX driver is installed; pick the **Device** and its **Interface** type (or leave it on
-  **Auto**), and press **Rescan** after plugging one in.
+- **USB** sends straight to an Enttec Open DMX or DMX USB Pro (or a look-alike), or an anyma uDMX, plugged into
+  this computer. It's offered when FTDI's D2XX driver or libusb is installed (the uDMX needs libusb, and a libusb or
+  WinUSB driver for the interface); pick the **Device** and its **Interface** type (or leave it on **Auto**), and
+  press **Rescan** after plugging one in. A uDMX listed as "uDMX?" was found but has no such driver yet.
 
 Then click **Apply Connection**. The line under the settings says where the universe is going. Add more universes with
 **Add Universe** in the top bar (or **Ctrl+Shift+N**) if your rig needs more than 512 channels; **Remove Universe**
@@ -218,7 +219,8 @@ drag it across the floor, or type its exact place and angles, to put it where it
 
 **Haze** puts the beams in the air, **Shadows** lets the brightest lights cast shadows, **Work light** is a dim fill so
 you can see the rig with the lights down, and **Room** switches between a black box, a club and an arena. A fixture
-imported from a GDTF file with models is drawn as the real fixture, and its gobos are projected.
+imported from a GDTF file with models is drawn as the real fixture, and its gobos are projected. Bright beams and
+lenses glow (bloom), as they do on camera.
 
 **Screenshot** saves a PNG of the view and **Record** an MP4 of it, with whatever the computer's playing as its sound
 (DJ Edit Mode's song, or your DJ software's). Both go to the `render` folder in Cuedeck's app folder

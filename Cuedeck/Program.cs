@@ -108,7 +108,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture)
     // The show, and the show as a document: its file, unsaved changes, autosave.
     using var show = new LightingShow(OperatingSystem.IsWindows() ? new Cuedeck.Audio.WasapiInput() : new Cuedeck.Audio.NoCapture());
     // USB DMX through FTDI's D2XX driver, if it's installed; a universe set to USB is streamed to its interface.
-    using var usb = new UsbDmx(OperatingSystem.IsWindows() ? Ftd2xx.Load() : null);
+    using var usb = new UsbDmx(OperatingSystem.IsWindows() ? Ftd2xx.Load() : null, OperatingSystem.IsWindows() ? Libusb.Load() : null);
     show.Dmx.RouteUsb = usb.Route;
     show.Dmx.SendUsb = usb.Send;
     show.Dmx.ReleaseUsb = usb.Unroute;

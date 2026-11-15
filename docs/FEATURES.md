@@ -11,9 +11,9 @@ did; ➕ is there but works differently, as noted; ❌ isn't ported. Where a sli
 - ✅ Art-Net: IP, port and universe number per universe, several universes on one number at different IPs
 - ✅ sACN (E1.31): multicast or unicast, priority, a source identity kept in the show
 - ➕ USB DMX: Enttec DMX USB Pro and look-alikes, and Open DMX, through FTDI's D2XX driver, P/Invoked rather than
-  through a native extension; the USB output is offered only when the driver's installed (sLight showed it greyed)
-- ❌ USB DMX through libusb: the anyma uDMX, and FTDI interfaces without the D2XX driver (a show naming a uDMX sends
-  as Open DMX)
+  through a native extension; the USB output is offered only when D2XX or libusb is installed (sLight showed it greyed)
+- ✅ USB DMX through libusb (`libusb-1.0.dll`): the anyma uDMX, and single-port FTDI interfaces where D2XX isn't
+  installed, each needing a libusb or WinUSB driver bound to it
 - ✅ A universe whose USB interface can't be opened, or a USB show opened without the driver, falls back to Art-Net
 - ✅ Grand Master (non-destructive, on the way out), Sending (30 frames a second), Blackout All
 - ✅ Output matches sLight's frame for frame (`Golden/SlightOutputTests`)
@@ -80,7 +80,7 @@ did; ➕ is there but works differently, as noted; ❌ isn't ported. Where a sli
 - ✅ Camera: orbit, pan, zoom, five preset views and your own, FOV, Ortho
 - ✅ Placement: select, drag, type; Auto-arrange; trusses; glTF set pieces; undo and redo
 - ✅ Haze, rooms, work light, shadows (the brightest eight lights cast them, where Godot let every light)
-- ❌ Bloom on bright beams (Godot's glow)
+- ✅ Bloom on bright beams, lenses and pools: Godot's glow with sLight's settings, drawn in HDR
 - ✅ Multi-head fixtures with their own aims; colour, intensity, pan/tilt, zoom, strobe, gobos projected and spinning;
   GDTF models with their axes, or a body by category
 - ➕ Screenshot (PNG) and Record (MP4, H.264); the recording's sound is whatever the computer plays, as AAC, where

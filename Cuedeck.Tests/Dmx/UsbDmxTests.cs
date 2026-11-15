@@ -83,7 +83,7 @@ public sealed class UsbDmxTests
         Assert.False(usb.Available);
         Assert.Empty(usb.ListDevices());
         Assert.False(usb.Route("A1", UsbDmxMode.OpenDmx));
-        Assert.Equal("USB DMX needs FTDI's D2XX driver", usb.Status("A1"));
+        Assert.Equal("USB DMX needs FTDI's D2XX driver or libusb", usb.Status("A1"));
         usb.Send("A1", new byte[512]); // harmless
     }
 

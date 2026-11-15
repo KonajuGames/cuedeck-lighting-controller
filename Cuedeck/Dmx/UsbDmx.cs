@@ -4,8 +4,8 @@ using System.Runtime.InteropServices;
 namespace Cuedeck.Dmx;
 
 /// <summary>
-/// What kind of USB DMX interface: as sLight's modes (a show keeps the number). uDMX isn't supported here (it needs
-/// libusb), so it's sent as Open DMX if it names an FTDI interface.
+/// What kind of USB DMX interface: as sLight's modes (a show keeps the number). A uDMX is reached through libusb; one
+/// named for an interface D2XX found is sent as Open DMX.
 /// </summary>
 enum UsbDmxMode
 {
@@ -16,10 +16,11 @@ enum UsbDmxMode
 }
 
 /// <summary>
-/// A USB DMX interface found: its serial number (what a universe is routed by), what it calls itself, and the kind
-/// it looks like.
+/// A USB DMX interface found: its serial number (what a universe is routed by; for one without, where it's plugged in,
+/// as <c>udmx:</c> or <c>ftdi:</c> and its bus and address), what it calls itself, the kind it looks like, and whether
+/// it's reached through libusb rather than D2XX.
 /// </summary>
-sealed record UsbDevice(string Serial, string Description, UsbDmxMode GuessedMode);
+sealed record UsbDevice(string Serial, string Description, UsbDmxMode GuessedMode, bool Libusb = false);
 
 /// <summary>
 /// The FTDI D2XX calls USB DMX uses, each returning D2XX's FT_STATUS (0 for OK): stood in for by the tests.
@@ -47,22 +48,67 @@ interface IFtdi
 }
 
 /// <summary>
-/// Universes sent to USB DMX interfaces through FTDI's D2XX driver (Enttec's Open DMX USB and DMX USB Pro, DMXking's,
-/// and other FTDI-based ones), each streamed from a thread of its own at a steady rate; the console hands each its
-/// latest frame every tick. Without the driver, <see cref="Available"/> is false and everything here does nothing.
-/// sLight's <c>UsbDmx</c> bridge and its native <c>UsbDmxOutput</c>, for D2XX.
+/// Universes sent to USB DMX interfaces, each streamed from a thread of its own at a steady rate; the console hands
+/// each its latest frame every tick. Through FTDI's D2XX driver: Enttec's Open DMX USB and DMX USB Pro, DMXking's, and
+/// other FTDI-based ones. Through libusb: the anyma uDMX, and those FTDI ones where D2XX isn't installed (a libusb or
+/// WinUSB driver bound to them instead). Without either library, <see cref="Available"/> is false and everything here
+/// does nothing. sLight's <c>UsbDmx</c> bridge and its native <c>UsbDmxOutput</c>.
 /// </summary>
-sealed class UsbDmx(IFtdi? ftdi, bool stream = true) : IDisposable
+sealed class UsbDmx(IFtdi? ftdi, ILibusb? libusb = null, bool stream = true) : IDisposable
 {
-    public static readonly string[] ModeNames = ["Auto", "Open DMX", "Enttec Pro"];
+    public static readonly string[] ModeNames = ["Auto", "Open DMX", "Enttec Pro", "uDMX"];
+
+    /// <summary>
+    /// The anyma uDMX's ID: the shared "free" vendor and product, so it's told apart by its name.
+    /// </summary>
+    const ushort UDMX_VENDOR = 0x16C0,
+        UDMX_PRODUCT = 0x05DC;
+
+    const ushort FTDI_VENDOR = 0x0403;
 
     readonly Dictionary<string, UsbDmxOutput> _outputs = [];
     readonly Dictionary<string, string> _failures = [];
 
-    public bool Available => ftdi is not null;
+    public bool Available => ftdi is not null || libusb is not null;
 
-    public List<UsbDevice> ListDevices() =>
-        ftdi is null ? [] : [.. ftdi.Devices().Where(d => d.Serial != "").Select(d => new UsbDevice(d.Serial, d.Description, Guess(d.Description)))];
+    /// <summary>
+    /// The single-port FTDI chips libusb may drive (FT232AM/BM/R, FT-X); the others go through D2XX.
+    /// </summary>
+    static bool IsFtdiDmx(LibusbDevice d) => d.Vendor == FTDI_VENDOR && d.Product is 0x6001 or 0x6015;
+
+    static bool IsUdmx(LibusbDevice d) => d.Vendor == UDMX_VENDOR && d.Product == UDMX_PRODUCT;
+
+    /// <summary>
+    /// What a libusb device is routed by: its serial number, or where it's plugged in.
+    /// </summary>
+    static string IdOf(LibusbDevice d, bool udmx) => d.Serial != "" ? d.Serial : $"{(udmx ? "udmx" : "ftdi")}:{d.Bus}:{d.Address}";
+
+    public List<UsbDevice> ListDevices()
+    {
+        var found = new List<UsbDevice>();
+        if (ftdi is not null)
+            found.AddRange(ftdi.Devices().Where(d => d.Serial != "").Select(d => new UsbDevice(d.Serial, d.Description, Guess(d.Description))));
+        if (libusb is null)
+            return found;
+        foreach (var d in libusb.Devices())
+        {
+            if (IsUdmx(d))
+            {
+                // Another device on the shared ID, if it could be asked its name.
+                if (d.Name is { } name && !name.Contains("UDMX", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var description = d.Name is null ? "uDMX? (needs a libusb / WinUSB driver)" : d.Name == "" ? "uDMX" : d.Name;
+                found.Add(new UsbDevice(IdOf(d, true), description, UsbDmxMode.Udmx, Libusb: true));
+            }
+            else if (ftdi is null && IsFtdiDmx(d))
+            {
+                var name = string.IsNullOrEmpty(d.Name) ? "FTDI" : d.Name;
+                var guess = name.Contains("PRO", StringComparison.OrdinalIgnoreCase) ? UsbDmxMode.EnttecPro : UsbDmxMode.OpenDmx;
+                found.Add(new UsbDevice(IdOf(d, false), name + " (libusb)", guess, Libusb: true));
+            }
+        }
+        return found;
+    }
 
     /// <summary>
     /// The kind an interface looks like from what it calls itself: a Pro (or DMXking's, which speak its language), else
@@ -82,12 +128,22 @@ sealed class UsbDmx(IFtdi? ftdi, bool stream = true) : IDisposable
     /// </summary>
     public bool Route(string serial, UsbDmxMode mode)
     {
-        if (ftdi is null || serial == "")
+        if (!Available || serial == "")
             return false;
         Unroute(serial);
         _failures.Remove(serial);
-        if (mode is UsbDmxMode.Auto or UsbDmxMode.Udmx)
-            mode = mode == UsbDmxMode.Auto ? ListDevices().FirstOrDefault(d => d.Serial == serial)?.GuessedMode ?? UsbDmxMode.OpenDmx : UsbDmxMode.OpenDmx;
+        var device = ListDevices().FirstOrDefault(d => d.Serial == serial);
+        if (mode == UsbDmxMode.Auto)
+            mode = device?.GuessedMode ?? UsbDmxMode.OpenDmx;
+        if (device is { Libusb: true })
+            return mode == UsbDmxMode.Udmx ? RouteUdmx(serial) : RouteLibusbFtdi(serial, mode);
+        if (ftdi is null)
+        {
+            _failures[serial] = "could not open " + serial;
+            return false;
+        }
+        if (mode == UsbDmxMode.Udmx)
+            mode = UsbDmxMode.OpenDmx;
         var handle = ftdi.Open(serial);
         if (handle == 0)
         {
@@ -107,11 +163,68 @@ sealed class UsbDmx(IFtdi? ftdi, bool stream = true) : IDisposable
             ftdi.SetBreak(handle, false);
         }
         ftdi.Purge(handle, 3);
-        var output = new UsbDmxOutput(ftdi, handle, mode, serial);
+        return Start(new D2xxLink(ftdi, handle, mode), mode, serial, mode == UsbDmxMode.EnttecPro ? "Enttec Pro" : "Open DMX");
+    }
+
+    bool Start(IUsbLink link, UsbDmxMode mode, string serial, string kind)
+    {
+        var output = new UsbDmxOutput(link, mode, serial, kind);
         _outputs[serial] = output;
         if (stream)
             output.Start();
         return true;
+    }
+
+    /// <summary>
+    /// Opens the libusb device that's a uDMX (or an FTDI interface, by <paramref name="udmx"/>) routed by
+    /// <paramref name="serial"/>; 0 (with why kept for <see cref="Status"/>) if it can't.
+    /// </summary>
+    nint OpenLibusb(string serial, bool udmx)
+    {
+        var device = libusb!.Devices().FirstOrDefault(d => (udmx ? IsUdmx(d) : IsFtdiDmx(d)) && IdOf(d, udmx) == serial);
+        var handle = device is null ? 0 : libusb.Open(device);
+        if (handle == 0)
+            _failures[serial] = "could not open " + serial;
+        return handle;
+    }
+
+    bool RouteUdmx(string serial)
+    {
+        var handle = OpenLibusb(serial, udmx: true);
+        if (handle == 0)
+            return false;
+        libusb!.ClaimInterface(handle, 0); // as sLight: it only uses the control endpoint, so this may fail harmlessly
+        return Start(new UdmxLink(libusb, handle), UsbDmxMode.Udmx, serial, "uDMX");
+    }
+
+    bool RouteLibusbFtdi(string serial, UsbDmxMode mode)
+    {
+        var handle = OpenLibusb(serial, udmx: false);
+        if (handle == 0)
+            return false;
+        var lib = libusb!;
+        lib.SetConfiguration(handle, 1);
+        if (lib.ClaimInterface(handle, 0) != 0)
+        {
+            lib.Close(handle);
+            _failures[serial] = $"could not claim {serial} (is a libusb / WinUSB driver bound to it?)";
+            return false;
+        }
+        mode = mode == UsbDmxMode.EnttecPro ? UsbDmxMode.EnttecPro : UsbDmxMode.OpenDmx;
+        // FTDI's vendor requests: reset, no flow control, (Open DMX's 250 kbaud 8N2), a 1 ms latency, then both
+        // buffers purged.
+        void Request(byte request, ushort value) => lib.ControlTransfer(handle, 0x40, request, value, 0, [], 100);
+        Request(LibusbFtdiLink.RESET, 0);
+        Request(LibusbFtdiLink.SET_FLOW_CONTROL, 0);
+        if (mode == UsbDmxMode.OpenDmx)
+        {
+            Request(LibusbFtdiLink.SET_BAUD_RATE, 12); // 3 MHz / 12
+            Request(LibusbFtdiLink.SET_DATA, LibusbFtdiLink.DATA_8N2);
+        }
+        Request(LibusbFtdiLink.SET_LATENCY, 1);
+        Request(LibusbFtdiLink.RESET, 1);
+        Request(LibusbFtdiLink.RESET, 2);
+        return Start(new LibusbFtdiLink(lib, handle, mode), mode, serial, mode == UsbDmxMode.EnttecPro ? "Enttec Pro, libusb" : "Open DMX, libusb");
     }
 
     public void Unroute(string serial)
@@ -123,7 +236,7 @@ sealed class UsbDmx(IFtdi? ftdi, bool stream = true) : IDisposable
     public bool IsSending(string serial) => _outputs.ContainsKey(serial);
 
     public string Status(string serial) =>
-        ftdi is null ? "USB DMX needs FTDI's D2XX driver"
+        !Available ? "USB DMX needs FTDI's D2XX driver or libusb"
         : _outputs.TryGetValue(serial, out var o) ? o.Status
         : _failures.GetValueOrDefault(serial, "not open");
 
@@ -143,16 +256,125 @@ sealed class UsbDmx(IFtdi? ftdi, bool stream = true) : IDisposable
         foreach (var o in _outputs.Values)
             o.Dispose();
         _outputs.Clear();
+        (libusb as IDisposable)?.Dispose();
     }
 }
 
 /// <summary>
-/// One open interface: its latest frame, streamed by a thread of its own at <see cref="FPS"/> frames a second. Open
-/// DMX's frames get their break and mark from here, then aren't sent again until the last has had time to go out
-/// (23 ms at 250 kbaud), so a hiccup can't cut one short; the Pro is sent "Send DMX Packet" messages and does its own
-/// timing.
+/// An open interface as the streaming thread sees it: one frame sent its way, and let go of.
 /// </summary>
-sealed class UsbDmxOutput(IFtdi ftdi, nint handle, UsbDmxMode mode, string serial) : IDisposable
+interface IUsbLink
+{
+    /// <summary>
+    /// Sends the start code and 512 channels; returns why it failed, or null.
+    /// </summary>
+    string? Write(ReadOnlySpan<byte> frame513);
+
+    void Close();
+}
+
+/// <summary>
+/// An FTDI interface through D2XX: the Pro's framed message, or Open DMX's break, mark and frame.
+/// </summary>
+sealed class D2xxLink(IFtdi ftdi, nint handle, UsbDmxMode mode) : IUsbLink
+{
+    public string? Write(ReadOnlySpan<byte> frame)
+    {
+        if (mode == UsbDmxMode.EnttecPro)
+            return Check(ftdi.Write(handle, UsbDmxOutput.Packet(frame), out var wrote), wrote, 518);
+        // The break (at least 88 µs), the mark after it, then the frame.
+        var st = ftdi.SetBreak(handle, true);
+        if (st != 0)
+            return $"write failed — SetBreakOn status {st}";
+        UsbDmxOutput.SleepMicro(120);
+        st = ftdi.SetBreak(handle, false);
+        if (st != 0)
+            return $"write failed — SetBreakOff status {st}";
+        UsbDmxOutput.SleepMicro(12);
+        return Check(ftdi.Write(handle, frame, out var w), w, 513);
+    }
+
+    static string? Check(uint status, uint wrote, int length) => status != 0 || wrote != length ? $"write failed — FT_Write status {status}, wrote {wrote} of {length}" : null;
+
+    public void Close() => ftdi.Close(handle);
+}
+
+/// <summary>
+/// The anyma uDMX: its "set channel range" vendor request with all 512 channels, a frame at a time (its firmware does
+/// the DMX timing; the control endpoint's slow, so a full universe goes at 20 to 25 frames a second).
+/// </summary>
+sealed class UdmxLink(ILibusb lib, nint handle) : IUsbLink
+{
+    const byte SET_CHANNEL_RANGE = 2;
+
+    public string? Write(ReadOnlySpan<byte> frame)
+    {
+        var r = lib.ControlTransfer(handle, 0x40, SET_CHANNEL_RANGE, 512, 0, frame[1..], 250);
+        return r < 0 ? $"write failed — uDMX control transfer error {r}" : null;
+    }
+
+    public void Close()
+    {
+        lib.ReleaseInterface(handle, 0);
+        lib.Close(handle);
+    }
+}
+
+/// <summary>
+/// An FTDI interface through libusb, D2XX's work done by hand: the break as a "set data" vendor request with its break
+/// bit, and the frame (or the Pro's message) on bulk endpoint 2.
+/// </summary>
+sealed class LibusbFtdiLink(ILibusb lib, nint handle, UsbDmxMode mode) : IUsbLink
+{
+    public const byte RESET = 0,
+        SET_FLOW_CONTROL = 2,
+        SET_BAUD_RATE = 3,
+        SET_DATA = 4,
+        SET_LATENCY = 9;
+
+    /// <summary>
+    /// 8 data bits, no parity, 2 stop bits; and the same with the break on.
+    /// </summary>
+    public const ushort DATA_8N2 = 0x1008,
+        DATA_8N2_BREAK = 0x5008;
+
+    const byte ENDPOINT_OUT = 0x02;
+
+    public string? Write(ReadOnlySpan<byte> frame)
+    {
+        if (mode == UsbDmxMode.EnttecPro)
+            return Bulk(UsbDmxOutput.Packet(frame));
+        var r = lib.ControlTransfer(handle, 0x40, SET_DATA, DATA_8N2_BREAK, 0, [], 100);
+        if (r < 0)
+            return $"write failed — break on: control transfer error {r}";
+        UsbDmxOutput.SleepMicro(120);
+        r = lib.ControlTransfer(handle, 0x40, SET_DATA, DATA_8N2, 0, [], 100);
+        if (r < 0)
+            return $"write failed — break off: control transfer error {r}";
+        UsbDmxOutput.SleepMicro(12);
+        return Bulk(frame);
+    }
+
+    string? Bulk(ReadOnlySpan<byte> data)
+    {
+        var r = lib.BulkTransfer(handle, ENDPOINT_OUT, data, out var sent, 250);
+        return r != 0 || sent != data.Length ? $"write failed — bulk transfer error {r}, sent {sent} of {data.Length}" : null;
+    }
+
+    public void Close()
+    {
+        lib.ReleaseInterface(handle, 0);
+        lib.Close(handle);
+    }
+}
+
+/// <summary>
+/// One open interface: its latest frame, streamed by a thread of its own at <see cref="FPS"/> frames a second through
+/// its link. Open DMX's frames get their break and mark from there, then aren't sent again until the last has had time
+/// to go out (23 ms at 250 kbaud), so a hiccup can't cut one short; the Pro is sent "Send DMX Packet" messages and the
+/// uDMX its channels, and each does its own timing.
+/// </summary>
+sealed class UsbDmxOutput(IUsbLink link, UsbDmxMode mode, string serial, string kind) : IDisposable
 {
     public const int FPS = 40;
 
@@ -161,7 +383,7 @@ sealed class UsbDmxOutput(IFtdi ftdi, nint handle, UsbDmxMode mode, string seria
     Thread? _thread;
     volatile bool _running;
     bool _linkOk = true;
-    string _status = $"open ({(mode == UsbDmxMode.EnttecPro ? "Enttec Pro" : "Open DMX")}) — {serial}";
+    string _status = $"open ({kind}) — {serial}";
 
     public UsbDmxMode Mode { get; } = mode;
 
@@ -230,26 +452,7 @@ sealed class UsbDmxOutput(IFtdi ftdi, nint handle, UsbDmxMode mode, string seria
         Span<byte> frame = stackalloc byte[513]; // the start code, then the channels
         lock (_lock)
             _frame.CopyTo(frame[1..]);
-        string? failed;
-        if (Mode == UsbDmxMode.EnttecPro)
-            failed = Check(ftdi.Write(handle, Packet(frame), out var wrote), wrote, 518);
-        else
-        {
-            // The break (at least 88 µs), the mark after it, then the frame.
-            var st = ftdi.SetBreak(handle, true);
-            failed = st != 0 ? $"write failed — SetBreakOn status {st}" : null;
-            if (failed is null)
-            {
-                SleepMicro(120);
-                st = ftdi.SetBreak(handle, false);
-                failed = st != 0 ? $"write failed — SetBreakOff status {st}" : null;
-            }
-            if (failed is null)
-            {
-                SleepMicro(12);
-                failed = Check(ftdi.Write(handle, frame, out var wrote), wrote, 513);
-            }
-        }
+        var failed = link.Write(frame);
         lock (_lock)
         {
             if (failed is not null)
@@ -265,8 +468,6 @@ sealed class UsbDmxOutput(IFtdi ftdi, nint handle, UsbDmxMode mode, string seria
         return true;
     }
 
-    static string? Check(uint status, uint wrote, int length) => status != 0 || wrote != length ? $"write failed — FT_Write status {status}, wrote {wrote} of {length}" : null;
-
     /// <summary>
     /// The Pro's "Send DMX Packet" (label 6): 0x7E, 6, the length low and high, the start code and channels, 0xE7.
     /// </summary>
@@ -279,7 +480,7 @@ sealed class UsbDmxOutput(IFtdi ftdi, nint handle, UsbDmxMode mode, string seria
         return m;
     }
 
-    static void SleepMicro(int us)
+    internal static void SleepMicro(int us)
     {
         var until = Stopwatch.GetTimestamp() + us * Stopwatch.Frequency / 1_000_000;
         while (Stopwatch.GetTimestamp() < until)
@@ -290,7 +491,7 @@ sealed class UsbDmxOutput(IFtdi ftdi, nint handle, UsbDmxMode mode, string seria
     {
         _running = false;
         _thread?.Join(500);
-        ftdi.Close(handle);
+        link.Close();
     }
 }
 

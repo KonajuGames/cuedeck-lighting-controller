@@ -379,7 +379,7 @@ sealed class UniversePage : Panel
     {
         _usbDevices = Usb()?.ListDevices() ?? [];
         Status?.Invoke(
-            Usb() is not { Available: true } ? "USB DMX needs FTDI's D2XX driver."
+            Usb() is not { Available: true } ? "USB DMX needs FTDI's D2XX driver or libusb."
             : _usbDevices.Count == 0 ? "No USB DMX interfaces found."
             : $"Found {_usbDevices.Count} USB DMX interface{(_usbDevices.Count == 1 ? "" : "s")}."
         );

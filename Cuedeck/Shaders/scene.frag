@@ -3,7 +3,7 @@
 // Lambert under the ambient light, the work light and every lit head's spotlight (Godot's fall-off with distance and
 // towards the cone's edge, faded out far from the camera as sLight's were), both sides of every surface lit (its normal turned to face
 // the camera), then the haze: a veil thickening with distance, lit by the same light (sLight's volumetric fog, in
-// its simplest form). Highlights are rolled off softly; linear in, the sRGB target encodes it.
+// its simplest form). Linear and unbounded (HDR): the bloom pass rolls the highlights off.
 layout(push_constant) uniform Push
 {
     mat4 viewProj;
@@ -38,13 +38,6 @@ layout(location = 2) in vec4 colour;
 layout(location = 3) in float glow;
 
 layout(location = 0) out vec4 outColor;
-
-// Linear up to 0.8, then easing towards 1.
-vec3 rolloff(vec3 x)
-{
-    vec3 over = max(x - 0.8, 0.0);
-    return min(x, 0.8) + 0.2 * (1.0 - exp(-over / 0.2));
-}
 
 void main()
 {
@@ -101,5 +94,5 @@ void main()
     // What the haze scatters back: a fraction of the light through it (Godot's fog, albedo 0.92, scatters much of it
     // elsewhere).
     vec3 haze = 0.2 * (pc.ambient.rgb + pc.workColour.rgb);
-    outColor = vec4(rolloff(mix(lit, haze, veil)), 1.0);
+    outColor = vec4(mix(lit, haze, veil), 1.0);
 }

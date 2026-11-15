@@ -67,6 +67,24 @@ public sealed class UsbPatchTests : ConsoleHarness
     }
 
     [Fact]
+    public void A_uDMX_through_libusb()
+    {
+        var lib = new FakeLibusb();
+        lib.Attached.Add(new LibusbDevice(0x16C0, 0x05DC, 1, 5, "uDMX", ""));
+        using var usb = new UsbDmx(null, lib, stream: false);
+        Show.Dmx.RouteUsb = usb.Route;
+        Screen.Console.Patch.Usb = usb;
+        Click(ButtonCalled("Universe 1"));
+        Choose(Find<Dropdown<OutputMode>>(_ => true), "USB");
+        Assert.True(usb.IsSending("udmx:1:5"));
+        Assert.Contains(All(Screen.Console).OfType<Label>(), l => l.Text.StartsWith("→ USB DMX udmx:1:5  [open (uDMX)"));
+        // Chosen as a uDMX outright, as sLight's Mode list offers.
+        Choose(Find<Dropdown<int>>(d => d.Selected == 0), "uDMX");
+        Assert.Equal((int)UsbDmxMode.Udmx, Show.Patch.Universes[0].UsbMode);
+        Assert.True(usb.IsSending("udmx:1:5"));
+    }
+
+    [Fact]
     public void Without_the_driver_USB_isnt_offered()
     {
         Screen.Console.Patch.Usb = new UsbDmx(null);
