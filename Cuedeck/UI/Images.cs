@@ -107,6 +107,17 @@ sealed record Images(
     }
 
     /// <summary>
+    /// Gives a window the app's logo, on the taskbar and in Alt+Tab: the main window's and the 3D Visualizer's
+    /// popped out. GLFW copies the pixels, so they needn't outlive the call.
+    /// </summary>
+    public static unsafe void SetWindowIcon(Brutal.GlfwApi.GlfwWindow window)
+    {
+        var icon = Read("logo-32.png");
+        fixed (byte* pixels = icon.Pixels)
+            window.SetIcon(1, new Brutal.GlfwApi.GlfwImage { Width = icon.Width, Height = icon.Height, Pixels = pixels });
+    }
+
+    /// <summary>
     /// A PNG built into the app, decoded. Throws if it's missing, which would mean a broken build.
     /// </summary>
     public static Png.Image Read(string name)

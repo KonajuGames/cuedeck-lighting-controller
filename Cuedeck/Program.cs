@@ -96,13 +96,8 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     );
     var images = Images.Load(atlas);
 
-    // The logo on the taskbar and in Alt+Tab too. GLFW copies the pixels, so they needn't outlive the call.
-    unsafe
-    {
-        var icon = Images.Read("logo-32.png");
-        fixed (byte* pixels = icon.Pixels)
-            window.SetIcon(1, new GlfwImage { Width = icon.Width, Height = icon.Height, Pixels = pixels });
-    }
+    // The logo on the taskbar and in Alt+Tab too.
+    Images.SetWindowIcon(window);
 
     using var gpu = new GpuContext(window, ENABLE_VALIDATION);
     using var renderer = new Renderer(gpu, window, atlas);

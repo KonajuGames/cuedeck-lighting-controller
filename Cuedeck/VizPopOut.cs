@@ -97,6 +97,7 @@ sealed class VizPopOut : IDisposable
         var size = rect is { Width: > 200, Height: > 200 } r ? new int2(r.Width, r.Height) : new int2(1000, 620);
         var window = Glfw.CreateWindow(new GlfwWindow.CreateInfo { Title = "Cuedeck — 3D Visualizer", Size = size });
         window.SetSizeLimits(new int2(480, 320), new int2(-1, -1));
+        Images.SetWindowIcon(window);
         window.Position = rect is { Width: > 200 } at ? new int2(at.X, at.Y) : DefaultPosition;
         if (_gpu.CreateSurface(window) is not { } surface)
         {
