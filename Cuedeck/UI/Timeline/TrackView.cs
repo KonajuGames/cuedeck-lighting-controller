@@ -67,6 +67,16 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
     const float NODE_RADIUS = 3;
     const float NODE_HOVER_RADIUS = 4.5f;
 
+    /// <summary>
+    /// The sides of a node's dot: enough for one this small to look round.
+    /// </summary>
+    const int NODE_SEGMENTS = 12;
+
+    /// <summary>
+    /// How near (across) the nodes either side of one can be before its dot's left out, pixels.
+    /// </summary>
+    const float NODE_CROWD = 4;
+
     int _hover = -1; // the node under the pointer
     int _drag = -1; // the node being dragged
     bool _dragLine;
@@ -559,12 +569,22 @@ sealed class TrackView(Font small, Font label, ITrackHost host, TimelineTrack tr
         }
         var pts = line.Select(q => p + q).ToArray();
         batch.AddSmoothPolyline(pts, 1.5f, AppTheme.TrackLine);
+        // The nodes' dots, but not one crowded on both sides (closer than NODE_CROWD pixels to the nodes either side):
+        // a generated show's nodes are too close together zoomed out to tell apart, and thousands of dots are slow to
+        // draw. Zoomed in they're all drawn; the hovered or dragged one always is.
         var (start, length) = View;
-        for (var i = 0; i < track.DimmerNodes.Count; i++)
+        var nodes = track.DimmerNodes;
+        float X(int i) => i < 0 || i >= nodes.Count ? float.PositiveInfinity : (float)TimeToX(nodes[i].X);
+        for (var i = 0; i < nodes.Count; i++)
         {
-            var n = track.DimmerNodes[i];
-            if (n.X >= start && n.X <= start + length)
-                batch.AddSmoothCircle(p + new float2((float)TimeToX(n.X), LevelY(ry, rh, n.Y)), i == _hover || i == _drag ? NODE_HOVER_RADIUS : NODE_RADIUS, AppTheme.TrackLine);
+            var n = nodes[i];
+            if (n.X < start || n.X > start + length)
+                continue;
+            var x = (float)TimeToX(n.X);
+            var big = i == _hover || i == _drag;
+            if (!big && MathF.Abs(x - X(i - 1)) < NODE_CROWD && MathF.Abs(X(i + 1) - x) < NODE_CROWD)
+                continue;
+            batch.AddSmoothCircle(p + new float2(x, LevelY(ry, rh, n.Y)), big ? NODE_HOVER_RADIUS : NODE_RADIUS, AppTheme.TrackLine, NODE_SEGMENTS);
         }
     }
 

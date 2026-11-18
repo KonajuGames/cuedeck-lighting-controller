@@ -1001,6 +1001,28 @@ public sealed class TimelineViewTests : IDisposable
     }
 
     [Fact]
+    public void Crowded_dimmer_nodes_have_no_dots_until_zoomed_in()
+    {
+        OpenLoaded(Song());
+        // A node every 50 ms (a generated show's pulses): under 2 pixels apart with the whole song in view.
+        _tl.Master.DimmerNodes = [.. Enumerable.Range(0, 800).Select(i => new Vector2(i * 0.05f, i % 2))];
+        int Drawn()
+        {
+            Frame();
+            var batch = new Batch(MainScreenTests.Atlas);
+            _view.MasterTrack.Draw(batch);
+            return batch.Vertices.Length;
+        }
+        _view.Wave.SetView(0, 40);
+        var whole = Drawn();
+        // A dot is 12 sides of 3 triangles: far fewer vertices than 800 of those.
+        Assert.True(whole < 800 * 12 * 9 / 4, $"{whole} vertices");
+        // Zoomed in to 2 s (40 nodes, 20-odd pixels apart): every one has its dot.
+        _view.Wave.SetView(10, 2);
+        Assert.True(Drawn() > 40 * 12 * 9, "the dots zoomed in");
+    }
+
+    [Fact]
     public void Clipped_triangles_stay_inside_the_clip()
     {
         var batch = new Batch(MainScreenTests.Atlas);
