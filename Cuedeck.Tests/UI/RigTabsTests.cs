@@ -175,6 +175,33 @@ public sealed class RigTabsTests : ConsoleHarness
         Assert.NotNull(ButtonCalled("Universe 2"));
         var grid = Find<ChannelGrid>(_ => true);
         Assert.Equal(3, grid.Tints.Count); // the par's three channels tinted
-        Assert.Equal(512 / ChannelGrid.COLUMNS, (int)Math.Round((grid.Size.Y + 4) / 46));
+        Assert.Equal(grid.Rows, (int)Math.Round((grid.Size.Y + 4) / 46));
+    }
+
+    [Fact]
+    public void The_dmx_output_grid_wraps_its_rows_to_the_window()
+    {
+        OpenTab("DMX Output");
+        var grid = Find<ChannelGrid>(_ => true);
+        var page = Find<ScrollingPage>(p => p.Content == grid);
+        var wide = grid.Columns;
+        Assert.True(wide > 16); // a 1600-wide window fits more than the old 16
+        Assert.True(grid.Size.X <= page.Size.X); // and they fit across, no sideways scrolling
+        Assert.Equal((512 + wide - 1) / wide, grid.Rows);
+        Assert.Equal(grid.Rows, (int)Math.Round((grid.Size.Y + 4) / 46));
+        Assert.Equal(new float2((wide - 1) * 50, 0), grid.CellOffset(wide - 1)); // the row's last cell
+        Assert.Equal(new float2(0, 46), grid.CellOffset(wide)); // the next row starts back at the left
+
+        // A narrow window: fewer a row, more rows, the grid taller.
+        var tall = grid.Size.Y;
+        var narrow = new float2(700, 1000);
+        Screen.ScreenSize = narrow;
+        Screen.Update();
+        Ui.Layout(narrow);
+        Assert.True(grid.Columns < wide);
+        Assert.True(grid.Columns >= 1);
+        Assert.True(grid.Size.X <= page.Size.X);
+        Assert.Equal((512 + grid.Columns - 1) / grid.Columns, grid.Rows);
+        Assert.True(grid.Size.Y > tall);
     }
 }

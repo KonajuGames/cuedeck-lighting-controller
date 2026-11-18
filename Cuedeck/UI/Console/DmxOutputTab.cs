@@ -6,16 +6,36 @@ using Cuedeck.Show;
 namespace Cuedeck.UI.Console;
 
 /// <summary>
-/// A universe's 512 channels as they go out, a cell each in rows of 16: the channel's number small at the top, its
+/// A universe's 512 channels as they go out, a cell each in rows as wide as the page: the channel's number small at the top, its
 /// value large below, the cell lit by the value, and tinted with its fixture's model colour where one's patched.
 /// Drawn as one element, as 512 of them would be a lot to lay out every frame.
 /// </summary>
-sealed class ChannelGrid(Fonts fonts, LightingShow show, int universe) : Element
+sealed class ChannelGrid(Fonts fonts, LightingShow show, int universe) : Element, IWidthAware
 {
-    public const int COLUMNS = 16;
     const float CELL_W = 46;
     const float CELL_H = 42;
     const float GAP = 4;
+
+    /// <summary>
+    /// The room the page gives the grid across, which sets how many cells fit in a row.
+    /// </summary>
+    public float Width { get; set; } = 16 * (CELL_W + GAP) - GAP;
+
+    /// <summary>
+    /// How many cells there are in a row, as of the last <see cref="Measure"/>: as many as fit in
+    /// <see cref="Width"/>, and at least one.
+    /// </summary>
+    public int Columns { get; private set; } = 16;
+
+    /// <summary>
+    /// How many rows the universe's channels take, at <see cref="Columns"/> a row.
+    /// </summary>
+    public int Rows => (DmxUniverse.Size + Columns - 1) / Columns;
+
+    /// <summary>
+    /// Where channel <paramref name="ch"/> (from 0) sits, from the grid's top left.
+    /// </summary>
+    public float2 CellOffset(int ch) => new(ch % Columns * (CELL_W + GAP), ch / Columns * (CELL_H + GAP));
 
     /// <summary>
     /// How much of a fixture's model colour shows through a channel's grey.
@@ -24,8 +44,11 @@ sealed class ChannelGrid(Fonts fonts, LightingShow show, int universe) : Element
 
     public Dictionary<int, float4> Tints { get; set; } = [];
 
-    public override float2 Measure() =>
-        Size = new float2(COLUMNS * (CELL_W + GAP) - GAP, DmxUniverse.Size / COLUMNS * (CELL_H + GAP) - GAP);
+    public override float2 Measure()
+    {
+        Columns = Math.Clamp((int)((Width + GAP) / (CELL_W + GAP)), 1, DmxUniverse.Size);
+        return Size = new float2(Columns * (CELL_W + GAP) - GAP, Rows * (CELL_H + GAP) - GAP);
+    }
 
     /// <summary>
     /// A cell's background: grey by its value, with a fixture's colour mixed in, keeping a hint of it at full rather
@@ -48,7 +71,7 @@ sealed class ChannelGrid(Fonts fonts, LightingShow show, int universe) : Element
         var output = u.Output;
         for (var ch = 0; ch < DmxUniverse.Size; ch++)
         {
-            var at = ScreenPosition + new float2(ch % COLUMNS * (CELL_W + GAP), ch / COLUMNS * (CELL_H + GAP));
+            var at = ScreenPosition + CellOffset(ch);
             var value = output[ch];
             batch.AddRect(at, new float2(CELL_W, CELL_H), CellColour(value, Tints.TryGetValue(ch, out var tint) ? tint : null));
             // Dark text on a bright cell, light on a dark one.
