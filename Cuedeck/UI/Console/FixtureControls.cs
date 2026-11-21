@@ -326,7 +326,7 @@ sealed class PanTiltPad : ControlColumn, IFixtureControl
             var at = ScreenPosition + new float2(Point.X * SIZE, (1 - Point.Y) * SIZE);
             batch.AddRect(new float2(at.X, ScreenPosition.Y), new float2(1, SIZE), Theme.Fade(Theme.Focus, 0.35f));
             batch.AddRect(new float2(ScreenPosition.X, at.Y), new float2(SIZE, 1), Theme.Fade(Theme.Focus, 0.35f));
-            batch.AddRect(float2.Round(at - new float2(5, 5)), new float2(10, 10), IsHovered || IsPressed ? Colors.White : Theme.Focus);
+            batch.AddRect(float2.Round(at - new float2(5, 5)), new float2(10, 10), IsHovered || IsPressed ? Theme.Text : Theme.Focus);
             batch.AddBorder(ScreenPosition, Size, 1, Theme.PanelBorder);
         }
     }

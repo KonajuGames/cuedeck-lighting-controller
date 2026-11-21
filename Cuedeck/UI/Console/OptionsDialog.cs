@@ -37,12 +37,14 @@ sealed class OptionsDialog : Panel
     /// </summary>
     public event Action<DjSoftware>? DjSoftwareChanged;
 
+    readonly Label _lookHint;
+
     public OptionsDialog(Root root, Fonts fonts, ContextMenu menu, AppSettings settings)
     {
         _root = root;
         _settings = settings;
         Visible = false;
-        Background = Colors.Hex(0x000000, 0.6f);
+        Background = Theme.Scrim(0.6f);
 
         _box = Add(new Panel { Padding = 14, Spacing = 10, Background = Theme.PanelRaised, BorderColor = Theme.PanelBorder, BorderWidth = 1 });
         _box.Add(new Label(fonts.Heading, "Options") { Color = Theme.Text });
@@ -66,6 +68,27 @@ sealed class OptionsDialog : Panel
             DjSoftwareChanged?.Invoke(d);
         };
         _hint = _box.Add(new Label(fonts.Body) { Color = Theme.Muted, MaxWidth = WIDTH - 28, Wrap = true });
+
+        // The look, which the screen takes on as it's built, so a new one shows the next time the app starts.
+        var lookRow = _box.Add(new Row(8));
+        lookRow.Add(new Label(fonts.Body, "Look:") { Color = Theme.Muted });
+        var look = lookRow.Add(
+            new Dropdown<ThemeKind>(fonts.Body)
+            {
+                Menu = menu,
+                Width = 160,
+                Items = () => [ThemeKind.Dark, ThemeKind.Light, ThemeKind.HighContrast],
+                Text = Theme.NameOf,
+                Selected = Theme.Kind,
+                Tooltip = "Dark for dark rooms, Light for daylight, High contrast for bright rooms",
+            }
+        );
+        _lookHint = _box.Add(new Label(fonts.Body, "") { Color = Theme.Muted, MaxWidth = WIDTH - 28, Wrap = true });
+        look.Chosen += kind =>
+        {
+            _settings.Theme = kind;
+            _lookHint.Text = kind == Theme.Kind ? "" : $"Cuedeck will look {Theme.NameOf(kind).ToLowerInvariant()} the next time it starts.";
+        };
         _slight = _box.Add(new Panel { Spacing = 6 });
         var slightRow = _slight.Add(new Row(8));
         slightRow.Add(new Label(fonts.Body, "sLight:") { Color = Theme.Muted });

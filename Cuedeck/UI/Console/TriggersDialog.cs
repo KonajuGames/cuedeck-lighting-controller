@@ -65,12 +65,12 @@ sealed class TriggersDialog : Panel
         _root = root;
         _show = show;
         Visible = false;
-        Background = Colors.Hex(0x000000, 0.6f);
+        Background = Theme.Scrim(0.6f);
         var engine = show.Triggers;
 
         _box = Add(new Panel { Padding = 14, Spacing = 8, Background = Theme.PanelRaised, BorderColor = Theme.PanelBorder, BorderWidth = 1 });
         _box.Add(new Label(fonts.Heading, "MIDI / OSC Triggers") { Color = Theme.Text });
-        _activity = new Label(fonts.Body, "Waiting for MIDI / OSC…") { Color = Colors.Hex(0xA6CCA6), MaxWidth = WIDTH - 28 };
+        _activity = new Label(fonts.Body, "Waiting for MIDI / OSC…") { Color = AppTheme.OnPage(Colors.Hex(0xA6CCA6)), MaxWidth = WIDTH - 28 };
 
         var midiRow = _box.Add(new Row(8));
         _midiOn = midiRow.Add(new Checkbox(fonts.Body, "MIDI input"));

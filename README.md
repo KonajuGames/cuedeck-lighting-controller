@@ -46,6 +46,8 @@ lists what it does.
   and spinning. GDTF fixtures drawn from their own models; the rest by kind.
 - Haze, shadows, bloom on bright beams and lenses, a work light, three rooms, saved camera views, trusses and glTF set pieces, fixtures placed by
   dragging or by numbers, with undo.
+- Three looks, chosen in the options: Dark, Light for daylight, and High contrast for bright rooms, shared with
+  Cuepoint. The 3D visualizer, the timeline, waveforms and meters stay dark in every look.
 - Screenshots (PNG) and recordings (MP4, with whatever the computer's playing as the sound), a window of its own for a
   second screen, and MVR import and export.
 

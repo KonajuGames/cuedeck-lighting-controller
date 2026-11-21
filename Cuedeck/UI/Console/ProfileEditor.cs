@@ -52,7 +52,7 @@ sealed class ProfileEditor : Panel
         _fonts = fonts;
         _menu = menu;
         Visible = false;
-        Background = Colors.Hex(0x000000, 0.6f);
+        Background = Theme.Scrim(0.6f);
 
         _box = Add(new Panel { Padding = 14, Spacing = 8, Background = Theme.PanelRaised, BorderColor = Theme.PanelBorder, BorderWidth = 1 });
         _title = _box.Add(new Label(fonts.Heading, "") { Color = Theme.Text });
@@ -149,7 +149,7 @@ sealed class ProfileEditor : Panel
         _save.Clicked += _ => Save();
         var cancel = footer.Add(new Button(fonts.Body, "Cancel"));
         cancel.Clicked += _ => Close();
-        _error = footer.Add(new Label(fonts.Body, "") { Color = Colors.Hex(0xFF8C8C), MaxWidth = WIDTH - 260, Wrap = true });
+        _error = footer.Add(new Label(fonts.Body, "") { Color = Theme.Warning, MaxWidth = WIDTH - 260, Wrap = true });
 
         Clicked += _ =>
         {

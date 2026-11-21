@@ -68,6 +68,8 @@ return 0;
 
 static void Run(string[] args, (string Folder, string[] Names)? capture, bool firstStart)
 {
+    // The look, before anything's made, as elements take their colours as they're made.
+    Theme.Use(new AppSettings(AppSettings.DefaultPath).Theme);
     Glfw.WindowHint(GlfwWindowHint.ClientApi, Glfw.Constants.GLFW_NO_API);
 
     // Made hidden, and shown once the first frame is drawn, so Windows doesn't show it empty while the app gets going.

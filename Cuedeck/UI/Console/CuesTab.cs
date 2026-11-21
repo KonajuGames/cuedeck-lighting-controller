@@ -73,6 +73,8 @@ sealed class CuesTab : Region
         var go = transport.Add(new Button(fonts.Big, "GO") { MinSize = new float2(84, 0), Padding = 8, Tooltip = "GO the next cue (Space)" });
         go.Background = Colors.Hex(0x2F6B3F);
         go.HoverBackground = Colors.Hex(0x3A8450);
+        // White on its green, whatever the look's text is.
+        go.TextColor = Colors.White;
         go.Clicked += _ => Cues.Go();
         var back = transport.Add(new Button(fonts.Body, "Back") { Tooltip = "The cue before" });
         back.Clicked += _ => Cues.GoBack();

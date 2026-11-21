@@ -13,7 +13,7 @@ namespace Cuedeck.UI.DjPerform;
 /// </summary>
 sealed class DjPerformView : Region
 {
-    static readonly float4 Live = Colors.Hex(0x8CD98C);
+    static float4 Live => AppTheme.OnPage(Colors.Hex(0x8CD98C));
 
     /// <summary>
     /// A lit flash button's colour (Colour's is its own).

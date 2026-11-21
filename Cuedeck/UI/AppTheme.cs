@@ -9,6 +9,13 @@ namespace Cuedeck.UI;
 static class AppTheme
 {
     /// <summary>
+    /// <paramref name="color"/>, deepened on a light look, for a bright colour (a status's, a missing song's) that
+    /// would wash out on white. The timeline, waveforms, meters and visualizer stay dark in every look, so their
+    /// colours are left as they are.
+    /// </summary>
+    public static float4 OnPage(float4 color) => Theme.IsLight ? Theme.Mix(color, Colors.Hex(0x000000), 0.4f) : color;
+
+    /// <summary>
     /// The Sound tab's meter: a bar for each band, on its background (sLight's colours).
     /// </summary>
     public static readonly float4 SoundBass = Colors.Hex(0xF2594D);

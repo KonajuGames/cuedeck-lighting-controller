@@ -208,7 +208,7 @@ sealed class DjEditView : Region
 
     void AddColumns()
     {
-        float4? Missing(MusicRow r) => r.Missing ? AppTheme.MusicMissing : null;
+        float4? Missing(MusicRow r) => r.Missing ? AppTheme.OnPage(AppTheme.MusicMissing) : null;
         void Column(MusicColumn c, string title, float width, Func<MusicRow, string> text, bool right = false)
         {
             var col = new ListColumn<MusicRow>(title, width, text) { AlignRight = right, SortKey = _ => 0, Color = Missing };

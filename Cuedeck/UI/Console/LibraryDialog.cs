@@ -90,7 +90,7 @@ sealed class LibraryDialog : Panel
         _library = library;
         _online = online;
         Visible = false;
-        Background = Colors.Hex(0x000000, 0.6f);
+        Background = Theme.Scrim(0.6f);
 
         _box = Add(new Panel { Padding = 14, Spacing = 10, Background = Theme.PanelRaised, BorderColor = Theme.PanelBorder, BorderWidth = 1 });
         _box.Add(new Label(fonts.Heading, "Fixture Library") { Color = Theme.Text });
@@ -164,7 +164,7 @@ sealed class LibraryDialog : Panel
         _user = _login.Add(new TextBox(fonts.Body) { Width = 340, Placeholder = "Username" });
         _password = _login.Add(new TextBox(fonts.Body) { Width = 340, Placeholder = "Password", Secret = true });
         _password.Submitted += _ => LogIn();
-        _loginError = _login.Add(new Label(fonts.Body, "") { Color = Colors.Hex(0xFF8C8C), MaxWidth = 340, Wrap = true });
+        _loginError = _login.Add(new Label(fonts.Body, "") { Color = Theme.Warning, MaxWidth = 340, Wrap = true });
         var loginButtons = _login.Add(new Row(8));
         _logIn = loginButtons.Add(new Button(fonts.Bold, "Log In"));
         _logIn.Clicked += _ => LogIn();
@@ -432,7 +432,7 @@ sealed class LibraryDialog : Panel
         {
             var from = e.Gdtf ? "GDTF-Share" : "Open Fixture Library";
             var text = e.Bundled ? $"bundled + fetched from {(e.Gdtf ? "GDTF-Share" : "OFL")}" : $"fetched from {from}";
-            _preview.Add(new Label(_fonts.Body, text) { Color = Colors.Hex(0x8CCCFF) });
+            _preview.Add(new Label(_fonts.Body, text) { Color = Theme.Focus });
         }
         if (p.Physical.Heads.Count >= 2)
             _preview.Add(new Label(_fonts.Body, $"{p.Physical.Heads.Count} heads") { Color = Theme.Text });

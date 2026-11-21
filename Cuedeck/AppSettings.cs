@@ -71,6 +71,23 @@ sealed class AppSettings(string path)
     /// </summary>
     public string DjSoftwareName => Names[(int)DjSoftware];
 
+    static readonly string[] Looks = ["dark", "light", "high_contrast"];
+
+    /// <summary>
+    /// The look chosen, taken on as the app starts: dark unless another's been chosen.
+    /// </summary>
+    public ThemeKind Theme
+    {
+        get => Array.IndexOf(Looks, Values.Str("theme", "dark")) is var i && i >= 0 ? (ThemeKind)i : ThemeKind.Dark;
+        set
+        {
+            if (value == Theme && Values.Has("theme"))
+                return;
+            Values["theme"] = Looks[(int)value];
+            Save();
+        }
+    }
+
     public static string NameOf(DjSoftware software) => Names[(int)software];
 
     void Save()

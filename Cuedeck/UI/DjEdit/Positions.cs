@@ -90,9 +90,9 @@ sealed class PositionList(Font font, PositionLibrary library) : Element
             var p = library.Positions[i];
             var at = ScreenPosition + new float2(0, i * RowHeight);
             if (p.Id == SelectedId)
-                batch.AddRect(at, new float2(Size.X, RowHeight), Colors.Hex(0x3D6FB8, 0.7f));
+                batch.AddRect(at, new float2(Size.X, RowHeight), Theme.Fade(Theme.Selection, 0.7f));
             else if (i == _hover)
-                batch.AddRect(at, new float2(Size.X, RowHeight), Colors.Hex(0xFFFFFF, 0.07f));
+                batch.AddRect(at, new float2(Size.X, RowHeight), Theme.Tint(0.07f));
             Triangle(batch, at + new float2(6, (RowHeight - 14) / 2), 14, p.Colour);
             batch.PushClip(at, new float2(Size.X - (i == _hover ? X_WIDTH : 0) - 4, RowHeight));
             batch.AddText(font, p.Name, at + new float2(26, 3), Theme.Text);
