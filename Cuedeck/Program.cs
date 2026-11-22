@@ -19,10 +19,14 @@ using Cuedeck.Timelines;
 
 WindowsShell.AttachParentConsole();
 
-// The screenshot tool (--capture <folder> [name ...]) runs on a scratch app folder, leaving the user's alone.
+// The screenshot tool (--capture <folder> [name ...]) and the tour (--tour <folder>) run on a scratch app folder,
+// leaving the user's alone.
 var capture = ScreenshotTool.Parse(args);
 if (capture is not null)
     ScreenshotTool.UseScratch();
+// The tour notes when a song plays and puts it in afterwards, so it plays to no sound card, and nothing's heard.
+if (capture is { Tour: true })
+    Environment.SetEnvironmentVariable("SDL_AUDIO_DRIVER", "dummy");
 
 // Cuedeck's first start on this computer: sLight's files, if it finds them, are offered for import.
 var firstStart = capture is null && !Directory.Exists(AppPaths.Folder);
@@ -66,7 +70,7 @@ catch (Exception e)
 
 return 0;
 
-static void Run(string[] args, (string Folder, string[] Names)? capture, bool firstStart)
+static void Run(string[] args, ScreenshotTool.Request? capture, bool firstStart)
 {
     // The look, before anything's made, as elements take their colours as they're made.
     Theme.Use(new AppSettings(AppSettings.DefaultPath).Theme);
@@ -75,9 +79,18 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     // Made hidden, and shown once the first frame is drawn, so Windows doesn't show it empty while the app gets going.
     Glfw.WindowHint(GlfwWindowHint.Visible, 0);
     Glfw.WindowHint(GlfwWindowHint.Maximized, capture is null ? 1 : 0);
+    // The tour drives the window itself: the mouse passes through it to whatever's beneath, and it doesn't take the
+    // focus from what's being worked in, so nothing typed or clicked meanwhile reaches it.
+    if (capture is { Tour: true })
+    {
+        Glfw.WindowHint(GlfwWindowHint.MousePassthrough, 1);
+        Glfw.WindowHint(GlfwWindowHint.FocusOnShow, 0);
+        Glfw.WindowHint(GlfwWindowHint.Focused, 0);
+    }
 
     // Declared first so it's disposed last, after the GPU objects that draw to it.
-    using var window = Glfw.CreateWindow(new GlfwWindow.CreateInfo { Title = "Cuedeck", Size = capture is null ? new int2(1366, 820) : ScreenshotTool.Size });
+    var windowSize = capture is null ? new int2(1366, 820) : capture.Tour ? ScreenshotTool.TourSize : ScreenshotTool.Size;
+    using var window = Glfw.CreateWindow(new GlfwWindow.CreateInfo { Title = "Cuedeck", Size = windowSize });
     // How big everything's drawn: as chosen, or as Windows has it for the screen; the screenshots are as designed.
     var windowsScale = Glfw.PrimaryMonitor.ContentScale.X;
     // "--scale 1.5" on the command line tries another for one run, leaving the setting as it is.
@@ -266,8 +279,11 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     if (OperatingSystem.IsWindows())
         WindowChrome.Install(window, point => screen.TitleBar.IsCaption(new float2(point.X, point.Y) / screenScale));
 
-    // The console's keys, when nothing focused (a text box, say) has taken them.
-    input.UnhandledKey += (key, action, mods) =>
+    // The console's keys, when nothing focused (a text box, say) has taken them; the tour presses keys through here
+    // too.
+    input.UnhandledKey += OnKey;
+
+    void OnKey(GlfwKey key, GlfwKeyAction action, GlfwModifier mods)
     {
         // A letter typed into a text box isn't a shortcut, though the box leaves it unused.
         var typing = ui.Focused is TextBox;
@@ -325,7 +341,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
                 show.Cues.Go();
                 break;
         }
-    };
+    }
 
     // A show file given on the command line (opened with the app) is opened instead of the last one.
     shell.Start(capture is null ? args.FirstOrDefault(File.Exists) : null);
@@ -341,7 +357,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     };
     if (firstStart)
         shell.OfferSlightImport();
-    var screenshots = capture is { } c ? new ScreenshotTool(new(window, renderer, ui, screen, show, performer, djEdit, session), c.Folder, c.Names) : null;
+    var screenshots = capture is { } c ? new ScreenshotTool(new(window, renderer, ui, screen, show, performer, djEdit, session, OnKey), c) : null;
 
     // Every MIDI input, opened as it's plugged in; what they send goes to the show each frame. Their outputs are left
     // for trigger feedback to open (some drivers let only one program have a port).

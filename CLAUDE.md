@@ -17,6 +17,9 @@ A change there is a change to Cuepoint too: build and test both apps after one. 
 - Run: `dotnet run --project Cuedeck`
 - Screenshots for the README and user guide: `dotnet run --project Cuedeck -- --capture docs/img [name ...]`, then move
   `docs/img/screenshot.png` to `docs/`. It runs on a scratch app folder with a demo rig and made-up songs.
+- Video tour: `dotnet run --project Cuedeck -c Release -- --tour <folder> --ffmpeg <ffmpeg.exe>`, then
+  `python docs/tour/annotate.py <folder> --ffmpeg <ffmpeg.exe>` makes `cuedeck-tour.mp4`. The script is
+  `ScreenshotTool.Tour.cs`; ffmpeg needs libx264 and libass.
 
 ## Conventions
 

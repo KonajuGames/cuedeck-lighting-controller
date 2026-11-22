@@ -26,9 +26,10 @@ using Cue = Cuedeck.Show.Cue;
 /// someone would, and the frame the GPU drew saved as a PNG named as <c>docs/img</c>'s. Run as
 /// <c>Cuedeck --capture &lt;folder&gt; [name ...]</c>; names pick which to take (all of them when there are none).
 /// Nothing of the user's is read or touched: the app's folder is a scratch one for the run (<see cref="UseScratch"/>),
-/// and only the window's own picture is saved, never the screen's.
+/// and only the window's own picture is saved, never the screen's. <c>Cuedeck --tour</c> plays through the main
+/// features as a video instead (see ScreenshotTool.Tour.cs).
 /// </summary>
-sealed class ScreenshotTool
+sealed partial class ScreenshotTool
 {
     /// <summary>
     /// The window's size for every shot but the README's.
@@ -66,36 +67,77 @@ sealed class ScreenshotTool
         LightingShow Show,
         DjPerformer Performer,
         DjEditView DjEdit,
-        ShowSession Session
+        ShowSession Session,
+        Action<Brutal.GlfwApi.GlfwKey, Brutal.GlfwApi.GlfwKeyAction, Brutal.GlfwApi.GlfwModifier> Key
     );
 
     /// <summary>
-    /// A pause of some frames, or a shot (its top <c>Height</c> pixels only, when set).
+    /// What the command line asks for: the folder to write to, and which shots, or the tour (made with the ffmpeg at
+    /// <c>Ffmpeg</c>).
     /// </summary>
+    public sealed record Request(string Folder, string[] Names, bool Tour = false, string Ffmpeg = "ffmpeg");
+
     abstract record Step;
 
+    /// <summary>
+    /// A pause of some frames.
+    /// </summary>
     sealed record Wait(int Frames) : Step;
 
+    /// <summary>
+    /// A pause until <c>Ready</c>, for no more than <c>MaxFrames</c> frames.
+    /// </summary>
+    sealed record Until(Func<bool> Ready, int MaxFrames, string What) : Step;
+
+    /// <summary>
+    /// A shot (its top <c>Height</c> pixels only, when set).
+    /// </summary>
     sealed record Shot(string Name, int Height = 0) : Step;
+
+    /// <summary>
+    /// Something done at once, before the next step.
+    /// </summary>
+    sealed record Do(Action Act) : Step;
+
+    /// <summary>
+    /// A wait of so many seconds, by the clock rather than frames.
+    /// </summary>
+    sealed record Hold(double Seconds) : Step;
+
+    /// <summary>
+    /// Something done a little each frame over so many seconds, told how far through it is, from 0 to 1.
+    /// </summary>
+    sealed record Over(double Seconds, Action<double> Progress) : Step;
 
     readonly App _app;
     readonly string _out;
     readonly IEnumerator<Step> _script;
     int _waiting;
+    Until? _until;
+    Over? _over;
+    double _overStarted;
+    double _holdUntil;
     Shot? _taking;
+    readonly bool _tour;
+    readonly string _ffmpeg;
+    readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
     readonly List<string> _uids = [];
 
     /// <summary>
-    /// The folder, and which shots, from the command line; null without <c>--capture</c>.
+    /// What the command line asks for; null without <c>--capture</c> or <c>--tour</c>. <c>--capture [folder]
+    /// [name ...]</c> takes the screenshots; <c>--tour [folder] [--ffmpeg path]</c> records the tour.
     /// </summary>
-    public static (string Folder, string[] Names)? Parse(string[] args)
+    public static Request? Parse(string[] args)
     {
-        var at = Array.IndexOf(args, "--capture");
+        var tourAt = Array.IndexOf(args, "--tour");
+        var at = tourAt >= 0 ? tourAt : Array.IndexOf(args, "--capture");
         if (at < 0)
             return null;
-        var rest = args.Skip(at + 1).ToArray();
-        var folder = rest.Length > 0 ? Path.GetFullPath(rest[0]) : Path.Combine(Environment.CurrentDirectory, "screenshots");
-        return (folder, rest.Length > 1 ? rest[1..] : Shots);
+        var ffmpegAt = Array.IndexOf(args, "--ffmpeg");
+        var ffmpeg = ffmpegAt >= 0 && ffmpegAt + 1 < args.Length ? args[ffmpegAt + 1] : "ffmpeg";
+        var rest = args.Skip(at + 1).TakeWhile(arg => !arg.StartsWith("--", StringComparison.Ordinal)).ToArray();
+        var folder = rest.Length > 0 ? Path.GetFullPath(rest[0]) : Path.Combine(Environment.CurrentDirectory, tourAt >= 0 ? "tour" : "screenshots");
+        return new Request(folder, rest.Length > 1 ? rest[1..] : Shots, tourAt >= 0, ffmpeg);
     }
 
     /// <summary>
@@ -115,12 +157,14 @@ sealed class ScreenshotTool
         AppPaths.UseFolder(scratch);
     }
 
-    public ScreenshotTool(App app, string folder, IEnumerable<string> names)
+    public ScreenshotTool(App app, Request request)
     {
         _app = app;
-        _out = folder;
-        Directory.CreateDirectory(folder);
-        _script = Run([.. names]).GetEnumerator();
+        _out = request.Folder;
+        _tour = request.Tour;
+        _ffmpeg = request.Ffmpeg;
+        Directory.CreateDirectory(_out);
+        _script = (_tour ? Tour() : Run(request.Names)).GetEnumerator();
     }
 
     /// <summary>
@@ -135,6 +179,8 @@ sealed class ScreenshotTool
     {
         if (Done)
             return;
+        if (_tour)
+            TourFrame();
         if (_taking is { } shot)
         {
             if (_app.Renderer.TakeWindowCapture() is not { } picture)
@@ -145,25 +191,62 @@ sealed class ScreenshotTool
             Save(shot, picture);
             _taking = null;
         }
+        if (_until is { } until)
+        {
+            if (!until.Ready() && _waiting-- > 0)
+                return;
+            if (!until.Ready())
+                Console.Error.WriteLine($"gave up waiting for {until.What}");
+            (_until, _waiting) = (null, 0);
+        }
+        if (_over is { } over)
+        {
+            var through = Math.Min(1, (_clock.Elapsed.TotalSeconds - _overStarted) / Math.Max(over.Seconds, 1e-6));
+            over.Progress(through);
+            if (through < 1)
+                return;
+            _over = null;
+        }
+        if (_clock.Elapsed.TotalSeconds < _holdUntil)
+            return;
         if (_waiting > 0)
         {
             _waiting--;
             return;
         }
-        if (!_script.MoveNext())
+        // Steps done at once run on to the next, so a run of them all happens in the one frame.
+        while (true)
         {
-            Done = true;
-            return;
-        }
-        switch (_script.Current)
-        {
-            case Wait w:
-                _waiting = w.Frames;
-                break;
-            case Shot s:
-                _taking = s;
-                _app.Renderer.CaptureWindow = true;
-                break;
+            if (!_script.MoveNext())
+            {
+                if (_tour)
+                    FinishTour();
+                Done = true;
+                return;
+            }
+            switch (_script.Current)
+            {
+                case Wait w:
+                    _waiting = w.Frames;
+                    return;
+                case Until next:
+                    (_until, _waiting) = (next, next.MaxFrames);
+                    return;
+                case Shot take:
+                    _taking = take;
+                    _app.Renderer.CaptureWindow = true;
+                    return;
+                case Hold hold:
+                    _holdUntil = _clock.Elapsed.TotalSeconds + hold.Seconds;
+                    return;
+                case Over next:
+                    (_over, _overStarted) = (next, _clock.Elapsed.TotalSeconds);
+                    next.Progress(0);
+                    return;
+                case Do act:
+                    act.Act();
+                    break;
+            }
         }
     }
 

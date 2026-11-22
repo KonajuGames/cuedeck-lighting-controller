@@ -144,6 +144,17 @@ shots after the folder to take only those (`01-patch-tab`, `screenshot`, …). I
 made-up songs in place of your music, so your settings, shows and library are neither read nor changed. Move
 `screenshot.png` up to `docs/` after a full run.
 
+A video tour of the main features is made the same way. Cuedeck plays through them by itself, recording every frame
+it draws (it needs [ffmpeg](https://ffmpeg.org/) built with libx264 and libass), and then
+[docs/tour/annotate.py](docs/tour/annotate.py) (Python 3.8+ with Pillow) adds the captions, highlights, keys and mouse,
+and the songs where they played, as `cuedeck-tour.mp4`. Nothing is heard while it records, and the window lets the
+mouse through, so the computer can be used meanwhile:
+
+```bash
+dotnet run --project Cuedeck -c Release -- --tour tour --ffmpeg path/to/ffmpeg.exe
+python docs/tour/annotate.py tour --ffmpeg path/to/ffmpeg.exe
+```
+
 ## Tests
 
 ```bash
