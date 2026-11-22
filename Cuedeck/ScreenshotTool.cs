@@ -458,7 +458,8 @@ sealed partial class ScreenshotTool
     void ToConsole()
     {
         _app.Screen.SetView(AppView.Console);
-        _app.Screen.Console.Visualizer.UiVisible = true;
+        _app.Screen.Visualizer.UiVisible = true;
+        _app.Screen.VizDock.Collapsed = false;
     }
 
     // -------------------------------------------------------------------------------------------------- the shots
@@ -468,6 +469,7 @@ sealed partial class ScreenshotTool
         ToConsole();
         Tab("Cues");
         Tab("Patch");
+        _app.Screen.VizDock.Collapsed = true; // the patch the whole width, the visualizer folded away
         Look(Warm);
         yield return new Wait(2);
         Expand(0, 1);
@@ -480,6 +482,7 @@ sealed partial class ScreenshotTool
     {
         ToConsole();
         Tab("Patch");
+        _app.Screen.VizDock.Collapsed = true;
         yield return new Wait(2);
         Click(Find<Button>(b => b.Text == "Library…"));
         yield return new Wait(5);
@@ -509,7 +512,6 @@ sealed partial class ScreenshotTool
     {
         ToConsole();
         Tab("Chases");
-        Tab("3D Visualizer");
         Show.Effects.Chases[0].Running = true;
         yield return new Wait(2);
         SelectFirst(_app.Screen.Console.Chases.List);
@@ -522,7 +524,6 @@ sealed partial class ScreenshotTool
     {
         ToConsole();
         Tab("Effects");
-        Tab("3D Visualizer");
         Show.Effects.Effects[0].Running = true;
         yield return new Wait(2);
         SelectFirst(_app.Screen.Console.Effects.List);
@@ -574,7 +575,6 @@ sealed partial class ScreenshotTool
     {
         ToConsole();
         Tab("Cues");
-        Tab("3D Visualizer");
         Look(Warm);
         yield return Settle(20);
         yield return new Shot("09-visualizer");
@@ -584,7 +584,6 @@ sealed partial class ScreenshotTool
     {
         ToConsole();
         Tab("Groups");
-        Tab("3D Visualizer");
         _app.Screen.Dialogs.Triggers.Show(); // Edit > Triggers…
         yield return new Wait(5);
         if (_app.Ui.Elements.OfType<TriggersDialog>().FirstOrDefault() is { } dialog)
@@ -801,14 +800,13 @@ sealed partial class ScreenshotTool
     {
         ToConsole();
         Tab("Cues");
-        Tab("3D Visualizer");
-        _app.Screen.Console.Visualizer.UiVisible = false;
+        _app.Screen.Visualizer.UiVisible = false;
         Look(Warm);
         _app.Screen.Console.Cues.List.SelectedIndex = -1;
         _app.Window.Size = new int2(1400, 800);
         yield return Settle(20);
         yield return new Shot("screenshot");
-        _app.Screen.Console.Visualizer.UiVisible = true;
+        _app.Screen.Visualizer.UiVisible = true;
         _app.Window.Size = Size;
         yield return new Wait(5);
     }

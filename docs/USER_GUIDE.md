@@ -17,7 +17,7 @@ opens.
 
 ![The Patch tab with a five-fixture rig, its two moving heads opened up](img/01-patch-tab.png)
 
-The window has three areas:
+The window has four areas:
 
 - **Menu bar and top bar**: the menus **File** (New, Load and Save Show, Save and Load Preset, Options, Exit),
   **Edit** (Undo, Redo, Cut, Copy and Paste for whatever you're editing, Add/Remove Universe, and **Triggers…** for
@@ -26,11 +26,13 @@ The window has three areas:
   These stay visible whatever tab or view you're on.
 - **Left side, the playback tabs**: **Cues**, **Chases**, **Effects**, **Sound** and **Groups**. This is where you
   build and run a show.
-- **Right side**: **Patch** (a page per universe, for patching fixtures and setting them by hand), the
-  **3D Visualizer** (your rig lit live by whatever the console's sending), **DMX Output** (every channel's level),
-  **Faders** and **Palettes**.
+- **Middle, the rig tabs**: **Patch** (a page per universe, for patching fixtures and setting them by hand),
+  **DMX Output** (every channel's level), **Faders** and **Palettes**.
+- **Right side, the 3D Visualizer**: your rig lit live by whatever the console's sending. It stays there whichever
+  view you're in. The arrow on the strip between it and the rest folds it away to the right, giving the rest the
+  whole window (handy on a small screen, or while patching); the arrow on the strip left behind brings it back.
 
-That split is the **Console** view. The **View** selector swaps it for **DJ Edit Mode**, where you build a light show
+The playback and rig tabs are the **Console** view. The **View** selector swaps it for **DJ Edit Mode**, where you build a light show
 for each song in your music library, or **DJ Perform Mode**, where your DJ software (VirtualDJ or Cuepoint) plays
 those shows live (Steps 10 and 11). The console keeps running underneath either.
 
@@ -217,8 +219,10 @@ counts as the end. **Forget MIDI** (or right-clicking the mapping button) forget
 
 ## Step 9: See it in 3D
 
-The **3D Visualizer** tab (on the right) shows your rig lit live by whatever the console is sending: cues, chases,
-effects and the grand master all show, all the time.
+The **3D Visualizer**, docked on the right of the window, shows your rig lit live by whatever the console is sending:
+cues, chases, effects and the grand master all show, all the time. It stays beside DJ Edit Mode and DJ Perform Mode
+too, so you can watch a song's show as you build or play it. The arrow on the strip at its left folds it away to the
+right, and brings it back; Cuedeck remembers which next time.
 
 ![The 3D Visualizer showing a lit rig](img/09-visualizer.png)
 
@@ -237,7 +241,8 @@ lenses glow (bloom), as they do on camera.
 **Screenshot** saves a PNG of the view and **Record** an MP4 of it, with whatever the computer's playing as its sound
 (DJ Edit Mode's song, or your DJ software's). Both go to the `render` folder in Cuedeck's app folder
 (`%LOCALAPPDATA%\Cuedeck`), which opens when they're done. **Pop Out** moves the visualizer into a window of its own,
-for a second screen at front of house; close that window, or press **Dock to Main**, to put it back. **Import MVR…**
+for a second screen at front of house; the main window gives its room to the rest while it's gone. Close that window, or press **Dock to Main**, to put it
+back. **Import MVR…**
 and **Export MVR…** bring a rig in from, or send it to, other lighting software (Vectorworks, Capture, consoles).
 **Hide UI** clears the controls away for an unobstructed view.
 

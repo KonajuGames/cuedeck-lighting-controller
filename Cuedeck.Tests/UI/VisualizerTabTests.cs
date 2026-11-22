@@ -9,9 +9,9 @@ using Cuedeck.Visualizer;
 namespace Cuedeck.Tests.UI;
 
 /// <summary>
-/// The 3D Visualizer tab, driven as someone would (the picture itself is the GPU's, so isn't here): picking a fixture
+/// The 3D Visualizer, docked on the right of the window, driven as someone would (the picture itself is the GPU's, so isn't here): picking a fixture
 /// on the view, its properties, typing a position, Undo and Redo by button and by Ctrl+Z / Ctrl+Y over the view (the
-/// rest of sLight's tests/visualizer_undo_test.gd), trusses, the room, the views and Hide UI.
+/// rest of sLight's tests/visualizer_undo_test.gd), trusses, the room, the views, Hide UI, and folding it away.
 /// </summary>
 public sealed class VisualizerTabTests : ConsoleHarness
 {
@@ -22,9 +22,9 @@ public sealed class VisualizerTabTests : ConsoleHarness
     {
         _a = Show.Patch.Add(0, Profiles.Simple("par", "Par", ("Dimmer", "DIMMER")), 0, name: "A", position: new Vector3(1, 4, -2));
         Show.Patch.RaiseChanged();
-        _viz = Screen.Console.Visualizer;
+        _viz = Screen.Visualizer;
         _viz.Root = Ui;
-        Click(Find<Button>(b => b.Text == "3D Visualizer"));
+        Screen.VizDock.Collapsed = false;
         Frame();
     }
 
@@ -125,9 +125,9 @@ public sealed class VisualizerTabTests : ConsoleHarness
         Click(Find<Button>(b => b.Text == "Export MVR…"));
         Assert.Equal("Imported 2 fixtures, 0 trusses from rig.mvr", Screen.StatusText);
 
-        Choose(Find<Dropdown<string>>(d => d.Selected == "Black Box"), "Club");
+        Choose(All(_viz).OfType<Dropdown<string>>().First(d => d.Selected == "Black Box"), "Club");
         Assert.Equal("Club", Scene.Room.Name);
-        Choose(Find<Dropdown<int>>(_ => true), "Top");
+        Choose(All(_viz).OfType<Dropdown<int>>().First(), "Top");
         Assert.True(Scene.Camera.Ortho);
         Assert.True(Find<Checkbox>(c => c.Text == "Ortho").Checked);
 
@@ -136,8 +136,8 @@ public sealed class VisualizerTabTests : ConsoleHarness
         Click(Find<Button>(b => b.Text == "Show UI"));
         Assert.True(_viz.Toolbar.Visible);
 
-        // Off the tab, nothing's drawn.
-        Click(Find<Button>(b => b.Text == "Patch"));
+        // Folded away, nothing's drawn.
+        Click(Screen.VizDock.Fold);
         Assert.False(_viz.IsShown());
         Assert.Null(((Cuedeck.Rendering.IScene3DSource)_viz).SceneSize);
     }
@@ -190,18 +190,52 @@ public sealed class VisualizerTabTests : ConsoleHarness
         Click(Find<Button>(b => b.Text == "Pop Out"));
         Assert.Equal(["out"], asked);
 
-        // Gone to its own window: its tab says so; Dock to Main asks to come back.
-        Screen.Console.DetachVisualizer(MainScreenTests.TestFonts.Body);
+        // Gone to its own window: the dock gives the console its room; Dock to Main asks to come back.
+        var docked = Screen.Console.Size.X;
+        Screen.VizDock.Release();
         _viz.Floating = true;
         Frame();
-        Assert.Contains(All(Screen.Console).OfType<Label>(), l => l.Text.StartsWith("The 3D Visualizer is in a window of its own"));
-        Assert.DoesNotContain(_viz, All(Screen.Console));
+        Assert.DoesNotContain(_viz, All(Screen));
+        Assert.Equal(Screen.ScreenSize.X, Screen.Console.Size.X);
         Assert.Equal("Dock to Main", All(_viz).OfType<Button>().Single(b => b.Text is "Dock to Main" or "Pop Out").Text);
-        Screen.Console.AttachVisualizer();
+        Screen.VizDock.Take();
         _viz.Floating = false;
         Frame();
-        Assert.Contains(_viz, All(Screen.Console)); // back in its tab, showing
+        Assert.Contains(_viz, All(Screen)); // back in the dock, showing
+        Assert.Equal(docked, Screen.Console.Size.X);
         Assert.True(_viz.IsShown());
+    }
+
+    [Fact]
+    public void It_sits_to_the_right_of_every_view_and_folds_away()
+    {
+        Assert.DoesNotContain(All(Screen.Console).OfType<Button>(), b => b.Text == "3D Visualizer"); // no tab of its own
+        Assert.True(_viz.ScreenPosition.X >= Screen.Console.ScreenPosition.X + Screen.Console.Size.X);
+        Assert.True(_viz.IsShown());
+
+        // The strip's button folds it away to the right, giving the console the room; again brings it back.
+        var console = Screen.Console.Size.X;
+        Click(Screen.VizDock.Fold);
+        Assert.True(Screen.VizDock.Collapsed);
+        Assert.False(_viz.IsShown());
+        Assert.False(_viz.Visible);
+        Assert.Equal(Screen.ScreenSize.X - VizDock.STRIP, Screen.Console.Size.X);
+        Assert.Equal("Show the 3D Visualizer", Screen.VizDock.Fold.Tooltip);
+        Click(Screen.VizDock.Fold);
+        Assert.False(Screen.VizDock.Collapsed);
+        Assert.True(_viz.IsShown());
+        Assert.Equal(console, Screen.Console.Size.X);
+    }
+
+    [Fact]
+    public void Its_toolbar_wraps_where_its_narrow()
+    {
+        // Every button within the view, clear of Hide UI, however narrow the dock.
+        Screen.ScreenSize = new float2(1024, 640);
+        Frame();
+        var right = All(_viz).OfType<Button>().Single(b => b.Text == "Hide UI").ScreenPosition.X;
+        foreach (var button in All(_viz.Toolbar).OfType<Button>())
+            Assert.True(button.ScreenPosition.X + button.Size.X <= right, button.Text);
     }
 
     [Fact]
@@ -217,5 +251,7 @@ public sealed class VisualizerTabTests : ConsoleHarness
         Assert.True(Cuedeck.Common.Json.AsBool(d.Get("floating")));
         new VizWindowState(false, (1, 2, 3, 4), true).Save(path);
         Assert.Null(VizWindowState.Load(path).Rect); // docked: no window to remember
+        new VizWindowState(Collapsed: true).Save(path);
+        Assert.True(VizWindowState.Load(path).Collapsed); // folded away in the dock
     }
 }

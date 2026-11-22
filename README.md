@@ -44,6 +44,8 @@ lists what it does.
 
 - The patched rig lit live by the console's output: colour, intensity, pan and tilt, zoom, strobe, gobos projected
   and spinning. GDTF fixtures drawn from their own models; the rest by kind.
+- Docked down the right of the window beside the console, DJ Edit Mode and DJ Perform Mode; folded away with one
+  click, or popped out into a window of its own for a second screen.
 - Haze, shadows, bloom on bright beams and lenses, a work light, three rooms, saved camera views, trusses and glTF set pieces, fixtures placed by
   dragging or by numbers, with undo.
 - Three looks, chosen in the options: Dark, Light for daylight, and High contrast for bright rooms, shared with

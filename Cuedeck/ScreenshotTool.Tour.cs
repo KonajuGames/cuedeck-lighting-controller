@@ -313,14 +313,13 @@ sealed partial class ScreenshotTool
         dj.ShowTrackList();
         ToConsole();
         Tab("Cues");
-        Tab("3D Visualizer");
         Look([]);
         _app.Screen.Console.Cues.List.SelectedIndex = -1;
         yield return Settle(30);
         HideMouseNow();
         Step Rest(double seconds) => new Hold(seconds);
         var console = _app.Screen.Console;
-        var viz = console.Visualizer;
+        var viz = _app.Screen.Visualizer;
 
         yield return new Do(StartRecordingVideo);
 
@@ -561,7 +560,6 @@ sealed partial class ScreenshotTool
         {
             ToConsole();
             Tab("Cues");
-            Tab("3D Visualizer");
             viz.UiVisible = false;
             Look(Warm);
         });

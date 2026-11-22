@@ -24,6 +24,7 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
     readonly LightingShow _show;
     readonly Surface _surface;
     readonly Panel _toolbar;
+    readonly Flow[] _lines;
     readonly Panel _props;
     readonly Button _uiToggle;
     readonly Slider _haze;
@@ -72,18 +73,20 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
         _show = show;
         _surface = Add(new Surface(this));
 
-        // ---- the toolbar: look, camera, scene.
+        // ---- the toolbar: look, camera, scene, each a line that wraps where the view's narrow (docked beside a view).
         _toolbar = Add(new Panel { Padding = 8, Spacing = 6, Background = OverlayBackground });
-        var look = _toolbar.Add(new Row(8));
-        look.Add(new Label(fonts.Body, "Haze") { Color = Theme.Text });
-        _haze = look.Add(new Slider { Min = 0, Max = 1, Length = 110, ShowFill = true });
+        var look = _toolbar.Add(new Flow(8));
+        var hazeRow = look.Add(new Row(8));
+        hazeRow.Add(new Label(fonts.Body, "Haze") { Color = Theme.Text });
+        _haze = hazeRow.Add(new Slider { Min = 0, Max = 1, Length = 110, ShowFill = true });
         _haze.Changed += s => Scene.Haze = s.Value;
         _workLight = look.Add(new Checkbox(fonts.Body, "Work light"));
         _workLight.Changed += c => Scene.WorkLight = c.Checked;
         _shadows = look.Add(new Checkbox(fonts.Body, "Shadows") { Tooltip = "The brightest lights (up to eight) cast shadows" });
         _shadows.Changed += c => Scene.Shadows = c.Checked;
-        look.Add(new Label(fonts.Body, "Room") { Color = Theme.Text });
-        _room = look.Add(
+        var roomRow = look.Add(new Row(8));
+        roomRow.Add(new Label(fonts.Body, "Room") { Color = Theme.Text });
+        _room = roomRow.Add(
             new Dropdown<string>(fonts.Body)
             {
                 Menu = menu,
@@ -93,9 +96,10 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
         );
         _room.Chosen += Scene.SetRoom;
 
-        var camera = _toolbar.Add(new Row(8));
-        camera.Add(new Label(fonts.Body, "View") { Color = Theme.Text });
-        _view = camera.Add(
+        var camera = _toolbar.Add(new Flow(8));
+        var viewRow = camera.Add(new Row(8));
+        viewRow.Add(new Label(fonts.Body, "View") { Color = Theme.Text });
+        _view = viewRow.Add(
             new Dropdown<int>(fonts.Body)
             {
                 Menu = menu,
@@ -126,13 +130,15 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
             _view.Selected = Math.Min(_view.Selected, Scene.Views.Count - 1);
             Scene.ApplyView(_view.Selected);
         };
-        camera.Add(new Label(fonts.Body, "FOV") { Color = Theme.Text });
-        _fov = camera.Add(new NumberBox(fonts.Body, 15, 100, 1, 0, 60));
+        var fovRow = camera.Add(new Row(8));
+        fovRow.Add(new Label(fonts.Body, "FOV") { Color = Theme.Text });
+        _fov = fovRow.Add(new NumberBox(fonts.Body, 15, 100, 1, 0, 60));
         _fov.Changed += b => Scene.Camera.Fov = b.Value;
         _ortho = camera.Add(new Checkbox(fonts.Body, "Ortho"));
         _ortho.Changed += c => Scene.Camera.Ortho = c.Checked;
 
-        var scene = _toolbar.Add(new Row(8));
+        var scene = _toolbar.Add(new Flow(8));
+        _lines = [look, camera, scene];
         _undo = scene.Add(new Button(fonts.Body, "Undo") { Padding = 4, Tooltip = "Undo the last move (Ctrl+Z)" });
         _undo.Clicked += _ => Scene.Undo();
         _redo = scene.Add(new Button(fonts.Body, "Redo") { Padding = 4, Tooltip = "Redo the move undone (Ctrl+Y)" });
@@ -538,6 +544,21 @@ sealed class VisualizerView : Region, IScene3DSource, IPointerHook
     protected override void MeasureContent()
     {
         _surface.SetSize(Available);
+        // The toolbar's lines as wide as they need, up to the room left of Hide UI.
+        _uiToggle.Measure();
+        var room = MathF.Max(120, Available.X - _uiToggle.Size.X - 24 - 2 * _toolbar.Padding);
+        foreach (var line in _lines)
+        {
+            var natural = 0f;
+            var shown = 0;
+            foreach (var child in line.Children)
+                if (child.Visible)
+                {
+                    natural += child.Measure().X;
+                    shown++;
+                }
+            line.Width = MathF.Min(room, natural + line.Spacing * Math.Max(0, shown - 1) + 2 * line.Padding + 1);
+        }
         _toolbar.Measure();
         _props.Measure();
         _uiToggle.Measure();

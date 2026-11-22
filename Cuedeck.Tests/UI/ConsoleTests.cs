@@ -15,7 +15,7 @@ public sealed class ConsoleTests : ConsoleHarness
     [Fact]
     public void The_console_shows_the_playback_and_rig_tabs()
     {
-        foreach (var tab in new[] { "Cues", "Chases", "Effects", "Sound", "Groups", "Patch", "3D Visualizer", "DMX Output", "Faders", "Palettes", "Universe 1" })
+        foreach (var tab in new[] { "Cues", "Chases", "Effects", "Sound", "Groups", "Patch", "DMX Output", "Faders", "Palettes", "Universe 1" })
             Assert.NotNull(ButtonCalled(tab));
         Assert.True(ButtonCalled("Patch").Lit);
     }

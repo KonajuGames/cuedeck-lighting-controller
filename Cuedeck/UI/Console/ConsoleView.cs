@@ -5,8 +5,8 @@ using Cuedeck.Show;
 namespace Cuedeck.UI.Console;
 
 /// <summary>
-/// The console: the playback tabs (Cues, Chases, Effects, Sound, Groups) on the left, and the rig's tabs (Patch, 3D
-/// Visualizer, DMX Output, Faders, Palettes) filling the rest.
+/// The console: the playback tabs (Cues, Chases, Effects, Sound, Groups) on the left, and the rig's tabs (Patch, DMX
+/// Output, Faders, Palettes) filling the rest. The 3D Visualizer is docked beside it, on the window's right.
 /// </summary>
 sealed class ConsoleView : Region
 {
@@ -32,11 +32,6 @@ sealed class ConsoleView : Region
     /// </summary>
     public event Action<string>? Status;
 
-    /// <summary>
-    /// The 3D Visualizer tab.
-    /// </summary>
-    public Visualizer.VisualizerView Visualizer { get; }
-
     public ConsoleView(Fonts fonts, FixtureIcons icons, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles)
     {
         _dialogs = dialogs;
@@ -58,9 +53,6 @@ sealed class ConsoleView : Region
         _right = Add(new TabView(fonts.Body));
         Patch = new PatchTab(fonts, icons, menu, dialogs, show, profiles);
         _right.AddTab("Patch", Patch);
-        Visualizer = new Visualizer.VisualizerView(fonts, menu, dialogs.Prompt, show);
-        Visualizer.IsShown = () => Visible && _right.SelectedPage == Visualizer;
-        _right.AddTab("3D Visualizer", Visualizer);
         DmxOutput = new DmxOutputTab(fonts, show);
         _right.AddTab("DMX Output", DmxOutput);
         Faders = new FadersTab(fonts, menu, show);
@@ -68,35 +60,6 @@ sealed class ConsoleView : Region
         Palettes = new PalettesTab(fonts, menu, dialogs, show);
         _right.AddTab("Palettes", new ScrollingPage(Palettes));
         Palettes.Status += m => Status?.Invoke(m);
-        Visualizer.Status += m =>
-        {
-            if (m != "")
-                Status?.Invoke(m);
-        };
-    }
-
-    Placeholder? _vizAway;
-
-    /// <summary>
-    /// The visualizer's gone to a window of its own: its tab says so (and takes it back with
-    /// <see cref="AttachVisualizer"/>).
-    /// </summary>
-    public void DetachVisualizer(Font font)
-    {
-        var i = _right.IndexOf(Visualizer);
-        if (i < 0)
-            return;
-        _vizAway ??= new Placeholder(font, "The 3D Visualizer is in a window of its own: close it, or press Dock to Main, to bring it back.");
-        _right.SetPage(i, _vizAway);
-        Visualizer.Visible = true;
-    }
-
-    public void AttachVisualizer()
-    {
-        if (_vizAway is null || _right.IndexOf(_vizAway) is var i && i < 0)
-            return;
-        _right.SetPage(i, Visualizer);
-        _right.Selected = i;
     }
 
     public void Update()
@@ -113,8 +76,6 @@ sealed class ConsoleView : Region
             sound.Update();
         if (_left.SelectedPage is ScrollingPage { Content: GroupsTab groups })
             groups.Update();
-        if (_right.SelectedPage == Visualizer)
-            Visualizer.Update();
         if (_right.SelectedPage == Patch)
             Patch.Update();
         if (_right.SelectedPage == DmxOutput)

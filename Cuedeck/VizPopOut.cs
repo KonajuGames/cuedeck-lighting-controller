@@ -9,9 +9,9 @@ namespace Cuedeck;
 
 /// <summary>
 /// The 3D Visualizer popped out into an OS window of its own (to put on another screen, say), drawn by a renderer of
-/// its own on the same GPU, with its own root, menu and name prompt; its tab says where it's gone. Closing the window
-/// or pressing Dock to Main puts it back. Where the window was, and whether the visualizer's controls show, are kept
-/// between runs (<see cref="VizWindowState"/>). sLight's <c>_pop_out_viz</c> and <c>_dock_viz</c>.
+/// its own on the same GPU, with its own root, menu and name prompt; the main window's dock gives up its room while
+/// it's gone. Closing the window or pressing Dock to Main puts it back. Where the window was, whether the visualizer's
+/// controls show, and whether it's folded away in the dock, are kept between runs (<see cref="VizWindowState"/>). sLight's <c>_pop_out_viz</c> and <c>_dock_viz</c>.
 /// </summary>
 sealed class VizPopOut : IDisposable
 {
@@ -19,7 +19,7 @@ sealed class VizPopOut : IDisposable
     readonly FontAtlas _atlas;
     readonly Fonts _fonts;
     readonly VisualizerView _view;
-    readonly ConsoleView _console;
+    readonly VizDock _dock;
     readonly ScenePass _mainScene;
     readonly Root _mainUi;
     readonly ContextMenu _mainMenu;
@@ -40,7 +40,7 @@ sealed class VizPopOut : IDisposable
         GpuContext gpu,
         FontAtlas atlas,
         Fonts fonts,
-        ConsoleView console,
+        VizDock dock,
         ScenePass mainScene,
         Root mainUi,
         ContextMenu mainMenu,
@@ -49,11 +49,11 @@ sealed class VizPopOut : IDisposable
         string statePath
     )
     {
-        (_gpu, _atlas, _fonts, _console, _mainScene, _mainUi, _mainMenu, _mainPrompt, _log, _statePath) = (
+        (_gpu, _atlas, _fonts, _dock, _mainScene, _mainUi, _mainMenu, _mainPrompt, _log, _statePath) = (
             gpu,
             atlas,
             fonts,
-            console,
+            dock,
             mainScene,
             mainUi,
             mainMenu,
@@ -61,7 +61,7 @@ sealed class VizPopOut : IDisposable
             log,
             statePath
         );
-        _view = console.Visualizer;
+        _view = dock.View;
         _shownDocked = _view.IsShown;
         _view.PopOutRequested += () => PopOut(null);
         _view.DockRequested += Dock;
@@ -81,6 +81,7 @@ sealed class VizPopOut : IDisposable
     {
         var state = VizWindowState.Load(_statePath);
         _view.UiVisible = state.Ui;
+        _dock.Collapsed = state.Collapsed;
         if (state.Floating)
             PopOut(state.Rect);
     }
@@ -113,7 +114,7 @@ sealed class VizPopOut : IDisposable
         _menu = new ContextMenu(_fonts.Body);
         _prompt = new NamePrompt(_ui, _fonts.Body, _fonts.Bold, _fonts.Heading);
 
-        _console.DetachVisualizer(_fonts.Body);
+        _dock.Release();
         _ui.Add(_view);
         _ui.Add(_prompt);
         _ui.Add(_menu);
@@ -157,7 +158,7 @@ sealed class VizPopOut : IDisposable
         _view.UseDialogs(_mainMenu, _mainPrompt);
         _view.Floating = false;
         _view.IsShown = _shownDocked;
-        _console.AttachVisualizer();
+        _dock.Take();
         _mainUi.PointerHooks.Add(_view);
         _mainScene.Source = _view;
         _log("3D Visualizer docked.");
@@ -194,7 +195,7 @@ sealed class VizPopOut : IDisposable
     {
         var open = floating ?? _window is not null;
         (int, int, int, int)? rect = _window is { } w ? (w.Position.X, w.Position.Y, w.Size.X, w.Size.Y) : null;
-        new VizWindowState(open, rect, _view.UiVisible).Save(_statePath);
+        new VizWindowState(open, rect, _view.UiVisible, _dock.Collapsed).Save(_statePath);
     }
 
     public void Dispose()

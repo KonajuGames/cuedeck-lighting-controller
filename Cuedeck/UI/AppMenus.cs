@@ -103,8 +103,8 @@ sealed class AppMenus
         }
         else
         {
-            // The console: the 3D Visualizer's moves, while it shows.
-            var viz = _screen.View == AppView.Console && _screen.Console.Visualizer.IsShown();
+            // The console and DJ Perform Mode: the 3D Visualizer's moves, while it shows.
+            var viz = _screen.Visualizer.IsShown();
             var scene = _show.Visualizer;
             items.AddRange(
                 [

@@ -21,8 +21,8 @@ enum AppView
 }
 
 /// <summary>
-/// The whole window: the title bar, the menu bar, the console's top bar, the console filling the middle, and a status
-/// line along the bottom. Everything is sized to the window each frame, so set <see cref="ScreenSize"/> and call
+/// The whole window: the title bar, the menu bar, the console's top bar, the console (or DJ Edit or DJ Perform Mode)
+/// filling the middle with the 3D Visualizer docked on its right, and a status line along the bottom. Everything is sized to the window each frame, so set <see cref="ScreenSize"/> and call
 /// <see cref="Update"/> before laying out.
 /// </summary>
 sealed class MainScreen : Panel
@@ -47,6 +47,16 @@ sealed class MainScreen : Panel
 
     public TopBar TopBar { get; }
     public ConsoleView Console { get; }
+
+    /// <summary>
+    /// The 3D Visualizer, in <see cref="VizDock"/> unless it's popped out into a window of its own.
+    /// </summary>
+    public Visualizer.VisualizerView Visualizer { get; }
+
+    /// <summary>
+    /// Where the 3D Visualizer is docked, down the right of the window, beside whichever view shows.
+    /// </summary>
+    public Visualizer.VizDock VizDock { get; }
 
     /// <summary>
     /// DJ Edit Mode, if the app has it (tests of the console leave it out).
@@ -83,6 +93,13 @@ sealed class MainScreen : Panel
         MenuBar = Add(new MenuBar(fonts.Body, menu));
         TopBar = Add(new TopBar(fonts, menu, show));
         Console = Add(new ConsoleView(fonts, images.Fixture, menu, dialogs, show, profiles));
+        Visualizer = new Visualizer.VisualizerView(fonts, menu, dialogs.Prompt, show);
+        VizDock = Add(new Visualizer.VizDock(Visualizer));
+        Visualizer.Status += m =>
+        {
+            if (m != "")
+                Log(m);
+        };
         if (djEdit is not null)
         {
             DjEdit = Add(djEdit);
@@ -169,6 +186,7 @@ sealed class MainScreen : Panel
         DjEdit?.Update();
         if (DjPerform is { Visible: true })
             DjPerform.Update();
+        VizDock.Update();
         _status.MaxWidth = ScreenSize.X - 20;
     }
 
@@ -178,7 +196,11 @@ sealed class MainScreen : Panel
         MenuBar.Measure();
         TopBar.Measure();
         _status.Measure();
-        var room = new float2(ScreenSize.X, MathF.Max(100, ScreenSize.Y - BarsHeight - TopBar.Size.Y - STATUS_HEIGHT));
+        var height = MathF.Max(100, ScreenSize.Y - BarsHeight - TopBar.Size.Y - STATUS_HEIGHT);
+        var dock = VizDock.WidthIn(ScreenSize.X);
+        VizDock.Available = new float2(dock, height);
+        VizDock.Measure();
+        var room = new float2(ScreenSize.X - dock, height);
         Console.Available = room;
         if (Console.Visible)
             Console.Measure();
@@ -205,6 +227,7 @@ sealed class MainScreen : Panel
             Console.Arrange(position + new float2(0, BarsHeight + TopBar.Size.Y));
         DjEdit?.Arrange(position + new float2(8, BarsHeight + TopBar.Size.Y + 6));
         DjPerform?.Arrange(position + new float2(8, BarsHeight + TopBar.Size.Y + 6));
+        VizDock.Arrange(position + new float2(ScreenSize.X - VizDock.Size.X, BarsHeight + TopBar.Size.Y));
         _status.Arrange(position + new float2(10, ScreenSize.Y - STATUS_HEIGHT + MathF.Round((STATUS_HEIGHT - _status.Size.Y) / 2)));
     }
 

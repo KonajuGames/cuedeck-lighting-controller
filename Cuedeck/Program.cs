@@ -210,15 +210,15 @@ static void Run(string[] args, ScreenshotTool.Request? capture, bool firstStart)
     var djPerform = new DjPerformView(fonts, performer, show.Flash, picker);
     var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), show, profiles, djEdit, djPerform));
     // The 3D Visualizer: drawn by the renderer's 3D pass; the middle button slides its camera.
-    scenePass.Source = screen.Console.Visualizer;
+    scenePass.Source = screen.Visualizer;
     scenePass.Scale = screenScale;
-    screen.Console.Visualizer.Root = ui;
-    screen.Console.Visualizer.ModelsFolder = profiles.ModelsFolder;
+    screen.Visualizer.Root = ui;
+    screen.Visualizer.ModelsFolder = profiles.ModelsFolder;
     // Screenshots and recordings: what's playing as the sound; the render folder shown when one's saved.
     if (OperatingSystem.IsWindows())
-        screen.Console.Visualizer.StartAudio = LoopbackAudio.Start;
-    screen.Console.Visualizer.OpenFolder = folder => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
-    ui.PointerHooks.Add(screen.Console.Visualizer);
+        screen.Visualizer.StartAudio = LoopbackAudio.Start;
+    screen.Visualizer.OpenFolder = folder => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
+    ui.PointerHooks.Add(screen.Visualizer);
     editPlayback.IsShown = () => screen.View == AppView.DjEdit && djEdit.IsTimelineShown;
     ui.Add(editor);
     ui.Add(triggers);
@@ -232,22 +232,22 @@ static void Run(string[] args, ScreenshotTool.Request? capture, bool firstStart)
     ui.Add(menu);
     using var input = new GlfwUiInput(window, ui);
     // The 3D Visualizer can go to a window of its own, and be put back; it's where it was last time.
-    using var popOut = new VizPopOut(gpu, atlas, fonts, screen.Console, scenePass, ui, menu, prompt, screen.Log, VizWindowState.DefaultPath);
+    using var popOut = new VizPopOut(gpu, atlas, fonts, screen.VizDock, scenePass, ui, menu, prompt, screen.Log, VizWindowState.DefaultPath);
     popOut.Restore();
     // Each file dialog starts where it was last used.
     var recent = new RecentFolders(RecentFolders.DefaultPath);
     var shell = new AppShell(session, screen, confirm, () => OperatingSystem.IsWindows() ? WindowChrome.Handle : 0) { Recent = recent };
-    screen.Console.Visualizer.AskForModel = () =>
+    screen.Visualizer.AskForModel = () =>
         recent.Ask(
             "gltf_model",
             folder => WindowsShell.AskForFile(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Load glTF Model (set piece / stage element)", ("glTF model", "*.glb;*.gltf"), folder)
         );
     // MVR import and export, from the visualizer's toolbar (they change the patch and keep profiles).
-    screen.Console.Visualizer.ImportMvr = () =>
+    screen.Visualizer.ImportMvr = () =>
         recent.Ask("mvr", folder => WindowsShell.AskForFile(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Import MVR (My Virtual Rig)", ("My Virtual Rig", "*.mvr"), folder)) is { } mvr
             ? Mvr.Apply(Mvr.Import(mvr), show, profiles, Path.GetFileName(mvr))
             : "";
-    screen.Console.Visualizer.ExportMvr = () =>
+    screen.Visualizer.ExportMvr = () =>
         recent.Ask("mvr", folder => WindowsShell.AskWhereToSave(OperatingSystem.IsWindows() ? WindowChrome.Handle : 0, "Export MVR (My Virtual Rig)", [("My Virtual Rig", "*.mvr")], "rig.mvr", folder)?.Path) is { } where
             ? Mvr.Export(where, show)
             : "";
@@ -305,8 +305,8 @@ static void Run(string[] args, ScreenshotTool.Request? capture, bool firstStart)
         // DJ Edit Mode's timeline has first say (Space plays its song there, rather than going the next cue).
         var uiKey = GlfwUiInput.ToUiKey(key);
         var uiMods = (Modifiers)((int)mods & 0xF);
-        // The 3D Visualizer's Ctrl+Z / Ctrl+Y, while the mouse is over it.
-        if (screen.View == AppView.Console && uiKey != Key.Other && screen.Console.Visualizer.KeyDown(uiKey, uiMods, ui.Mouse))
+        // The 3D Visualizer's Ctrl+Z / Ctrl+Y, while the mouse is over it, in any view.
+        if (uiKey != Key.Other && screen.Visualizer.KeyDown(uiKey, uiMods, ui.Mouse))
             return;
         if (screen.View == AppView.DjEdit && djEdit.IsTimelineShown && uiKey != Key.Other && timelineView.KeyDown(uiKey, uiMods))
             return;

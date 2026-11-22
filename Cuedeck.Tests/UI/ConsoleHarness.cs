@@ -50,6 +50,8 @@ public abstract class ConsoleHarness : IDisposable
         Ui.Add(menu);
         var session = new ShowSession(Show) { LastShowStore = Dir.File("last.json") };
         Shell = new AppShell(session, Screen, confirm, () => 0);
+        // The 3D Visualizer folded away, leaving the console the whole window; its own tests bring it back.
+        Screen.VizDock.Collapsed = true;
         Frame();
         Frame(); // the Patch tab builds its pages on the first
     }
