@@ -90,6 +90,12 @@ sealed class MainScreen : Panel
         TopBar.Status += Log;
         TitleBar.OptionsClicked += dialogs.Options.Show;
         dialogs.Options.DjSoftwareChanged += d => Log($"Music library: {AppSettings.NameOf(d)}.");
+        dialogs.Options.ScreenSizeChosen += scale =>
+        {
+            var options = dialogs.Options;
+            var name = ScreenScale.Name(options.Drawn(scale), options.WindowsScale);
+            Log(options.Drawn(scale) == options.RunningScale ? $"The screen will stay at {name}." : $"Restart Cuedeck to draw the screen at {name}.");
+        };
         Console.Patch.Status += Log;
         Console.Status += Log;
     }

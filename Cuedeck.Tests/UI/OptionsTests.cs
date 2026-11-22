@@ -55,6 +55,32 @@ public sealed class OptionsTests : ConsoleHarness
     }
 
     [Fact]
+    public void A_screen_size_unlike_the_one_drawn_says_to_restart()
+    {
+        (Options.WindowsScale, Options.LargestScale, Options.RunningScale) = (1.25f, 1.5f, 1.25f);
+        Click(Find<IconButton>(b => b.Tooltip == "Options"));
+        bool Note() => All(Options).OfType<Label>().Any(l => l.Text == "Restart Cuedeck to see it.");
+        Assert.False(Note()); // Windows' own, as it's drawn
+
+        var size = Find<Dropdown<float?>>(_ => true);
+        Choose(size, "150%");
+        Frame();
+        Assert.True(Note());
+        Assert.Equal("Restart Cuedeck to draw the screen at 150%.", Screen.StatusText);
+        Assert.Equal(1.5f, new AppSettings(Dir.File("settings.json")).ScreenScale);
+
+        // Too big for the screen: drawn at the most it has room for, and named so.
+        Choose(size, "200%, drawn at 150% to fit");
+        Assert.Equal("Restart Cuedeck to draw the screen at 150%.", Screen.StatusText);
+
+        // Back to the size it's drawn at: nothing to restart for.
+        Choose(size, "125%");
+        Frame();
+        Assert.False(Note());
+        Assert.Equal("The screen will stay at 125%.", Screen.StatusText);
+    }
+
+    [Fact]
     public void Feedback_is_set_up_in_the_triggers_dialog()
     {
         var sent = new List<(string Host, int Port, byte[] Bytes)>();

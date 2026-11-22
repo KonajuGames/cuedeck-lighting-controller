@@ -141,6 +141,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     var triggers = new TriggersDialog(ui, fonts, menu, show);
     var settings = new AppSettings(AppSettings.DefaultPath);
     var options = new OptionsDialog(ui, fonts, menu, settings);
+    (options.WindowsScale, options.LargestScale, options.RunningScale) = (windowsScale, largestScale, screenScale);
     // DJ Edit Mode: the song timelines follow the show (the session points them at its folder), over the patch and
     // its named positions.
     var timelines = new SongTimelines

@@ -38,6 +38,35 @@ sealed class OptionsDialog : Panel
     public event Action<DjSoftware>? DjSoftwareChanged;
 
     readonly Label _lookHint;
+    readonly Dropdown<float?> _size;
+    readonly Label _restartNote;
+
+    /// <summary>
+    /// The screen size Windows has for the screen, the one used when none's chosen.
+    /// </summary>
+    public float WindowsScale { get; set; } = 1;
+
+    /// <summary>
+    /// The biggest screen size the screen has room for (see <see cref="ScreenScale.Largest"/>): a bigger one chosen is
+    /// drawn at this.
+    /// </summary>
+    public float LargestScale { get; set; } = float.MaxValue;
+
+    /// <summary>
+    /// The screen size it's drawn at now, taken on as the app started: a size chosen that comes out different says
+    /// Cuedeck needs starting again to show it.
+    /// </summary>
+    public float RunningScale { get; set; } = 1;
+
+    /// <summary>
+    /// A screen size was chosen (null for Windows' own), and saved: it's taken on the next time the app starts.
+    /// </summary>
+    public event Action<float?>? ScreenSizeChosen;
+
+    /// <summary>
+    /// The scale a screen size chosen is drawn at: as chosen, unless the screen hasn't room for it.
+    /// </summary>
+    public float Drawn(float? chosen) => ScreenScale.Use(chosen, WindowsScale, LargestScale);
 
     public OptionsDialog(Root root, Fonts fonts, ContextMenu menu, AppSettings settings)
     {
@@ -93,25 +122,22 @@ sealed class OptionsDialog : Panel
         // How big everything's drawn, also taken on as the app starts.
         var sizeRow = _box.Add(new Row(8));
         sizeRow.Add(new Label(fonts.Body, "Screen size:") { Color = Theme.Muted });
-        var windows = Brutal.GlfwApi.Glfw.PrimaryMonitor.ContentScale.X;
-        var screenPixels = Brutal.GlfwApi.Glfw.PrimaryMonitor.VideoMode;
-        var largest = ScreenScale.Largest(screenPixels.Width, screenPixels.Height, Program.SmallestWindow);
-        var size = sizeRow.Add(
+        _size = sizeRow.Add(
             new Dropdown<float?>(fonts.Body)
             {
                 Menu = menu,
                 Width = 260,
                 Items = () => [null, .. ScreenScale.Choices.Select(choice => (float?)choice)],
-                Text = scale => ScreenScale.Name(scale, windows, largest),
+                Text = scale => ScreenScale.Name(scale, WindowsScale, LargestScale),
                 Selected = settings.ScreenScale,
                 Tooltip = "Everything drawn bigger, for a 4K screen or one seen from further away",
             }
         );
-        var sizeHint = _box.Add(new Label(fonts.Body, "") { Color = Theme.Muted, MaxWidth = WIDTH - 28, Wrap = true });
-        size.Chosen += scale =>
+        _restartNote = _box.Add(new Label(fonts.Body, "Restart Cuedeck to see it.") { Color = Theme.Warning, Visible = false });
+        _size.Chosen += scale =>
         {
             _settings.ScreenScale = scale;
-            sizeHint.Text = $"Cuedeck will be drawn at {ScreenScale.Name(ScreenScale.Use(scale, windows, largest), windows)} the next time it starts.";
+            ScreenSizeChosen?.Invoke(scale);
         };
         _slight = _box.Add(new Panel { Spacing = 6 });
         var slightRow = _slight.Add(new Row(8));
@@ -181,6 +207,7 @@ sealed class OptionsDialog : Panel
             _root.Focus(this); // back on the dialog once a menu's gone, so Escape still reaches it
         _dj.Selected = _settings.DjSoftware;
         _slight.Visible = SlightFolders.Count > 0;
+        _restartNote.Visible = Drawn(_size.Selected) != RunningScale;
         _hint.Text = _settings.DjSoftware == DjSoftware.Cuepoint
             ? "Songs' beat grids, keys and tempos come from Cuepoint's library files (%LOCALAPPDATA%\\Cuepoint\\library.json, and "
                 + "\\Cuepoint\\library.json on each drive), and DJ Edit Mode lists its virtual folders (the .m3u8 files in "
