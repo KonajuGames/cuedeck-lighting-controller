@@ -83,10 +83,13 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     // "--scale 1.5" on the command line tries another for one run, leaving the setting as it is.
     var scaleAt = Array.IndexOf(args, "--scale");
     float? tried = scaleAt >= 0 && scaleAt + 1 < args.Length && float.TryParse(args[scaleAt + 1], System.Globalization.CultureInfo.InvariantCulture, out var given) ? given : null;
-    var screenScale = capture is null ? ScreenScale.Use(tried ?? new AppSettings(AppSettings.DefaultPath).ScreenScale, windowsScale) : 1;
+    // Never so big that the screen hasn't room for the smallest window, which would draw things over each other: on a
+    // 1920 by 1080 screen, 169% at most.
     var screenPixels = Glfw.PrimaryMonitor.VideoMode;
+    var largestScale = ScreenScale.Largest(screenPixels.Width, screenPixels.Height, SmallestWindow);
+    var screenScale = capture is null ? ScreenScale.Use(tried ?? new AppSettings(AppSettings.DefaultPath).ScreenScale, windowsScale, largestScale) : 1;
     window.SetSizeLimits(
-        new int2((int)Math.Min(1024 * screenScale, screenPixels.Width), (int)Math.Min(640 * screenScale, screenPixels.Height)),
+        new int2((int)Math.Min(SmallestWindow.X * screenScale, screenPixels.Width), (int)Math.Min(SmallestWindow.Y * screenScale, screenPixels.Height)),
         new int2(-1, -1)
     );
 
@@ -423,3 +426,11 @@ static string FindFont(bool bold) =>
     FontAtlas.FindSystemFont(bold)
     ?? FontAtlas.FindSystemFont()
     ?? throw new FileNotFoundException("No usable system font found; install DejaVu Sans or Liberation Sans");
+
+partial class Program
+{
+    /// <summary>
+    /// The smallest the window can be, in the UI's units, with everything still laid out without overlapping.
+    /// </summary>
+    internal static readonly float2 SmallestWindow = new(1024, 640);
+}

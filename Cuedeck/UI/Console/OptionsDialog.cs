@@ -94,13 +94,15 @@ sealed class OptionsDialog : Panel
         var sizeRow = _box.Add(new Row(8));
         sizeRow.Add(new Label(fonts.Body, "Screen size:") { Color = Theme.Muted });
         var windows = Brutal.GlfwApi.Glfw.PrimaryMonitor.ContentScale.X;
+        var screenPixels = Brutal.GlfwApi.Glfw.PrimaryMonitor.VideoMode;
+        var largest = ScreenScale.Largest(screenPixels.Width, screenPixels.Height, Program.SmallestWindow);
         var size = sizeRow.Add(
             new Dropdown<float?>(fonts.Body)
             {
                 Menu = menu,
-                Width = 200,
+                Width = 260,
                 Items = () => [null, .. ScreenScale.Choices.Select(choice => (float?)choice)],
-                Text = scale => ScreenScale.Name(scale, windows),
+                Text = scale => ScreenScale.Name(scale, windows, largest),
                 Selected = settings.ScreenScale,
                 Tooltip = "Everything drawn bigger, for a 4K screen or one seen from further away",
             }
@@ -109,7 +111,7 @@ sealed class OptionsDialog : Panel
         size.Chosen += scale =>
         {
             _settings.ScreenScale = scale;
-            sizeHint.Text = $"Cuedeck will be drawn at {ScreenScale.Name(scale, windows)} the next time it starts.";
+            sizeHint.Text = $"Cuedeck will be drawn at {ScreenScale.Name(ScreenScale.Use(scale, windows, largest), windows)} the next time it starts.";
         };
         _slight = _box.Add(new Panel { Spacing = 6 });
         var slightRow = _slight.Add(new Row(8));
