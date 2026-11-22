@@ -46,6 +46,12 @@ sealed class ScenePass(GpuContext gpu) : IPrePass, IDisposable
     /// </summary>
     public IScene3DSource? Source { get; set; }
 
+    /// <summary>
+    /// How many screen pixels make one of the UI's (see <see cref="Root.Scale"/>), so the scene's drawn at the size
+    /// it's shown, sharp, rather than scaled up.
+    /// </summary>
+    public float Scale { get; set; } = 1;
+
     public void Record(CommandBuffer cmd, int frameIndex, OverlayRenderer ui)
     {
         // A picture copied out last time this slot was used is ready now its frame's done.
@@ -53,7 +59,7 @@ sealed class ScenePass(GpuContext gpu) : IPrePass, IDisposable
             Source?.Captured(shot.Width, shot.Height, shot.Rgba);
         if (Source?.SceneSize is { } size)
         {
-            if (_scene.EnsureSize(new VkExtent2D((int)size.X, (int)size.Y)))
+            if (_scene.EnsureSize(new VkExtent2D((int)MathF.Round(size.X * Scale), (int)MathF.Round(size.Y * Scale))))
                 ui.SetTexture(Scene3D.TEXTURE, _scene.View!.Value);
             _scene.Record(cmd, frameIndex, Source.BuildScene(), Source.CaptureThisFrame());
         }

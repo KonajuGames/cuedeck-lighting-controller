@@ -78,7 +78,17 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
 
     // Declared first so it's disposed last, after the GPU objects that draw to it.
     using var window = Glfw.CreateWindow(new GlfwWindow.CreateInfo { Title = "Cuedeck", Size = capture is null ? new int2(1366, 820) : ScreenshotTool.Size });
-    window.SetSizeLimits(new int2(1024, 640), new int2(-1, -1));
+    // How big everything's drawn: as chosen, or as Windows has it for the screen; the screenshots are as designed.
+    var windowsScale = Glfw.PrimaryMonitor.ContentScale.X;
+    // "--scale 1.5" on the command line tries another for one run, leaving the setting as it is.
+    var scaleAt = Array.IndexOf(args, "--scale");
+    float? tried = scaleAt >= 0 && scaleAt + 1 < args.Length && float.TryParse(args[scaleAt + 1], System.Globalization.CultureInfo.InvariantCulture, out var given) ? given : null;
+    var screenScale = capture is null ? ScreenScale.Use(tried ?? new AppSettings(AppSettings.DefaultPath).ScreenScale, windowsScale) : 1;
+    var screenPixels = Glfw.PrimaryMonitor.VideoMode;
+    window.SetSizeLimits(
+        new int2((int)Math.Min(1024 * screenScale, screenPixels.Width), (int)Math.Min(640 * screenScale, screenPixels.Height)),
+        new int2(-1, -1)
+    );
 
 #if DEBUG
     const bool ENABLE_VALIDATION = true;
@@ -86,7 +96,8 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     const bool ENABLE_VALIDATION = false;
 #endif
 
-    var atlas = new FontAtlas();
+    // Text's rasterised at the size it's drawn, so it's sharp.
+    var atlas = new FontAtlas { Scale = screenScale };
     var regular = FindFont(bold: false);
     var bold = FindFont(bold: true);
     var fonts = new Fonts(
@@ -116,7 +127,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     var session = new ShowSession(show) { UsbAvailable = usb.Available };
     var profiles = new ProfileStore(Path.Combine(AppPaths.Folder, "fixture_profiles"));
 
-    var ui = new Root { TooltipFont = fonts.Body };
+    var ui = new Root { TooltipFont = fonts.Body, Scale = screenScale };
     var menu = new ContextMenu(fonts.Body);
     var confirm = new ConfirmDialog(ui, fonts.Body, fonts.Bold, fonts.Heading);
     var prompt = new NamePrompt(ui, fonts.Body, fonts.Bold, fonts.Heading);
@@ -183,6 +194,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     var screen = ui.Add(new MainScreen(fonts, images, menu, new Dialogs(confirm, prompt, picker, library, editor, triggers, options), show, profiles, djEdit, djPerform));
     // The 3D Visualizer: drawn by the renderer's 3D pass; the middle button slides its camera.
     scenePass.Source = screen.Console.Visualizer;
+    scenePass.Scale = screenScale;
     screen.Console.Visualizer.Root = ui;
     screen.Console.Visualizer.ModelsFolder = profiles.ModelsFolder;
     // Screenshots and recordings: what's playing as the sound; the render folder shown when one's saved.
@@ -246,7 +258,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     };
     screen.TitleBar.CloseClicked += shell.RequestClose;
     if (OperatingSystem.IsWindows())
-        WindowChrome.Install(window, point => screen.TitleBar.IsCaption(new float2(point.X, point.Y)));
+        WindowChrome.Install(window, point => screen.TitleBar.IsCaption(new float2(point.X, point.Y) / screenScale));
 
     // The console's keys, when nothing focused (a text box, say) has taken them.
     input.UnhandledKey += (key, action, mods) =>
@@ -376,7 +388,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
         if (window.IsIconified || size.X == 0 || size.Y == 0)
             continue;
 
-        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = picker.ScreenSize = library.ScreenSize = editor.ScreenSize = triggers.ScreenSize = options.ScreenSize = new float2(size.X, size.Y);
+        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = picker.ScreenSize = library.ScreenSize = editor.ScreenSize = triggers.ScreenSize = options.ScreenSize = new float2(size.X, size.Y) / screenScale;
         // Whether there are unsaved changes means writing out the whole show, so it's asked a few times a second, not
         // every frame, and the window's told only when the title changes.
         if (now - lastTitleCheck >= TITLE_CHECK)

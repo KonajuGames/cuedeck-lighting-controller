@@ -88,6 +88,25 @@ sealed class AppSettings(string path)
         }
     }
 
+    /// <summary>
+    /// How big everything's drawn, as a share of its designed size, taken on as the app starts; null for Windows' own
+    /// scale for the screen.
+    /// </summary>
+    public float? ScreenScale
+    {
+        get => Values.Has("screen_scale") ? (float)Values.Num("screen_scale", 1) : null;
+        set
+        {
+            if (value == ScreenScale)
+                return;
+            if (value is { } scale)
+                Values["screen_scale"] = scale;
+            else
+                Values.Remove("screen_scale");
+            Save();
+        }
+    }
+
     public static string NameOf(DjSoftware software) => Names[(int)software];
 
     void Save()

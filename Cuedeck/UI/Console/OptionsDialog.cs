@@ -89,6 +89,28 @@ sealed class OptionsDialog : Panel
             _settings.Theme = kind;
             _lookHint.Text = kind == Theme.Kind ? "" : $"Cuedeck will look {Theme.NameOf(kind).ToLowerInvariant()} the next time it starts.";
         };
+
+        // How big everything's drawn, also taken on as the app starts.
+        var sizeRow = _box.Add(new Row(8));
+        sizeRow.Add(new Label(fonts.Body, "Screen size:") { Color = Theme.Muted });
+        var windows = Brutal.GlfwApi.Glfw.PrimaryMonitor.ContentScale.X;
+        var size = sizeRow.Add(
+            new Dropdown<float?>(fonts.Body)
+            {
+                Menu = menu,
+                Width = 200,
+                Items = () => [null, .. ScreenScale.Choices.Select(choice => (float?)choice)],
+                Text = scale => ScreenScale.Name(scale, windows),
+                Selected = settings.ScreenScale,
+                Tooltip = "Everything drawn bigger, for a 4K screen or one seen from further away",
+            }
+        );
+        var sizeHint = _box.Add(new Label(fonts.Body, "") { Color = Theme.Muted, MaxWidth = WIDTH - 28, Wrap = true });
+        size.Chosen += scale =>
+        {
+            _settings.ScreenScale = scale;
+            sizeHint.Text = $"Cuedeck will be drawn at {ScreenScale.Name(scale, windows)} the next time it starts.";
+        };
         _slight = _box.Add(new Panel { Spacing = 6 });
         var slightRow = _slight.Add(new Row(8));
         slightRow.Add(new Label(fonts.Body, "sLight:") { Color = Theme.Muted });
