@@ -14,6 +14,10 @@ sealed class FixtureRow : Panel
 {
     readonly Panel _controls;
     readonly Ends _header;
+    readonly Row _left;
+    readonly Row _right;
+    readonly Label _name;
+    readonly Label _model;
     readonly Button _expand;
     readonly List<IFixtureControl> _bound = [];
     readonly List<Button> _groupButtons = [];
@@ -57,19 +61,15 @@ sealed class FixtureRow : Panel
 
         // The fixture on the left; its category and buttons on the right.
         _header = Add(new Ends());
-        var header = _header.Add(new Row(6));
+        var header = _left = _header.Add(new Row(6));
         _expand = header.Add(new Button(fonts.Small, "►") { Padding = 4, MinSize = new float2(26, 0), Tooltip = "Expand" });
         var chans = fixture.Channels;
         var mode = fixture.Profile.ModeCount > 1 ? $"  [{fixture.Profile.ModeNames[Math.Clamp(fixture.Mode, 0, fixture.Profile.ModeCount - 1)]}]" : "";
-        header.Add(
-            new Label(fonts.Bold, $"{fixture.Name}  (ch {fixture.Start + 1}-{fixture.Start + chans.Count})")
-            {
-                Color = Theme.Text,
-                MaxWidth = 320,
-            }
-        ).Tooltip = $"{fixture.Profile.FullName}{mode}";
-        header.Add(new Label(fonts.Small, fixture.Profile.FullName + mode) { Color = Theme.Muted, MaxWidth = 340 });
-        header = _header.Add(new Row(6));
+        _name = header.Add(new Label(fonts.Bold, $"{fixture.Name}  (ch {fixture.Start + 1}-{fixture.Start + chans.Count})") { Color = Theme.Text });
+        _name.Tooltip = $"{fixture.Profile.FullName}{mode}";
+        // The model, cut short to the room the right's controls leave it (see Measure).
+        _model = header.Add(new Label(fonts.Small, fixture.Profile.FullName + mode) { Color = Theme.Muted });
+        header = _right = _header.Add(new Row(6));
 
         var category = header.Add(
             new Dropdown<string>(fonts.Small) { Menu = menu, Width = 160, Items = () => FixtureProfile.ShowCategories, Selected = fixture.Category }
@@ -130,6 +130,24 @@ sealed class FixtureRow : Panel
     }
 
     readonly Action Updating;
+
+    // The widest the name goes, before the model's given what's left.
+    const float NAME_WIDTH = 320;
+
+    public override float2 Measure()
+    {
+        // The name and model share what the category and buttons on the right leave, so they never push them on:
+        // the name first, then the model, each cut short with an ellipsis where it won't fit.
+        if (Width <= 0)
+            return base.Measure(); // not given a width yet: nothing to fit
+        _right.Measure();
+        _expand.Measure();
+        var room = Width - 2 * Inset - _header.Spacing - _right.Size.X - _expand.Size.X - 2 * _left.Spacing - 2 * _left.Padding;
+        _name.MaxWidth = MathF.Max(0, MathF.Min(NAME_WIDTH, room));
+        _name.Measure();
+        _model.MaxWidth = MathF.Max(0, room - _name.Size.X);
+        return base.Measure();
+    }
 
     public bool Expanded
     {

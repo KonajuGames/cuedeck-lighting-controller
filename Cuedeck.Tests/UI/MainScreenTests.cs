@@ -22,7 +22,7 @@ public class MainScreenTests
         return new Fonts(Atlas.Add(regular, 12), Atlas.Add(regular, 14), Atlas.Add(bold, 14), Atlas.Add(bold, 18), Atlas.Add(bold, 26));
     }
 
-    static (Root Ui, MainScreen Screen) LaidOut(float2 size)
+    internal static (Root Ui, MainScreen Screen) LaidOut(float2 size)
     {
         var ui = new Root();
         var menu = new ContextMenu(TestFonts.Body);
