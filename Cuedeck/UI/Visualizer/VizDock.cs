@@ -4,8 +4,9 @@ namespace Cuedeck.UI.Visualizer;
 
 /// <summary>
 /// The 3D Visualizer docked down the right of the window, beside whichever view shows (the console, DJ Edit Mode or
-/// DJ Perform Mode), with a strip between them whose button folds it away to the right and brings it back. While
-/// the visualizer's in a window of its own the dock is empty and takes no room.
+/// DJ Perform Mode), with a strip between them: drag the strip to make the visualizer wider or narrower, or press its
+/// button to fold the visualizer away to the right and bring it back. While the visualizer's in a window of its own
+/// the dock is empty and takes no room.
 /// </summary>
 sealed class VizDock : Region
 {
@@ -16,12 +17,26 @@ sealed class VizDock : Region
 
     const float GAP = 8;
 
+    /// <summary>
+    /// The narrowest the docked visualizer goes, and the least room it leaves the view beside it.
+    /// </summary>
+    public const float MIN_WIDTH = 320;
+    public const float MIN_VIEW = 640;
+
+    /// <summary>
+    /// How much of the window the docked visualizer takes to begin with.
+    /// </summary>
+    public const float DEFAULT_SHARE = 0.36f;
+
     readonly VisualizerView _view;
+    readonly Grip _grip;
     readonly FoldButton _fold;
+    float _windowWidth = 1280;
 
     public VizDock(VisualizerView view)
     {
         _view = view;
+        _grip = Add(new Grip(this));
         _fold = Add(new FoldButton());
         _fold.Clicked += _ => Collapsed = !Collapsed;
         Add(view);
@@ -62,6 +77,17 @@ sealed class VizDock : Region
     public Element Fold => _fold;
 
     /// <summary>
+    /// The strip, dragged to resize the visualizer.
+    /// </summary>
+    public Element Strip => _grip;
+
+    /// <summary>
+    /// How much of the window's width the docked visualizer takes, from 0 to 1 (kept within
+    /// <see cref="MIN_WIDTH"/> and <see cref="MIN_VIEW"/> as the window's sized).
+    /// </summary>
+    public float Share { get; set; } = DEFAULT_SHARE;
+
+    /// <summary>
     /// Lets the visualizer go to a window of its own.
     /// </summary>
     public void Release() => Children.Remove(_view);
@@ -77,13 +103,27 @@ sealed class VizDock : Region
     }
 
     /// <summary>
-    /// How much of a window <paramref name="width"/> wide the dock takes: a little over a third, leaving the view
+    /// How much of a window <paramref name="width"/> wide the dock takes: its <see cref="Share"/>, leaving the view
     /// room enough; just the strip while folded away; nothing while the visualizer's in a window of its own.
     /// </summary>
-    public float WidthIn(float width) =>
-        !Holds ? 0
-        : Collapsed ? STRIP
-        : MathF.Round(Math.Clamp(width * 0.36f, 320, MathF.Max(320, width - 640)));
+    public float WidthIn(float width)
+    {
+        _windowWidth = width;
+        return !Holds ? 0
+            : Collapsed ? STRIP
+            : Fit(width * Share, width);
+    }
+
+    static float Fit(float wanted, float window) => MathF.Round(Math.Clamp(wanted, MIN_WIDTH, MathF.Max(MIN_WIDTH, window - MIN_VIEW)));
+
+    /// <summary>
+    /// The strip's dragged to <paramref name="x"/> on screen: the visualizer as wide as the room to its right.
+    /// </summary>
+    void DragTo(float x)
+    {
+        var right = ScreenPosition.X + Size.X;
+        Share = Fit(right - x, _windowWidth) / MathF.Max(1, _windowWidth);
+    }
 
     /// <summary>
     /// Each frame, while it shows: the visualizer's rigs and controls kept up.
@@ -97,6 +137,7 @@ sealed class VizDock : Region
     protected override void MeasureContent()
     {
         _fold.Measure();
+        _grip.Measure();
         if (Holds && !Collapsed)
         {
             _view.Available = new float2(MathF.Max(1, Available.X - STRIP - GAP), MathF.Max(1, Available.Y - 2 * GAP));
@@ -107,6 +148,7 @@ sealed class VizDock : Region
     public override void Arrange(float2 position)
     {
         ArrangeSelf(position);
+        _grip.Arrange(position);
         _fold.Arrange(position + new float2(MathF.Round((STRIP - _fold.Size.X) / 2), MathF.Round((Size.Y - _fold.Size.Y) / 2)));
         if (Holds && !Collapsed)
             _view.Arrange(position + new float2(STRIP, GAP));
@@ -114,12 +156,33 @@ sealed class VizDock : Region
 
     public override void Draw(Batch batch)
     {
-        if (!Holds)
-            return;
-        // The strip's line down its middle, either side of the button.
-        var x = MathF.Round(ScreenPosition.X + STRIP / 2);
-        batch.AddRect(new float2(x, ScreenPosition.Y + GAP), new float2(1, Size.Y - 2 * GAP), Theme.PanelBorder);
-        DrawChildren(batch);
+        if (Holds)
+            DrawChildren(batch);
+    }
+
+    /// <summary>
+    /// The strip itself: a line down its middle, lit while the pointer's on it, that drags left and right to resize
+    /// the visualizer (while it isn't folded away).
+    /// </summary>
+    sealed class Grip(VizDock dock) : Element
+    {
+        float _grabbedAt;
+
+        public override bool IsInteractive => !dock.Collapsed;
+        public override Cursor Cursor => Cursor.ResizeHorizontal;
+
+        public override float2 Measure() => Size = new float2(STRIP, dock.Available.Y);
+
+        public override void PointerDown(float2 point, Modifiers modifiers) => _grabbedAt = point.X - ScreenPosition.X;
+
+        public override void PointerDrag(float2 point) => dock.DragTo(point.X - _grabbedAt);
+
+        public override void Draw(Batch batch)
+        {
+            var lit = !dock.Collapsed && (IsHovered || IsPressed);
+            var x = MathF.Round(ScreenPosition.X + STRIP / 2) - (lit ? 1 : 0);
+            batch.AddRect(new float2(x, ScreenPosition.Y + GAP), new float2(lit ? 3 : 1, Size.Y - 2 * GAP), lit ? Theme.Accent : Theme.PanelBorder);
+        }
     }
 
     /// <summary>

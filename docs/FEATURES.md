@@ -88,7 +88,8 @@ did; ➕ is there but works differently, as noted; ❌ isn't ported. Where a sli
   sLight mixed its own output and the line-in as MP3; there's no PNG-sequence fallback, as Windows always has the
   encoder
 - ➕ Docked down the right of the window beside every view (the console, DJ Edit Mode and DJ Perform Mode), where
-  sLight had it as a tab; the arrow on the strip beside it folds it away to the right and back, kept in
+  sLight had it as a tab; dragging the strip beside it resizes it, and the strip's arrow folds it away to the right
+  and back, both kept in
   `ui_state.json`
 - ➕ Pop out: a Pop Out button and Dock to Main (or closing the window), where sLight tore the tab off by dragging it;
   where the window was is kept in `ui_state.json`, as sLight's code did (its README said the show)

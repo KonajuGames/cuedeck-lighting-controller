@@ -29,8 +29,9 @@ The window has four areas:
 - **Middle, the rig tabs**: **Patch** (a page per universe, for patching fixtures and setting them by hand),
   **DMX Output** (every channel's level), **Faders** and **Palettes**.
 - **Right side, the 3D Visualizer**: your rig lit live by whatever the console's sending. It stays there whichever
-  view you're in. The arrow on the strip between it and the rest folds it away to the right, giving the rest the
-  whole window (handy on a small screen, or while patching); the arrow on the strip left behind brings it back.
+  view you're in. Drag the strip between it and the rest to make it wider or narrower; the arrow on the strip folds
+  it away to the right, giving the rest the whole window (handy on a small screen, or while patching); the arrow on
+  the strip left behind brings it back.
 
 The playback and rig tabs are the **Console** view. The **View** selector swaps it for **DJ Edit Mode**, where you build a light show
 for each song in your music library, or **DJ Perform Mode**, where your DJ software (VirtualDJ or Cuepoint) plays
@@ -222,7 +223,7 @@ counts as the end. **Forget MIDI** (or right-clicking the mapping button) forget
 The **3D Visualizer**, docked on the right of the window, shows your rig lit live by whatever the console is sending:
 cues, chases, effects and the grand master all show, all the time. It stays beside DJ Edit Mode and DJ Perform Mode
 too, so you can watch a song's show as you build or play it. The arrow on the strip at its left folds it away to the
-right, and brings it back; Cuedeck remembers which next time.
+right, and brings it back. Drag the strip itself to make it wider or narrower. Cuedeck remembers both next time.
 
 ![The 3D Visualizer showing a lit rig](img/09-visualizer.png)
 

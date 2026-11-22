@@ -228,6 +228,44 @@ public sealed class VisualizerTabTests : ConsoleHarness
     }
 
     [Fact]
+    public void Dragging_the_strip_resizes_it()
+    {
+        var strip = Screen.VizDock.Strip;
+        var grab = new float2(strip.ScreenPosition.X + 4, strip.ScreenPosition.Y + 20); // above the fold button
+        Ui.MouseMove(grab);
+        Assert.Same(strip, Ui.Hovered);
+        Assert.Equal(Cursor.ResizeHorizontal, strip.Cursor);
+        var wide = _viz.Size.X;
+
+        // 200 to the left: the visualizer 200 wider, the console 200 narrower.
+        var console = Screen.Console.Size.X;
+        Ui.MouseButton(MouseButton.Left, down: true);
+        Ui.MouseMove(grab - new float2(200, 0));
+        Frame();
+        Ui.MouseButton(MouseButton.Left, down: false);
+        Frame();
+        Assert.Equal(wide + 200, _viz.Size.X);
+        Assert.Equal(console - 200, Screen.Console.Size.X);
+        Assert.Equal((Screen.VizDock.Size.X) / ScreenSize.X, Screen.VizDock.Share, 3);
+
+        // Never so wide the view's squeezed, nor narrower than its least.
+        Ui.MouseMove(strip.ScreenPosition + new float2(4, 20));
+        Ui.MouseButton(MouseButton.Left, down: true);
+        Ui.MouseMove(new float2(0, 20));
+        Frame();
+        Assert.Equal(VizDock.MIN_VIEW, Screen.VizDock.ScreenPosition.X);
+        Ui.MouseMove(new float2(ScreenSize.X, 20));
+        Frame();
+        Ui.MouseButton(MouseButton.Left, down: false);
+        Frame();
+        Assert.Equal(VizDock.MIN_WIDTH, Screen.VizDock.Size.X);
+
+        // Folded away, there's nothing to drag.
+        Click(Screen.VizDock.Fold);
+        Assert.False(strip.IsInteractive);
+    }
+
+    [Fact]
     public void Its_toolbar_wraps_where_its_narrow()
     {
         // Every button within the view, clear of Hide UI, however narrow the dock.
@@ -251,7 +289,8 @@ public sealed class VisualizerTabTests : ConsoleHarness
         Assert.True(Cuedeck.Common.Json.AsBool(d.Get("floating")));
         new VizWindowState(false, (1, 2, 3, 4), true).Save(path);
         Assert.Null(VizWindowState.Load(path).Rect); // docked: no window to remember
-        new VizWindowState(Collapsed: true).Save(path);
+        new VizWindowState(Collapsed: true, DockShare: 0.5f).Save(path);
         Assert.True(VizWindowState.Load(path).Collapsed); // folded away in the dock
+        Assert.Equal(0.5f, VizWindowState.Load(path).DockShare); // and half the window wide when it isn't
     }
 }

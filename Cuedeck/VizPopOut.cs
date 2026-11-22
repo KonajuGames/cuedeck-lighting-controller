@@ -11,7 +11,8 @@ namespace Cuedeck;
 /// The 3D Visualizer popped out into an OS window of its own (to put on another screen, say), drawn by a renderer of
 /// its own on the same GPU, with its own root, menu and name prompt; the main window's dock gives up its room while
 /// it's gone. Closing the window or pressing Dock to Main puts it back. Where the window was, whether the visualizer's
-/// controls show, and whether it's folded away in the dock, are kept between runs (<see cref="VizWindowState"/>). sLight's <c>_pop_out_viz</c> and <c>_dock_viz</c>.
+/// controls show, and whether it's folded away in the dock and how wide it is there, are kept between runs
+/// (<see cref="VizWindowState"/>). sLight's <c>_pop_out_viz</c> and <c>_dock_viz</c>.
 /// </summary>
 sealed class VizPopOut : IDisposable
 {
@@ -82,6 +83,7 @@ sealed class VizPopOut : IDisposable
         var state = VizWindowState.Load(_statePath);
         _view.UiVisible = state.Ui;
         _dock.Collapsed = state.Collapsed;
+        _dock.Share = state.DockShare;
         if (state.Floating)
             PopOut(state.Rect);
     }
@@ -195,7 +197,7 @@ sealed class VizPopOut : IDisposable
     {
         var open = floating ?? _window is not null;
         (int, int, int, int)? rect = _window is { } w ? (w.Position.X, w.Position.Y, w.Size.X, w.Size.Y) : null;
-        new VizWindowState(open, rect, _view.UiVisible, _dock.Collapsed).Save(_statePath);
+        new VizWindowState(open, rect, _view.UiVisible, _dock.Collapsed, _dock.Share).Save(_statePath);
     }
 
     public void Dispose()
