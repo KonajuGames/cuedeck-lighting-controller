@@ -348,8 +348,20 @@ sealed partial class ScreenshotTool
         yield return Rest(0.4);
         foreach (var step in Drag(new float2(-80, 10), 1.8))
             yield return step;
+        yield return Rest(0.6);
+
+        // ---- Its strip: resized by dragging.
+        yield return Caption("Beside every view", "Docked on the right in every mode: drag its edge to make it wider or narrower");
+        var strip = _app.Screen.VizDock.Strip;
+        foreach (var step in MoveTo(() => strip.ScreenPosition + new float2(strip.Size.X / 2, strip.Size.Y * 0.3f), 0.8))
+            yield return step;
+        foreach (var step in Drag(new float2(-200, 0), 1.4))
+            yield return step;
+        yield return Rest(0.6);
+        foreach (var step in Drag(new float2(200, 0), 1.2))
+            yield return step;
         yield return HideMouse();
-        yield return Rest(1.5);
+        yield return Rest(1);
 
         // ---- The next cue.
         yield return Caption("Tracking cues", "The next GO fades to a cooler look. Cues can track, storing only what they change");
@@ -402,6 +414,12 @@ sealed partial class ScreenshotTool
         foreach (var step in ClickOn(() => ButtonCalled("Patch")))
             yield return step;
         yield return Rest(0.5);
+        // The visualizer folded away by its arrow, giving the patch the whole width.
+        yield return Highlight(() => _app.Screen.VizDock.Fold, "Fold away");
+        foreach (var step in ClickOn(() => _app.Screen.VizDock.Fold, 0.6))
+            yield return step;
+        yield return NoHighlights();
+        yield return Rest(0.6);
         foreach (var step in ClickOn(() => Find<Button>(b => b.Tooltip == "Expand"), 0.6))
             yield return step;
         yield return HideMouse();
@@ -421,6 +439,10 @@ sealed partial class ScreenshotTool
         foreach (var step in Press(GlfwKey.Escape))
             yield return step;
         yield return new Do(() => _app.Ui.Elements.OfType<LibraryDialog>().FirstOrDefault()?.Close());
+        yield return Rest(0.4);
+        // And brought back.
+        foreach (var step in ClickOn(() => _app.Screen.VizDock.Fold, 0.6))
+            yield return step;
         yield return Rest(0.5);
 
         // ---- Faders and triggers.
@@ -472,7 +494,7 @@ sealed partial class ScreenshotTool
         yield return HideMouse();
         yield return Rest(2);
         yield return NoHighlights();
-        yield return Caption("Play it", "The song plays on the rig, the timelines under the playhead. Edit every node, cut, copy and paste");
+        yield return Caption("Play it", "The song plays on the rig and the 3D stage beside it. Edit every node, cut, copy and paste");
         yield return new Do(() => tv.Seek(ChorusStart() - 4 * 240 / (tv.Timelines.Structure?.Bpm ?? 124)));
         yield return Unfocus();
         foreach (var step in Press(GlfwKey.Space))
