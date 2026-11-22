@@ -42,6 +42,7 @@ public abstract class ConsoleHarness : IDisposable
         Ui.Add(editor);
         Ui.Add(triggers);
         Ui.Add(options);
+        Screen.Shortcuts = Ui.Add(new ShortcutsDialog(Ui, fonts));
         Ui.Add(library);
         Ui.Add(confirm);
         Ui.Add(prompt);
@@ -76,6 +77,8 @@ public abstract class ConsoleHarness : IDisposable
             triggers.ScreenSize = ScreenSize;
         foreach (var options in Ui.Elements.OfType<OptionsDialog>())
             options.ScreenSize = ScreenSize;
+        foreach (var shortcuts in Ui.Elements.OfType<ShortcutsDialog>())
+            shortcuts.ScreenSize = ScreenSize;
         foreach (var menu in Ui.Elements.OfType<ContextMenu>())
             menu.ScreenSize = ScreenSize;
         Screen.Update();

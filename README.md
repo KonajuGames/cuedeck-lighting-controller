@@ -51,6 +51,7 @@ lists what it does.
 - A screen size in the options, from 100% to 200% (as Windows has it for the screen to begin with), for a 4K screen
   or one seen from further away, shared with Cuepoint: everything's drawn bigger, its text and the 3D view sharp at
   that size. It changes the next time Cuedeck starts; `--scale 1.5` tries one for a single run.
+- Every keyboard shortcut over the screen with **?**, or from **Help > Keyboard Shortcuts**.
 - Screenshots (PNG) and recordings (MP4, with whatever the computer's playing as the sound), a window of its own for a
   second screen, and MVR import and export.
 

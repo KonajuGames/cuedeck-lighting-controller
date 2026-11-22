@@ -126,7 +126,7 @@ public sealed class ConsoleTests : ConsoleHarness
     public void The_menu_bar()
     {
         var bar = Screen.MenuBar;
-        Assert.Equal(["File", "Edit", "Mode"], bar.MenuTitles);
+        Assert.Equal(["File", "Edit", "Mode", "Help"], bar.MenuTitles);
         Assert.Null(bar.OpenTitle);
 
         // File opens below its title, with the file commands and their keys.
@@ -206,6 +206,8 @@ public sealed class ConsoleTests : ConsoleHarness
         Assert.Equal("Add Universe", menu.HighlightedText); // nothing to undo
         Press(Key.Left);
         Press(Key.Left);
+        Assert.Equal("Help", bar.OpenTitle);
+        Press(Key.Left);
         Assert.Equal("Mode", bar.OpenTitle);
 
         // A letter moves to the next item starting with it; Enter chooses it.
@@ -273,7 +275,7 @@ public sealed class ConsoleTests : ConsoleHarness
     public void The_access_letters_are_underlined_while_Alt_is_held()
     {
         var bar = Screen.MenuBar;
-        Assert.Equal(['F', 'E', 'M'], bar.AccessKeys);
+        Assert.Equal(['F', 'E', 'M', 'H'], bar.AccessKeys);
         Assert.False(bar.ShowsAccessLetters);
 
         // Alt on its own shows them; with Ctrl (AltGr, say) or let go, it doesn't.

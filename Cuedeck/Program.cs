@@ -210,6 +210,8 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     ui.Add(editor);
     ui.Add(triggers);
     ui.Add(options);
+    var shortcuts = ui.Add(new ShortcutsDialog(ui, fonts));
+    screen.Shortcuts = shortcuts;
     ui.Add(library);
     ui.Add(confirm);
     ui.Add(prompt);
@@ -269,6 +271,14 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
     {
         // A letter typed into a text box isn't a shortcut, though the box leaves it unused.
         var typing = ui.Focused is TextBox;
+        // ? opens and closes the shortcuts; while they're up, no other key does anything behind them.
+        if (action == GlfwKeyAction.Press && !typing && key == GlfwKey.Slash && (mods & GlfwModifier.Shift) != 0 && (mods & (GlfwModifier.Control | GlfwModifier.Alt)) == 0)
+        {
+            shortcuts.Toggle();
+            return;
+        }
+        if (shortcuts.Visible && action == GlfwKeyAction.Press)
+            return;
         // DJ Perform Mode's B / S / W / C hold the live flashes (a key coming up lets go in any view).
         if (action != GlfwKeyAction.Repeat && !(typing && action == GlfwKeyAction.Press) && djPerform.FlashKey(GlfwUiInput.ToUiKey(key), action == GlfwKeyAction.Press, (Modifiers)((int)mods & 0xF)))
             return;
@@ -392,7 +402,7 @@ static void Run(string[] args, (string Folder, string[] Names)? capture, bool fi
         if (window.IsIconified || size.X == 0 || size.Y == 0)
             continue;
 
-        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = picker.ScreenSize = library.ScreenSize = editor.ScreenSize = triggers.ScreenSize = options.ScreenSize = new float2(size.X, size.Y) / screenScale;
+        screen.ScreenSize = menu.ScreenSize = confirm.ScreenSize = prompt.ScreenSize = picker.ScreenSize = library.ScreenSize = editor.ScreenSize = triggers.ScreenSize = options.ScreenSize = shortcuts.ScreenSize = new float2(size.X, size.Y) / screenScale;
         // Whether there are unsaved changes means writing out the whole show, so it's asked a few times a second, not
         // every frame, and the window's told only when the title changes.
         if (now - lastTitleCheck >= TITLE_CHECK)

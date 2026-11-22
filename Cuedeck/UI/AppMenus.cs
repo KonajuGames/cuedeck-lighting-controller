@@ -6,7 +6,8 @@ namespace Cuedeck.UI;
 /// The menu bar's menus. File: the show's file commands, the preset, Options and Exit (handled by whoever listens:
 /// the app's shell). Edit: Undo, Redo, Cut, Copy, Paste and the rest for what's being edited (DJ Edit Mode's
 /// timeline or position, or the 3D Visualizer's moves), then the universes and Triggers. Mode: the console, DJ Edit
-/// Mode or DJ Perform Mode, and the run mode. Each menu's items are worked out as it opens.
+/// Mode or DJ Perform Mode, and the run mode. Help: the keyboard shortcuts. Each menu's items are worked out as it
+/// opens.
 /// </summary>
 sealed class AppMenus
 {
@@ -30,7 +31,23 @@ sealed class AppMenus
         bar.AddMenu("File", FileItems);
         bar.AddMenu("Edit", EditItems);
         bar.AddMenu("Mode", ModeItems);
+        bar.AddMenu("Help", HelpItems);
     }
+
+    /// <summary>
+    /// The items the menu called <paramref name="title"/> has now.
+    /// </summary>
+    internal IReadOnlyList<MenuItem> Items(string title) =>
+        title switch
+        {
+            "File" => FileItems(),
+            "Edit" => EditItems(),
+            "Mode" => ModeItems(),
+            "Help" => HelpItems(),
+            _ => [],
+        };
+
+    IReadOnlyList<MenuItem> HelpItems() => [new("Keyboard Shortcuts", _screen.ShowShortcuts, _screen.Shortcuts is not null, Shortcut: "?")];
 
     IReadOnlyList<MenuItem> FileItems() =>
         [

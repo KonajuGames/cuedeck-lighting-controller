@@ -20,7 +20,10 @@ sealed class DjPerformView : Region
     /// </summary>
     static readonly float4[] FlashOn = [Colors.FromSrgb(0.85f, 0.3f, 0.2f), Colors.FromSrgb(0.8f, 0.85f, 1.0f), Colors.FromSrgb(0.95f, 0.95f, 0.95f), Colors.FromSrgb(1, 0, 0)];
 
-    static readonly string[] FlashKeys = ["B", "S", "W", "C"];
+    /// <summary>
+    /// The keys that hold each live flash, in <see cref="FlashKind"/> order.
+    /// </summary>
+    public static readonly string[] FlashKeys = ["B", "S", "W", "C"];
 
     readonly ScrollingPage _page;
     readonly Panel _content;

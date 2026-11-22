@@ -36,7 +36,7 @@ sealed class MainScreen : Panel
     public TitleBar TitleBar { get; }
 
     /// <summary>
-    /// The File, Edit and Mode menus, under the title bar.
+    /// The File, Edit, Mode and Help menus, under the title bar.
     /// </summary>
     public MenuBar MenuBar { get; }
 
@@ -64,6 +64,16 @@ sealed class MainScreen : Panel
     /// The dialogs the screen opens.
     /// </summary>
     public Dialogs Dialogs { get; }
+
+    /// <summary>
+    /// The keyboard shortcuts overlay, opened from the Help menu, if the app has added one over the screen.
+    /// </summary>
+    public ShortcutsDialog? Shortcuts { get; set; }
+
+    /// <summary>
+    /// Shows the keyboard shortcuts.
+    /// </summary>
+    public void ShowShortcuts() => Shortcuts?.Show();
 
     public MainScreen(Fonts fonts, Images images, ContextMenu menu, Dialogs dialogs, LightingShow show, ProfileStore profiles, DjEdit.DjEditView? djEdit = null, DjPerform.DjPerformView? djPerform = null)
     {
