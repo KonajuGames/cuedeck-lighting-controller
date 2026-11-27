@@ -34,6 +34,12 @@
     <AssemblyMetadata Include="RepositoryUrl" Value="$(RepositoryUrl)" />
   </ItemGroup>
 
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <!-- A release package (dotnet publish -r win-x64, as tools\package.ps1 does) carries the .NET runtime with it, so
+         it runs on a computer without .NET installed. -->
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Ahwoo.BRUTAL.Logging" Version="2026.10.3" />
     <PackageReference Include="Ahwoo.BRUTAL.Sdl" Version="2026.10.3" />

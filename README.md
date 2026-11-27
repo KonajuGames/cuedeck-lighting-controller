@@ -161,6 +161,18 @@ dotnet run --project Cuedeck -c Release -- --tour tour --ffmpeg path/to/ffmpeg.e
 python docs/tour/annotate.py tour --ffmpeg path/to/ffmpeg.exe
 ```
 
+## Release packages
+
+A release package is a self-contained build for 64-bit Windows, carrying the .NET runtime so it needs nothing else
+installed, zipped with this README, the user guide, the feature list and the licence as
+`artifacts\Cuedeck-<version>-win-x64.zip`. The tests run first, and nothing's packaged if any fail:
+
+```
+powershell -File tools\package.ps1 [-SkipTests]
+```
+
+`Cuedeck.exe --version` says which build it is, with the commit it was built from, so package after committing.
+
 ## Tests
 
 ```bash
