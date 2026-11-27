@@ -1,13 +1,15 @@
 """Draws Cuedeck's logo, the Spotlight C, at each size the app uses (title bar, window icon) and as logo-source.png:
 a C that's a lighting fixture, its lens lit, its beam spilling out of the C's opening, on a dark rounded tile. The
 title bar's 16 and 22 pixel sizes are drawn bolder, with a wider beam and a bigger lens, so they still read. Each is
-drawn sixteen times over and scaled down, for smooth edges. Needs Pillow.
+drawn sixteen times over and scaled down, for smooth edges. The 16, 32, 48 and 256 pixel sizes are also gathered into
+logo.ico, the executable's icon in Explorer and the taskbar. Needs Pillow.
 
     python make_logo.py
 """
 
 import math
 import os
+import struct
 
 from PIL import Image, ImageDraw
 
@@ -65,12 +67,30 @@ def draw(size, style):
     return image.resize((size, size), Image.LANCZOS)
 
 
+def write_ico(path, pngs):
+    """An icon file holding PNG images, as Windows Vista and later read them: pngs is (size, path) pairs."""
+    images = [(size, open(png, "rb").read()) for size, png in pngs]
+    out = bytearray(struct.pack("<HHH", 0, 1, len(images)))
+    offset = 6 + 16 * len(images)
+    for size, data in images:
+        # A size of 256 is written as 0.
+        out += struct.pack("<BBBBHHII", size % 256, size % 256, 0, 0, 1, 32, len(data), offset)
+        offset += len(data)
+    for _, data in images:
+        out += data
+    with open(path, "wb") as f:
+        f.write(out)
+
+
 def main():
     draw(512, LARGE).save(os.path.join(HERE, "logo-source.png"), optimize=True)
     for size in (16, 22, 32, 48, 256):
         path = os.path.join(HERE, f"logo-{size}.png")
         draw(size, SMALL if size <= 22 else LARGE).save(path, optimize=True)
         print("wrote", path)
+    ico = os.path.join(HERE, "logo.ico")
+    write_ico(ico, [(size, os.path.join(HERE, f"logo-{size}.png")) for size in (16, 32, 48, 256)])
+    print("wrote", ico)
 
 
 if __name__ == "__main__":

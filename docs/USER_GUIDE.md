@@ -42,7 +42,8 @@ choice, VirtualDJ or Cuepoint, says whose music library Cuedeck reads: the beat 
 and the virtual folders listed in DJ Edit Mode. VirtualDJ's come from its `database.xml` files and `MyLists`
 folders; Cuepoint's from its `library.json` files and the `.m3u8` playlists in `Cuepoint\VirtualFolders` (in
 `%LOCALAPPDATA%` and at the root of each drive). Both talk to Cuedeck over OS2L in the same way. A change takes
-effect at once and is remembered.
+effect at once and is remembered. Its **About** tab says which version this is (also shown after the name in
+the title bar), the commit it was built from and the .NET it runs on, worth giving when reporting a problem.
 
 **Coming from sLight?** Open your shows as they are (Load Show): they're the same files. The first time Cuedeck
 starts on a computer with sLight's files, it offers to bring them in, and Options has **Import from sLight** for later.

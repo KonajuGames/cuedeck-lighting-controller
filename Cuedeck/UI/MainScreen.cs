@@ -89,7 +89,13 @@ sealed class MainScreen : Panel
     {
         Background = Theme.Background;
         Dialogs = dialogs;
-        TitleBar = Add(new TitleBar(fonts.Body, fonts.Bold, images.Logo, images.Cog, ("Cue", Theme.Accent), ("deck", Theme.Text)));
+        TitleBar = Add(
+            new TitleBar(fonts.Body, fonts.Bold, images.Logo, images.Cog, ("Cue", Theme.Accent), ("deck", Theme.Text))
+            {
+                Version = $"v{AppInfo.ShortVersion}",
+                VersionFont = fonts.Small,
+            }
+        );
         MenuBar = Add(new MenuBar(fonts.Body, menu));
         TopBar = Add(new TopBar(fonts, menu, show));
         Console = Add(new ConsoleView(fonts, images.Fixture, menu, dialogs, show, profiles));

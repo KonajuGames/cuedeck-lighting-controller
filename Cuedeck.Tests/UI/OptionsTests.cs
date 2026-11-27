@@ -55,6 +55,28 @@ public sealed class OptionsTests : ConsoleHarness
     }
 
     [Fact]
+    public void The_about_tab_says_which_build_this_is()
+    {
+        Click(Find<IconButton>(b => b.Tooltip == "Options"));
+        Assert.Equal(["General", "About"], Options.Tabs);
+        Assert.Equal(0, Options.Tab);
+        bool Shows(string text) => All(Options).OfType<Label>().Any(l => l.Text == text);
+        Assert.False(Shows(AppInfo.ShortVersion));
+
+        Click(ButtonCalled("About"));
+        Assert.Equal(1, Options.Tab);
+        Assert.True(Shows("Cuedeck Lighting Controller"));
+        Assert.True(Shows(AppInfo.ShortVersion));
+        Assert.True(Shows("MIT"));
+        Assert.True(Shows("github.com/KonajuGames/cuedeck-lighting-controller"));
+        Assert.Matches(@"^\d+\.\d+\.\d+$", AppInfo.ShortVersion);
+        Assert.Empty(All(Options).OfType<Dropdown<DjSoftware>>()); // the settings are behind their own tab
+
+        // The title bar has the version after the name.
+        Assert.Equal($"v{AppInfo.ShortVersion}", Screen.TitleBar.Version);
+    }
+
+    [Fact]
     public void A_screen_size_unlike_the_one_drawn_says_to_restart()
     {
         (Options.WindowsScale, Options.LargestScale, Options.RunningScale) = (1.25f, 1.5f, 1.25f);

@@ -4,7 +4,8 @@ namespace Cuedeck.UI.Console;
 
 /// <summary>
 /// The app's options (<see cref="AppSettings"/>), over the dimmed screen: this machine's setup, kept between runs and
-/// not in the show. A change applies, and is saved, at once. Opened from the title bar's cog. sLight's Options dialog.
+/// not in the show. A change applies, and is saved, at once. Opened from the title bar's cog. sLight's Options dialog,
+/// with an About tab beside its settings saying which build this is.
 /// </summary>
 sealed class OptionsDialog : Panel
 {
@@ -18,7 +19,33 @@ sealed class OptionsDialog : Panel
     readonly Dropdown<DjSoftware> _dj;
     readonly Label _hint;
     readonly Panel _slight;
+    readonly Row _tabStrip;
+    readonly Font _tabFont;
+    readonly List<(Button Tab, Panel Page)> _pages = [];
+    int _tab;
     bool _pressedInBox;
+
+    /// <summary>
+    /// The names of the tabs, in order.
+    /// </summary>
+    public IReadOnlyList<string> Tabs => _pages.Select(page => page.Tab.Text).ToList();
+
+    /// <summary>
+    /// Which tab's showing, by its place; kept while the options are closed, so they open where they were left.
+    /// </summary>
+    public int Tab
+    {
+        get => _tab;
+        set
+        {
+            _tab = Math.Clamp(value, 0, _pages.Count - 1);
+            for (var i = 0; i < _pages.Count; i++)
+            {
+                _pages[i].Tab.Lit = i == _tab;
+                _pages[i].Page.Visible = i == _tab;
+            }
+        }
+    }
 
     /// <summary>
     /// sLight's folders on this computer, if any: its import is offered while there are.
@@ -77,7 +104,12 @@ sealed class OptionsDialog : Panel
 
         _box = Add(new Panel { Padding = 14, Spacing = 10, Background = Theme.PanelRaised, BorderColor = Theme.PanelBorder, BorderWidth = 1 });
         _box.Add(new Label(fonts.Heading, "Options") { Color = Theme.Text });
-        var row = _box.Add(new Row(8));
+        _tabStrip = _box.Add(new Row(2));
+        _tabFont = fonts.Bold;
+
+        // This computer's setup, and what this is and which build.
+        var general = Page("General");
+        var row = general.Add(new Row(8));
         row.Add(new Label(fonts.Body, "DJ software:") { Color = Theme.Muted });
         _dj = row.Add(
             new Dropdown<DjSoftware>(fonts.Body)
@@ -96,10 +128,10 @@ sealed class OptionsDialog : Panel
             _settings.DjSoftware = d;
             DjSoftwareChanged?.Invoke(d);
         };
-        _hint = _box.Add(new Label(fonts.Body) { Color = Theme.Muted, MaxWidth = WIDTH - 28, Wrap = true });
+        _hint = general.Add(new Label(fonts.Body) { Color = Theme.Muted, MaxWidth = WIDTH - 28, Wrap = true });
 
         // The look, which the screen takes on as it's built, so a new one shows the next time the app starts.
-        var lookRow = _box.Add(new Row(8));
+        var lookRow = general.Add(new Row(8));
         lookRow.Add(new Label(fonts.Body, "Look:") { Color = Theme.Muted });
         var look = lookRow.Add(
             new Dropdown<ThemeKind>(fonts.Body)
@@ -112,7 +144,7 @@ sealed class OptionsDialog : Panel
                 Tooltip = "Dark for dark rooms, Light for daylight, High contrast for bright rooms",
             }
         );
-        _lookHint = _box.Add(new Label(fonts.Body, "") { Color = Theme.Muted, MaxWidth = WIDTH - 28, Wrap = true });
+        _lookHint = general.Add(new Label(fonts.Body, "") { Color = Theme.Muted, MaxWidth = WIDTH - 28, Wrap = true });
         look.Chosen += kind =>
         {
             _settings.Theme = kind;
@@ -120,7 +152,7 @@ sealed class OptionsDialog : Panel
         };
 
         // How big everything's drawn, also taken on as the app starts.
-        var sizeRow = _box.Add(new Row(8));
+        var sizeRow = general.Add(new Row(8));
         sizeRow.Add(new Label(fonts.Body, "Screen size:") { Color = Theme.Muted });
         _size = sizeRow.Add(
             new Dropdown<float?>(fonts.Body)
@@ -133,13 +165,13 @@ sealed class OptionsDialog : Panel
                 Tooltip = "Everything drawn bigger, for a 4K screen or one seen from further away",
             }
         );
-        _restartNote = _box.Add(new Label(fonts.Body, "Restart Cuedeck to see it.") { Color = Theme.Warning, Visible = false });
+        _restartNote = general.Add(new Label(fonts.Body, "Restart Cuedeck to see it.") { Color = Theme.Warning, Visible = false });
         _size.Chosen += scale =>
         {
             _settings.ScreenScale = scale;
             ScreenSizeChosen?.Invoke(scale);
         };
-        _slight = _box.Add(new Panel { Spacing = 6 });
+        _slight = general.Add(new Panel { Spacing = 6 });
         var slightRow = _slight.Add(new Row(8));
         slightRow.Add(new Label(fonts.Body, "sLight:") { Color = Theme.Muted });
         var import = slightRow.Add(new Button(fonts.Body, "Import from sLight") { Tooltip = "Copy sLight's settings and custom fixtures into Cuedeck" });
@@ -161,6 +193,38 @@ sealed class OptionsDialog : Panel
                 Wrap = true,
             }
         );
+
+        // What this is and which build: to say when reporting something, or to check an update took.
+        var about = Page("About");
+        about.Add(new Label(fonts.Bold, AppInfo.Title) { Color = Theme.Text });
+        if (AppInfo.Description.Length > 0)
+            about.Add(new Label(fonts.Body, AppInfo.Description) { Color = Theme.Muted, MaxWidth = WIDTH - 28, Wrap = true });
+        AboutRow("Version", AppInfo.ShortVersion);
+        if (AppInfo.Commit.Length > 0)
+            AboutRow("Built from", $"commit {AppInfo.Commit}");
+        AboutRow("Runs on", AppInfo.Runtime);
+        if (AppInfo.Company.Length > 0)
+            AboutRow("Published by", AppInfo.Company);
+        if (AppInfo.License.Length > 0)
+            AboutRow("Licence", AppInfo.License);
+        if (AppInfo.RepositoryUrl.Length > 0)
+        {
+            // Without its https://, which it doesn't need to be read and which would push it past the box.
+            var website = AboutRow("Website", AppInfo.RepositoryUrl.Replace("https://", ""));
+            var open = website.Add(new Button(fonts.Body, "Open") { Tooltip = "Opens the website in your browser" });
+            open.Clicked += _ => OpenWebsite();
+        }
+        if (AppInfo.Copyright.Length > 0)
+            about.Add(new Label(fonts.Body, AppInfo.Copyright) { Color = Theme.Muted });
+
+        Row AboutRow(string name, string value)
+        {
+            var row = about.Add(new Row(8));
+            row.Add(new FixedWidth(new Label(fonts.Body, name) { Color = Theme.Muted }, 96));
+            row.Add(new Label(fonts.Body, value) { Color = Theme.Text });
+            return row;
+        }
+
         var footer = _box.Add(new Row(8));
         var close = footer.Add(new Button(fonts.Body, "Close"));
         close.Clicked += _ => Close();
@@ -170,6 +234,36 @@ sealed class OptionsDialog : Panel
             if (!_pressedInBox)
                 Close();
         };
+    }
+
+    // A page of settings behind a tab, so what goes together is together; the first one added shows.
+    Panel Page(string title)
+    {
+        var page = _box.Add(new Panel { Spacing = 10, Visible = _pages.Count == 0 });
+        var index = _pages.Count;
+        var tab = _tabStrip.Add(
+            new Button(_tabFont, title)
+            {
+                Padding = 7,
+                Background = Theme.Control,
+                HoverBackground = Theme.ControlHover,
+                LitBackground = Theme.Accent,
+                Lit = index == 0,
+            }
+        );
+        tab.Clicked += _ => Tab = index;
+        _pages.Add((tab, page));
+        return page;
+    }
+
+    // In the browser Windows opens links with; a failure to start one isn't worth more than nothing happening.
+    static void OpenWebsite()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(AppInfo.RepositoryUrl) { UseShellExecute = true })?.Dispose();
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { }
     }
 
     public override bool IsInteractive => true;
@@ -215,6 +309,15 @@ sealed class OptionsDialog : Panel
             : "Songs' beat grids, keys and tempos come from VirtualDJ's databases (database.xml in Documents\\VirtualDJ, and "
                 + "\\VirtualDJ on each drive), and DJ Edit Mode lists its Virtual Folders (MyLists). DJ Perform Mode follows "
                 + "VirtualDJ's decks over OS2L.";
+        // The box keeps one size whichever tab's showing, that of the largest page, so it doesn't jump about.
+        var largest = float2.Zero;
+        foreach (var (_, page) in _pages)
+        {
+            page.MinSize = float2.Zero;
+            largest = float2.Max(largest, page.Measure());
+        }
+        foreach (var (_, page) in _pages)
+            page.MinSize = largest;
         _box.Measure();
         return Size = ScreenSize;
     }

@@ -19,6 +19,13 @@ using Cuedeck.Timelines;
 
 WindowsShell.AttachParentConsole();
 
+// --version says which build this is, from the project's version and the commit it was built from, and exits.
+if (args.Contains("--version"))
+{
+    Console.WriteLine($"Cuedeck {AppInfo.Version}");
+    return 0;
+}
+
 // The screenshot tool (--capture <folder> [name ...]) and the tour (--tour <folder>) run on a scratch app folder,
 // leaving the user's alone.
 var capture = ScreenshotTool.Parse(args);
